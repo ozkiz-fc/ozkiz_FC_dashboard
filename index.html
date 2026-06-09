@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오즈키즈 FC 통합 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Malgun Gothic','Segoe UI',sans-serif;background:#f0f4f8;color:#1e293b;min-height:100vh;display:flex;font-size:16px}
+
+/* ── 사이드바 ── */
+.sidebar{width:240px;min-width:240px;background:#0f172a;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:100;overflow-y:auto}
+.brand{padding:24px 18px 18px;border-bottom:1px solid #1e293b}
+.brand-name{font-size:17px;font-weight:700;color:#f1f5f9}
+.brand-sub{font-size:13px;color:#64748b;margin-top:3px}
+.sidenav{padding:12px 10px;flex:1}
+.nav-section-label{font-size:11px;font-weight:700;color:#475569;letter-spacing:.8px;text-transform:uppercase;padding:8px 14px 4px}
+.nav-divider{height:1px;background:#1e293b;margin:10px 0}
+.nav-item{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:8px;border:none;cursor:pointer;font-size:16px;font-weight:500;color:#94a3b8;background:transparent;font-family:inherit;text-align:left;transition:all .15s;margin-bottom:4px}
+.nav-item:hover:not(.active){background:#1e293b;color:#e2e8f0}
+.nav-item.active{background:#0ea5e915;color:#38bdf8;font-weight:700}
+.nav-icon{font-size:17px;width:20px;text-align:center}
+.sidebar-footer{padding:14px 18px;border-top:1px solid #1e293b}
+.sidebar-footer p{font-size:13px;color:#475569;line-height:2}
+
+/* ── 메인 ── */
+.main-wrapper{margin-left:240px;flex:1;min-width:0;display:flex;flex-direction:column}
+.section-wrap{display:none}.section-wrap.active{display:block}
+
+/* ── 탑바 ── */
+.topbar{padding:14px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:2px solid #e2e8f0;background:#ffffff;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto}
+.page-title{font-size:18px;font-weight:700;color:#0f172a;white-space:nowrap}
+.updated{font-size:13px;color:#94a3b8}
+.store-select{background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 14px;color:#334155;font-size:15px;cursor:pointer;font-family:inherit;min-width:180px}
+.store-select:focus{outline:none;border-color:#0ea5e9}
+.btn-group{display:flex;gap:2px;background:#f1f5f9;border-radius:8px;padding:4px}
+.btn-group button{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;color:#64748b;background:transparent;font-family:inherit}
+.btn-group button.active{background:#0ea5e9;color:#fff;box-shadow:0 1px 4px #0ea5e940}
+.btn-group button:hover:not(.active){background:#e2e8f0;color:#334155}
+.note-tag{font-size:13px;color:#64748b;padding:5px 12px;background:#f1f5f9;border-radius:6px;border:1.5px solid #e2e8f0;white-space:nowrap}
+
+/* ── 요약 카드 ── */
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px 28px}
+.card{background:#fff;border-radius:12px;padding:20px 22px;border:1.5px solid #e2e8f0;border-top-width:4px;box-shadow:0 1px 4px #0000000a}
+.card-c1{border-top-color:#0ea5e9}.card-c2{border-top-color:#22c55e}
+.card-c3{border-top-color:#8b5cf6}.card-c4{border-top-color:#f97316}
+.card-label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;font-weight:700}
+.card-value{font-size:28px;font-weight:700;color:#0f172a;letter-spacing:-.5px;margin-bottom:4px}
+.card-qty{font-size:15px;color:#0284c7;font-weight:600;margin-bottom:6px}
+.card-sub{font-size:12px;color:#94a3b8;line-height:1.5;word-break:break-all}
+.growth-up{color:#16a34a}.growth-down{color:#dc2626}.growth-flat{color:#94a3b8}
+
+/* ── 컨텐츠 ── */
+.content-area{padding:0 28px 32px;display:flex;flex-direction:column;gap:18px}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;box-shadow:0 1px 4px #0000000a}
+table{width:100%;border-collapse:collapse;font-size:15px}
+thead tr{background:#f8fafc}
+th{padding:12px 16px;text-align:right;font-weight:700;color:#475569;font-size:13px;white-space:nowrap;border-bottom:2px solid #e2e8f0}
+th:first-child{text-align:left}
+td{padding:10px 16px;text-align:right;border-bottom:1px solid #f1f5f9;color:#334155;white-space:nowrap;vertical-align:middle}
+td:first-child{text-align:left;color:#475569;font-weight:600}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8fafc}
+.td-growth{font-weight:700;font-size:14px}
+.td-total td{background:#f1f5f9;font-weight:700;color:#0f172a;border-top:2px solid #e2e8f0}
+.td-total td:first-child{color:#0284c7}
+.chart-wrap{background:#fff;border-radius:12px;border:1.5px solid #e2e8f0;padding:20px 22px;box-shadow:0 1px 4px #0000000a}
+.chart-wrap canvas{max-height:360px}
+.chart-title{font-size:15px;font-weight:700;color:#475569;margin-bottom:14px}
+.cv{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.cv-a{color:#334155;font-size:14px}.cv-q{font-size:13px;color:#94a3b8}
+.partial-badge{display:inline-block;font-size:12px;padding:2px 7px;background:#7c3aed15;color:#7c3aed;border:1.5px solid #7c3aed30;border-radius:4px;margin-left:6px;vertical-align:middle}
+
+/* ── 로딩 ── */
+#loading{position:fixed;inset:0;background:#f0f4f8;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:18px}
+#loading p{color:#64748b;font-size:16px;text-align:center;white-space:pre-line;max-width:380px;line-height:1.7}
+.spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#0ea5e9;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── 판매 베스트 ── */
+.best-controls{padding:14px 28px;background:#fff;border-bottom:1px solid #e2e8f0}
+.best-period-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.period-btn{padding:7px 16px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.period-btn.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+.period-btn:hover:not(.active){background:#f1f5f9;border-color:#94a3b8}
+.date-input-wrap{display:flex;align-items:center;gap:6px;margin-left:4px}
+.date-input{border:1.5px solid #cbd5e1;border-radius:8px;padding:7px 12px;font-size:14px;color:#334155;font-family:inherit;background:#fff}
+.date-input:focus{outline:none;border-color:#0ea5e9}
+.refresh-btn{padding:7px 13px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:16px;cursor:pointer;font-family:inherit;transition:all .2s}
+.refresh-btn:hover{background:#f1f5f9}
+.refresh-btn.spinning{animation:spin .8s linear infinite}
+
+.best-tabs-row{display:flex;align-items:center;gap:6px;padding:12px 28px;background:#fff;border-bottom:1px solid #e2e8f0}
+.best-tab-btn{padding:8px 22px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#64748b;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.best-tab-btn.active{background:#0f172a;color:#fff;border-color:#0f172a}
+.best-tab-btn:hover:not(.active){background:#f1f5f9;border-color:#94a3b8}
+
+.store-picker{display:none;flex-wrap:wrap;gap:8px;padding:14px 28px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+.store-pill{padding:6px 14px;border-radius:20px;border:1.5px solid #cbd5e1;background:#fff;color:#475569;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.store-pill:hover{background:#f1f5f9}
+
+.best-content{padding:18px 28px 32px}
+.section-title-bar{display:flex;align-items:center;gap:10px;padding:13px 20px;background:#0f172a;color:#fff;border-radius:10px 10px 0 0;font-size:16px;font-weight:700}
+.best-table-wrap{overflow-x:auto;border-radius:0 0 12px 12px;border:1.5px solid #e2e8f0;border-top:none;background:#fff;box-shadow:0 1px 4px #0000000a}
+.best-status{display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:56px 28px;text-align:center}
+.best-table{width:100%;border-collapse:collapse;font-size:15px}
+.best-table thead tr{background:#f8fafc}
+.best-table th{padding:12px 16px;font-weight:700;color:#475569;font-size:13px;white-space:nowrap;border-bottom:2px solid #e2e8f0;text-align:right}
+.best-table th:nth-child(1),.best-table th:nth-child(2){text-align:center}
+.best-table th:nth-child(3),.best-table th:nth-child(4){text-align:left}
+.best-table td{padding:10px 16px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;text-align:right}
+.best-table td:nth-child(1),.best-table td:nth-child(2){text-align:center}
+.best-table td:nth-child(3),.best-table td:nth-child(4){text-align:left}
+.best-table tr:last-child td{border-bottom:none}
+.best-table tr:hover td{background:#f8fafc}
+.best-rank-1 td{background:#fffbeb!important}
+.best-rank-2 td{background:#f0f9ff!important}
+.best-rank-3 td{background:#f0fdf4!important}
+.category-badge{display:inline-block;padding:3px 9px;background:#f1f5f9;border-radius:4px;font-size:12px;color:#475569;font-weight:600;white-space:nowrap}
+
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%)}
+  .main-wrapper{margin-left:0}
+  .summary-cards{grid-template-columns:1fr 1fr}
+  .best-period-row{gap:5px}
+  .period-btn{font-size:13px;padding:6px 11px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner" id="loading-spinner"></div>
+  <p id="loading-msg">데이터 불러오는 중...</p>
+</div>
+
+<!-- ▸ 사이드바 -->
+<aside class="sidebar">
+  <div class="brand">
+    <img src="logo.jpg" alt="오즈키즈 FC" style="width:100%;border-radius:8px;margin-bottom:10px;display:block;object-fit:cover;max-height:100px">
+    <div class="brand-name">오즈키즈 FC</div>
+    <div class="brand-sub">통합 대시보드</div>
+  </div>
+  <nav class="sidenav">
+    <div class="nav-section-label">매출 현황</div>
+    <button class="nav-item active" id="nav-total" onclick="switchMain('total')">
+      <span class="nav-icon">🏪</span> 전체 매장
+    </button>
+    <button class="nav-item" id="nav-store" onclick="switchMain('store')">
+      <span class="nav-icon">📊</span> 매장별
+    </button>
+    <div class="nav-divider"></div>
+    <button class="nav-item" id="nav-best" onclick="switchMain('best')">
+      <span class="nav-icon">🏆</span> 판매 베스트
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <p>온라인 매출 제외</p>
+    <p>Google Sheets 연동</p>
+  </div>
+</aside>
+
+<!-- ▸ 메인 -->
+<div class="main-wrapper">
+
+  <!-- ■ 전체 매장 -->
+  <div id="sec-total" class="section-wrap active">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">전체 매장</span>
+        <span id="updated-at" class="updated"></span>
+      </div>
+      <div class="topbar-right">
+        <div class="btn-group" id="gran-total">
+          <button class="active" onclick="setGran('total','cumulative')">누적</button>
+          <button onclick="setGran('total','monthly')">월별</button>
+          <button onclick="setGran('total','weekly')">주차별</button>
+          <button onclick="setGran('total','daily')">일별</button>
+        </div>
+        <span class="note-tag" id="note-total">온라인 제외 · 집계중</span>
+      </div>
+    </div>
+    <div class="summary-cards" id="cards-total"></div>
+    <div class="content-area">
+      <div class="chart-wrap">
+        <div class="chart-title" id="chart-total-title"></div>
+        <canvas id="canvas-total"></canvas>
+      </div>
+      <div id="table-total" class="table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ■ 매장별 -->
+  <div id="sec-store" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">매장별</span>
+        <select class="store-select" id="store-select" onchange="onStoreChange()"></select>
+      </div>
+      <div class="topbar-right">
+        <div class="btn-group" id="gran-store">
+          <button class="active" onclick="setGran('store','cumulative')">누적</button>
+          <button onclick="setGran('store','monthly')">월별</button>
+          <button onclick="setGran('store','weekly')">주차별</button>
+          <button onclick="setGran('store','daily')">일별</button>
+        </div>
+        <span class="note-tag" id="note-store">집계중</span>
+      </div>
+    </div>
+    <div class="summary-cards" id="cards-store"></div>
+    <div class="content-area">
+      <div class="chart-wrap">
+        <div class="chart-title" id="chart-store-title"></div>
+        <canvas id="canvas-store"></canvas>
+      </div>
+      <div id="table-store" class="table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ■ 판매 베스트 -->
+  <div id="sec-best" class="section-wrap">
+    <!-- 탑바 -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">🏆 판매 베스트</span>
+        <span id="best-updated-at" class="updated"></span>
+      </div>
+    </div>
+    <!-- 기간 선택 -->
+    <div class="best-controls">
+      <div class="best-period-row">
+        <button id="btn-yesterday" class="period-btn" onclick="bestSetPeriod('yesterday')">어제</button>
+        <button id="btn-week"      class="period-btn" onclick="bestSetPeriod('week')">금주</button>
+        <button id="btn-lastweek" class="period-btn" onclick="bestSetPeriod('lastweek')">전주</button>
+        <button id="btn-month"    class="period-btn" onclick="bestSetPeriod('month')">이번달</button>
+        <button id="btn-lastmonth" class="period-btn" onclick="bestSetPeriod('lastmonth')">전월</button>
+        <div class="date-input-wrap">
+          <input type="date" id="date-start" class="date-input" onchange="bestOnDateChange()">
+          <span style="color:#94a3b8;font-weight:700;padding:0 2px">~</span>
+          <input type="date" id="date-end" class="date-input" onchange="bestOnDateChange()">
+        </div>
+        <button id="best-refresh" class="refresh-btn" onclick="bestRefresh()" title="새로고침">🔄</button>
+      </div>
+    </div>
+    <!-- 탭 -->
+    <div class="best-tabs-row">
+      <button class="best-tab-btn active" id="tab-overall" onclick="bestSwitchTab('overall')">전체 매장</button>
+      <button class="best-tab-btn" id="tab-store" onclick="bestSwitchTab('store')">매장별</button>
+    </div>
+    <!-- 매장 선택 알약 -->
+    <div class="store-picker" id="store-picker"></div>
+    <!-- 테이블 영역 -->
+    <div class="best-content">
+      <div class="section-title-bar" id="section-title-bar">
+        <span id="section-icon">🥇</span>
+        <span id="section-title">전체 판매 베스트  TOP 20</span>
+      </div>
+      <div class="best-table-wrap">
+        <div class="best-status" id="best-status"></div>
+        <table class="best-table" id="best-table">
+          <thead>
+            <tr>
+              <th style="width:58px">순위</th>
+              <th style="width:72px">이미지</th>
+              <th style="text-align:left">분류</th>
+              <th style="text-align:left">제품명</th>
+              <th>판매가</th>
+              <th>수량</th>
+              <th>판매금액</th>
+            </tr>
+          </thead>
+          <tbody id="table-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-wrapper -->
+
+<script>
+// ════════════════════════════════════════════════
+// ■ 매출 대시보드 — API & 데이터 처리
+// ════════════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfpCkdx5mp3sBkgjA1IMsNdJNl24D4tow7wwhVsAkdrjDz2uyUp7-bZhFv4OG3whFa/exec';
+
+const MLABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+let DATA=null, STORE_LIST=[], MONTHS_26=[], MONTHS_25=[];
+let T26=[], T25=[], Q26=[], Q25=[];
+let WEEKS_26=[], WEEKS_25MAP={}, DAILY=null;
+
+function callAPI() {
+  return new Promise((resolve, reject) => {
+    const cbName = '_apicb_' + Date.now();
+    const el = document.createElement('script');
+    const tid = setTimeout(() => {
+      delete window[cbName]; el.remove();
+      reject(new Error('응답 시간 초과 (10초)\n세션 만료 또는 캐시 없음'));
+    }, 10000);
+    window[cbName] = d => {
+      clearTimeout(tid); delete window[cbName]; el.remove();
+      d.error ? reject(new Error(d.error)) : resolve(d);
+    };
+    el.src = `${SCRIPT_URL}?callback=${cbName}`;
+    el.onerror = () => { clearTimeout(tid); reject(new Error('네트워크 오류')); };
+    document.head.appendChild(el);
+  });
+}
+
+function processData(d) {
+  DATA = d; STORE_LIST = d.stores || [];
+  const m25 = d.monthly.filter(m => m.year === '2025');
+  const m26 = d.monthly.filter(m => m.year === '2026');
+  MONTHS_25 = Array.from({length:12}, (_,i) =>
+    m25.find(m => m.month===i+1) || {month:i+1,total_amount:0,total_qty:0,stores:{}});
+  const last26 = m26.reduce((mx,m) => Math.max(mx,m.month), 0);
+  MONTHS_26 = Array.from({length:Math.max(last26,1)}, (_,i) =>
+    m26.find(m => m.month===i+1) || {month:i+1,total_amount:0,total_qty:0,stores:{}});
+  T26 = MONTHS_26.map(m => m.total_amount);
+  T25 = MONTHS_25.map(m => m.total_amount);
+  Q26 = MONTHS_26.map(m => m.total_qty);
+  Q25 = MONTHS_25.map(m => m.total_qty);
+  WEEKS_26 = d.weekly.filter(w => w.year==='2026');
+  WEEKS_25MAP = {};
+  d.weekly.filter(w => w.year==='2025').forEach(w => { WEEKS_25MAP[w.label]=w; });
+  DAILY = d.daily;
+}
+
+// ── 포맷 ──
+const Mcard = v => v ? `${(v/1e6).toFixed(1)}M` : '-';
+const M     = v => v ? v.toLocaleString('ko-KR') + '원' : '-';
+const QTY   = v => (v != null && v > 0) ? v.toLocaleString('ko-KR') + '개' : '-개';
+const AVG   = v => v ? v.toLocaleString('ko-KR') + '원' : '-';
+const ytdLbl = () => MONTHS_26.length > 0 ? `1~${MLABELS[MONTHS_26.length-1]}` : '';
+
+function pct(cur, prev) {
+  if (!prev) return '<span class="growth-flat">-</span>';
+  const g = (cur-prev)/prev*100;
+  if (g >  0.05) return `<span class="growth-up">▲${g.toFixed(1)}%</span>`;
+  if (g < -0.05) return `<span class="growth-down">▼${Math.abs(g).toFixed(1)}%</span>`;
+  return '<span class="growth-flat">±0.0%</span>';
+}
+function diffHtml(diff) {
+  if (!diff) return '-';
+  const cls = diff>=0 ? 'growth-up' : 'growth-down';
+  return `<span class="${cls}">${diff>0?'+':''}${M(diff)}</span>`;
+}
+function cv(amt, qty) {
+  if (!amt && !qty) return '<span style="color:#e2e8f0">-</span>';
+  return `<div class="cv"><span class="cv-a">${M(amt)}</span><span class="cv-q">${QTY(qty)}</span></div>`;
+}
+function sd26(name){ return MONTHS_26.map(m=>({a:m.stores[name]?.amount||0,q:m.stores[name]?.qty||0})); }
+function sd25(name){ return MONTHS_25.map(m=>({a:m.stores[name]?.amount||0,q:m.stores[name]?.qty||0})); }
+
+// ── 카드 ──
+function renderCards(id, a26, a25, q26, q25) {
+  const n=a26.length;
+  const ya26=a26.reduce((s,v)=>s+v,0);
+  const ya25=a25.slice(0,n).reduce((s,v)=>s+v,0);
+  const yq26=q26.reduce((s,v)=>s+v,0);
+  const yq25=q25.slice(0,n).reduce((s,v)=>s+v,0);
+  const lbl=ytdLbl();
+  const ap26=yq26>0?Math.round(ya26/yq26):0;
+  const ap25=yq25>0?Math.round(ya25/yq25):0;
+  document.getElementById(id).innerHTML = `
+    <div class="card card-c1">
+      <div class="card-label">26년 누적 (${lbl})</div>
+      <div class="card-value">${Mcard(ya26)}</div>
+      <div class="card-qty">${QTY(yq26)}</div>
+      <div class="card-sub">${M(ya26)}</div>
+    </div>
+    <div class="card card-c2">
+      <div class="card-label">25년 동기간 (${lbl})</div>
+      <div class="card-value">${Mcard(ya25)}</div>
+      <div class="card-qty">${QTY(yq25)}</div>
+      <div class="card-sub">${M(ya25)}</div>
+    </div>
+    <div class="card card-c3">
+      <div class="card-label">전년 동기 대비</div>
+      <div class="card-value" style="font-size:32px">${pct(ya26,ya25)}</div>
+      <div class="card-sub">${ya26>=ya25?'↑':'↓'} ${M(Math.abs(ya26-ya25))}</div>
+    </div>
+    <div class="card card-c4">
+      <div class="card-label">객단가 (26년 / 25년)</div>
+      <div class="card-value" style="font-size:22px">${AVG(ap26)}</div>
+      <div class="card-sub">25년 동기: ${AVG(ap25)}</div>
+    </div>`;
+}
+
+// ── 테이블: 전체 누적 ──
+function tblCumulative(id) {
+  const n=T26.length, lbl=ytdLbl();
+  let tot26=0,tot25=0,totQ26=0,totQ25=0, rows='';
+  STORE_LIST.forEach(name => {
+    const d26=sd26(name), d25=sd25(name);
+    const v26=d26.reduce((s,d)=>s+d.a,0);
+    const v25=d25.slice(0,n).reduce((s,d)=>s+d.a,0);
+    const q26=d26.reduce((s,d)=>s+d.q,0);
+    const q25=d25.slice(0,n).reduce((s,d)=>s+d.q,0);
+    if (!v26&&!v25) return;
+    tot26+=v26; tot25+=v25; totQ26+=q26; totQ25+=q25;
+    const ap26=q26>0?Math.round(v26/q26):0;
+    const ap25=q25>0?Math.round(v25/q25):0;
+    rows+=`<tr><td>${name}</td>
+      <td>${M(v26)}</td><td>${QTY(q26)}</td><td>${AVG(ap26)}</td>
+      <td>${M(v25)}</td><td>${QTY(q25)}</td><td>${AVG(ap25)}</td>
+      <td class="td-growth">${pct(v26,v25)}</td>
+      <td class="td-growth">${diffHtml(v26-v25)}</td></tr>`;
+  });
+  const totAp26=totQ26>0?Math.round(tot26/totQ26):0;
+  const totAp25=totQ25>0?Math.round(tot25/totQ25):0;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>매장명</th>
+      <th>26년 매출 (${lbl})</th><th>판매수량</th><th>객단가</th>
+      <th>25년 매출 (${lbl})</th><th>판매수량</th><th>객단가</th>
+      <th>전년비</th><th>증감액</th>
+    </tr></thead><tbody>${rows}
+    <tr class="td-total"><td>전체 합계</td>
+      <td>${M(tot26)}</td><td>${QTY(totQ26)}</td><td>${AVG(totAp26)}</td>
+      <td>${M(tot25)}</td><td>${QTY(totQ25)}</td><td>${AVG(totAp25)}</td>
+      <td class="td-growth">${pct(tot26,tot25)}</td>
+      <td class="td-growth">${diffHtml(tot26-tot25)}</td>
+    </tr></tbody></table>`;
+}
+
+// ── 테이블: 월별 ──
+function tblMonthly(id, store) {
+  const n=MONTHS_26.length, lbl=ytdLbl();
+  let sum26a=0,sum25a=0,sum26q=0,sum25q=0, rows='';
+  MONTHS_26.forEach((m26,i) => {
+    const amt26=store?(m26.stores[store]?.amount||0):m26.total_amount;
+    const qty26=store?(m26.stores[store]?.qty||0):m26.total_qty;
+    const m25=MONTHS_25[i]||{};
+    const amt25=store?(m25.stores?.[store]?.amount||0):(m25.total_amount||0);
+    const qty25=store?(m25.stores?.[store]?.qty||0):(m25.total_qty||0);
+    sum26a+=amt26; sum25a+=amt25; sum26q+=qty26; sum25q+=qty25;
+    const isLast=i===n-1;
+    const ap26=qty26>0?Math.round(amt26/qty26):0;
+    const ap25=qty25>0?Math.round(amt25/qty25):0;
+    rows+=`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
+      <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
+      <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
+      <td class="td-growth">${pct(amt26,amt25)}</td>
+      <td class="td-growth">${diffHtml(amt26-amt25)}</td></tr>`;
+  });
+  for (let i=n; i<12; i++) {
+    const amt25=store?(MONTHS_25[i]?.stores?.[store]?.amount||0):(MONTHS_25[i]?.total_amount||0);
+    const qty25=store?(MONTHS_25[i]?.stores?.[store]?.qty||0):(MONTHS_25[i]?.total_qty||0);
+    const ap25=qty25>0?Math.round(amt25/qty25):0;
+    rows+=`<tr style="opacity:.4"><td>${MLABELS[i]}</td><td style="color:#e2e8f0">-</td><td>-</td><td>-</td><td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td><td>-</td><td>-</td></tr>`;
+  }
+  const sumAp26=sum26q>0?Math.round(sum26a/sum26q):0;
+  const sumAp25=sum25q>0?Math.round(sum25a/sum25q):0;
+  rows+=`<tr class="td-total"><td>누적 (${lbl})</td>
+    <td>${M(sum26a)}</td><td>${QTY(sum26q)}</td><td>${AVG(sumAp26)}</td>
+    <td>${M(sum25a)}</td><td>${QTY(sum25q)}</td><td>${AVG(sumAp25)}</td>
+    <td class="td-growth">${pct(sum26a,sum25a)}</td>
+    <td class="td-growth">${diffHtml(sum26a-sum25a)}</td></tr>`;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>월</th><th>26년 매출</th><th>수량</th><th>객단가</th>
+      <th>25년 매출</th><th>수량</th><th>객단가</th><th>전년비</th><th>증감액</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── 테이블: 주차별 ──
+function tblWeekly(id, store) {
+  if (!WEEKS_26.length) {
+    document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center;font-size:15px">주차별 데이터 없음</div>';
+    return;
+  }
+  let sum26a=0,sum25a=0,sum26q=0,sum25q=0, rows='';
+  WEEKS_26.forEach(w26 => {
+    const w25=WEEKS_25MAP[w26.label];
+    const amt26=store?(w26.stores[store]?.amount||0):w26.total_amount;
+    const qty26=store?(w26.stores[store]?.qty||0):w26.total_qty;
+    const amt25=store?(w25?.stores[store]?.amount||0):(w25?.total_amount||0);
+    const qty25=store?(w25?.stores[store]?.qty||0):(w25?.total_qty||0);
+    sum26a+=amt26; sum25a+=amt25; sum26q+=qty26; sum25q+=qty25;
+    const ap26=qty26>0?Math.round(amt26/qty26):0;
+    const ap25=qty25>0?Math.round(amt25/qty25):0;
+    rows+=`<tr><td>${w26.label}</td>
+      <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
+      <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
+      <td class="td-growth">${pct(amt26,amt25)}</td>
+      <td class="td-growth">${(amt26&&amt25)?diffHtml(amt26-amt25):'-'}</td></tr>`;
+  });
+  const sumAp26=sum26q>0?Math.round(sum26a/sum26q):0;
+  const sumAp25=sum25q>0?Math.round(sum25a/sum25q):0;
+  rows+=`<tr class="td-total"><td>누적 합계</td>
+    <td>${M(sum26a)}</td><td>${QTY(sum26q)}</td><td>${AVG(sumAp26)}</td>
+    <td>${M(sum25a)}</td><td>${QTY(sum25q)}</td><td>${AVG(sumAp25)}</td>
+    <td class="td-growth">${pct(sum26a,sum25a)}</td>
+    <td class="td-growth">${diffHtml(sum26a-sum25a)}</td></tr>`;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>주차</th><th>26년 매출</th><th>수량</th><th>객단가</th>
+      <th>25년 매출</th><th>수량</th><th>객단가</th><th>전년비</th><th>증감액</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── 테이블: 일별 ──
+function tblDaily(id, store) {
+  if (!DAILY||!DAILY.labels.length) {
+    document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center;font-size:15px">일별 데이터 없음</div>';
+    return;
+  }
+  const len=DAILY.labels.length, START=Math.max(0,len-30);
+  let rows='';
+  for (let i=len-1; i>=START; i--) {
+    const amt=store?(DAILY.stores[store]?.amount[i]||0):DAILY.total_amount[i];
+    const qty=store?(DAILY.stores[store]?.qty[i]||0):DAILY.total_qty[i];
+    const avgP=qty>0?Math.round(amt/qty):0;
+    const pAmt=store?(DAILY.stores[store]?.amount[i-1]||0):(DAILY.total_amount[i-1]||0);
+    const dow=['일','월','화','수','목','금','토'];
+    const d=new Date('2026-'+DAILY.labels[i]);
+    const dayLabel=isNaN(d.getTime())?DAILY.labels[i]:`${DAILY.labels[i]} (${dow[d.getDay()]})`;
+    rows+=`<tr><td>${dayLabel}</td>
+      <td>${M(amt)}</td><td>${QTY(qty)}</td><td>${AVG(avgP)}</td>
+      <td class="td-growth">${i>0?pct(amt,pAmt):'<span class="growth-flat">-</span>'}</td></tr>`;
+  }
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>날짜</th><th>매출</th><th>수량</th><th>객단가</th><th>전일 대비</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── 테이블: 매장별 누적 ──
+function tblStoreCumulative(id, store) {
+  const d26=sd26(store), d25=sd25(store), n=d26.length;
+  const mon=Array.from({length:Math.max(n,4)},(_,i)=>i);
+  const tot26={a:d26.reduce((s,d)=>s+d.a,0),q:d26.reduce((s,d)=>s+d.q,0)};
+  const tot25={a:d25.slice(0,n).reduce((s,d)=>s+d.a,0),q:d25.slice(0,n).reduce((s,d)=>s+d.q,0)};
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>연도</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
+    </tr></thead><tbody>
+    <tr><td>2025년</td>${mon.map(i=>`<td>${cv(d25[i]?.a||0,d25[i]?.q||0)}</td>`).join('')}<td>${cv(tot25.a,tot25.q)}</td></tr>
+    <tr><td>2026년</td>${d26.map((d,i)=>`<td>${cv(d.a,d.q)}${i===n-1?'<span class="partial-badge">집계중</span>':''}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td style="color:#e2e8f0">-</td>').join('')}<td>${cv(tot26.a,tot26.q)}</td></tr>
+    <tr class="td-total"><td>전년비</td>${mon.map(i=>`<td class="td-growth">${pct(d26[i]?.a||0,d25[i]?.a||0)}</td>`).join('')}<td class="td-growth">${pct(tot26.a,tot25.a)}</td></tr>
+    </tbody></table>`;
+}
+
+// ── 차트 ──
+const CHART_COLORS = {
+  bar25: '#94a3b8cc', bar26: '#0ea5e9cc',
+  line25: '#94a3b8', line26: '#0ea5e9', growth: '#8b5cf6',
+  gridX: '#f1f5f9', gridY: '#f1f5f980', tick: '#64748b', legend: '#475569',
+  tooltip: { bg: '#1e293b', title: '#f1f5f9', body: '#cbd5e1' }
+};
+let charts={};
+function killChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+function yAxisFmt(v){ const w=v*1e6; return w>=1e8?(w/1e8).toFixed(1)+'억':(w/1e6).toFixed(0)+'백만'; }
+
+function chartBarLine(cid, labels, d25, d26) {
+  killChart(cid);
+  const gr=d26.map((v,i)=>d25[i]?+((v-d25[i])/d25[i]*100).toFixed(1):null);
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'2025년',data:d25,backgroundColor:CHART_COLORS.bar25,borderRadius:4,order:2},
+      {label:'2026년',data:d26,backgroundColor:CHART_COLORS.bar26,borderRadius:4,order:2},
+      {label:'전년비(%)',data:gr,type:'line',borderColor:CHART_COLORS.growth,
+       backgroundColor:CHART_COLORS.growth+'20',borderWidth:2,pointRadius:5,
+       pointBackgroundColor:CHART_COLORS.growth,yAxisID:'y2',order:1,tension:.3}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
+          bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return c.dataset.yAxisID==='y2'
+            ?` 전년비: ${c.parsed.y>0?'+':''}${c.parsed.y}%`
+            :` ${c.dataset.label}: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;
+          }}}},
+      scales:{
+        x:{ticks:{color:CHART_COLORS.tick,font:{size:13}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}},
+        y2:{position:'right',ticks:{color:CHART_COLORS.growth,font:{size:13},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+}
+
+function chartCumulativeLine(cid, store) {
+  killChart(cid);
+  const d25=MLABELS.map((_,i)=>+((store?(MONTHS_25[i]?.stores[store]?.amount||0):(MONTHS_25[i]?.total_amount||0))/1e6).toFixed(2));
+  const d26=MLABELS.map((_,i)=>i<MONTHS_26.length?+((store?(MONTHS_26[i]?.stores[store]?.amount||0):(MONTHS_26[i]?.total_amount||0))/1e6).toFixed(2):null);
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'line',
+    data:{labels:MLABELS,datasets:[
+      {label:'2025년',data:d25,borderColor:CHART_COLORS.line25,borderDash:[6,3],
+       borderWidth:2,pointRadius:4,pointBackgroundColor:CHART_COLORS.line25,
+       backgroundColor:'transparent',tension:.3,order:2},
+      {label:'2026년',data:d26,borderColor:CHART_COLORS.line26,borderWidth:2.5,
+       pointRadius:5,pointBackgroundColor:CHART_COLORS.line26,
+       backgroundColor:CHART_COLORS.line26+'18',fill:true,tension:.3,order:1}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
+          bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return ` ${c.dataset.label}: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
+      scales:{
+        x:{ticks:{color:CHART_COLORS.tick,font:{size:13}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}}
+      }
+    }
+  });
+}
+
+function chartMonthly(cid, store) {
+  const labels=MONTHS_26.map(m=>MLABELS[m.month-1]);
+  const d26=MONTHS_26.map(m=>+((store?(m.stores[store]?.amount||0):m.total_amount)/1e6).toFixed(2));
+  const d25=MONTHS_26.map((_,i)=>+((store?(MONTHS_25[i]?.stores[store]?.amount||0):(MONTHS_25[i]?.total_amount||0))/1e6).toFixed(2));
+  chartBarLine(cid,labels,d25,d26);
+}
+function chartWeekly(cid, store) {
+  if (!WEEKS_26.length) return;
+  const labels=WEEKS_26.map(w=>w.label);
+  const d26=WEEKS_26.map(w=>+((store?(w.stores[store]?.amount||0):w.total_amount)/1e6).toFixed(2));
+  const d25=WEEKS_26.map(w=>{const w5=WEEKS_25MAP[w.label];return+((store?(w5?.stores[store]?.amount||0):(w5?.total_amount||0))/1e6).toFixed(2);});
+  chartBarLine(cid,labels,d25,d26);
+}
+function chartDaily(cid, store) {
+  if (!DAILY||!DAILY.labels.length) return;
+  killChart(cid);
+  const amts=store?DAILY.stores[store]?.amount:DAILY.total_amount;
+  const qtys=store?DAILY.stores[store]?.qty:DAILY.total_qty;
+  if (!amts) return;
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'line',
+    data:{labels:DAILY.labels,datasets:[
+      {label:'매출',data:amts.map(v=>+(v/1e6).toFixed(2)),borderColor:CHART_COLORS.line26,
+       backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3,order:1},
+      {label:'수량(개)',data:qtys,type:'bar',backgroundColor:'#8b5cf640',borderRadius:2,yAxisID:'y2',order:2}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
+          bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return c.dataset.yAxisID==='y2'?` 수량: ${c.parsed.y?.toLocaleString()}개`:` 매출: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
+      scales:{
+        x:{ticks:{color:CHART_COLORS.tick,maxRotation:45,maxTicksLimit:15,font:{size:12}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}},
+        y2:{position:'right',ticks:{color:'#8b5cf6',font:{size:13},callback:v=>v},grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+}
+
+// ── 렌더 ──
+function renderTotal() {
+  const {gran}=state.total;
+  renderCards('cards-total',T26,T25,Q26,Q25);
+  const t=document.getElementById('chart-total-title');
+  if (gran==='cumulative'){
+    t.textContent='월별 매출 추이 · 25·26년 비교';
+    chartCumulativeLine('canvas-total',null);
+    tblCumulative('table-total');
+  } else if (gran==='monthly'){
+    t.textContent='월별 매출 · 25·26년 바차트';
+    chartMonthly('canvas-total',null);
+    tblMonthly('table-total',null);
+  } else if (gran==='weekly'){
+    t.textContent='주차별 매출 · 25·26년 바차트';
+    chartWeekly('canvas-total',null);
+    tblWeekly('table-total',null);
+  } else {
+    t.textContent='일별 매출 추이 (2026년)';
+    chartDaily('canvas-total',null);
+    tblDaily('table-total',null);
+  }
+}
+
+function renderStore() {
+  const {gran,name}=state.store;
+  const d26=sd26(name), d25=sd25(name);
+  renderCards('cards-store',d26.map(d=>d.a),d25.map(d=>d.a),d26.map(d=>d.q),d25.map(d=>d.q));
+  const t=document.getElementById('chart-store-title');
+  if (gran==='cumulative'){
+    t.textContent='월별 매출 추이 · 25·26년 비교';
+    chartCumulativeLine('canvas-store',name);
+    tblStoreCumulative('table-store',name);
+  } else if (gran==='monthly'){
+    t.textContent='월별 매출 · 25·26년 바차트';
+    chartMonthly('canvas-store',name);
+    tblMonthly('table-store',name);
+  } else if (gran==='weekly'){
+    t.textContent='주차별 매출 · 25·26년 바차트';
+    chartWeekly('canvas-store',name);
+    tblWeekly('table-store',name);
+  } else {
+    t.textContent='일별 매출 추이 (2026년)';
+    chartDaily('canvas-store',name);
+    tblDaily('table-store',name);
+  }
+}
+
+// ── 상태 & 컨트롤 ──
+const state={main:'total',total:{gran:'cumulative'},store:{gran:'cumulative',name:''}};
+
+function switchMain(tab) {
+  state.main=tab;
+  ['total','store','best'].forEach(k => {
+    document.getElementById('nav-'+k).classList.toggle('active', k===tab);
+    document.getElementById('sec-'+k).classList.toggle('active', k===tab);
+  });
+  if (tab==='total') renderTotal();
+  else if (tab==='store') renderStore();
+  else if (tab==='best') {
+    if (!bestState.startDate) bestSetPeriod('yesterday');
+    else bestLoadData();
+  }
+}
+function setGran(sec, val) {
+  state[sec].gran=val;
+  document.getElementById('gran-'+sec).querySelectorAll('button').forEach((b,i) =>
+    b.classList.toggle('active',['cumulative','monthly','weekly','daily'][i]===val));
+  if (sec==='total') renderTotal(); else renderStore();
+}
+function onStoreChange() {
+  state.store.name=document.getElementById('store-select').value;
+  renderStore();
+}
+
+// ════════════════════════════════════════════════
+// ■ 판매 베스트
+// ════════════════════════════════════════════════
+const BEST_API_URL = 'https://script.google.com/macros/s/AKfycbwLoh3VgIt2oXbgcGzBb-07dsgxSlkh7uLp3KDDXvpkH2BmPZcqXxe8BAmRPZIyfAI/exec';
+const BEST_STORES = ['남악','부천','의정부','인천','유성','여수','율하','충장',
+  '동수원','송파','제주','괴정','강서','순천','평택','고척',
+  '원주','마리오','창원','STCO현풍','STCO용인','면세점'];
+const BEST_STORE_COLORS = {
+  '남악':'#1565c0','부천':'#0277bd','의정부':'#0288d1','인천':'#0097a7',
+  '유성':'#00838f','여수':'#2e7d32','율하':'#388e3c','충장':'#558b2f',
+  '동수원':'#9e9d24','송파':'#f57f17','제주':'#e65100','괴정':'#bf360c',
+  '강서':'#ad1457','순천':'#6a1b9a','평택':'#4527a0','고척':'#283593',
+  '원주':'#1565c0','마리오':'#00695c','창원':'#2e7d32','STCO현풍':'#558b2f',
+  'STCO용인':'#388e3c','면세점':'#e65100'
+};
+
+const bestState = {
+  startDate: '', endDate: '',
+  tab: 'overall', store: BEST_STORES[0],
+  cacheOverall: {}, cacheStores: {}
+};
+
+function toYMD(d) {
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function getThisTuesday(d) {
+  const day=d.getDay(), diff=day===0?-5:day===1?-6:2-day;
+  const tue=new Date(d); tue.setDate(d.getDate()+diff); return tue;
+}
+
+function bestSetPeriod(type) {
+  const today=new Date();
+  const yest=new Date(today); yest.setDate(today.getDate()-1);
+  let start=yest, end=yest;
+  if (type==='yesterday') {
+    start=end=yest;
+  } else if (type==='week') {
+    start=getThisTuesday(today); end=yest;
+  } else if (type==='lastweek') {
+    const tue=getThisTuesday(today);
+    end=new Date(tue); end.setDate(tue.getDate()-1);
+    start=new Date(end); start.setDate(end.getDate()-6);
+  } else if (type==='month') {
+    start=new Date(today.getFullYear(),today.getMonth(),1); end=yest;
+  } else if (type==='lastmonth') {
+    const first=new Date(today.getFullYear(),today.getMonth(),1);
+    end=new Date(first); end.setDate(first.getDate()-1);
+    start=new Date(end.getFullYear(),end.getMonth(),1);
+  }
+  bestState.startDate=toYMD(start);
+  bestState.endDate=toYMD(end);
+  document.getElementById('date-start').value=bestState.startDate;
+  document.getElementById('date-end').value=bestState.endDate;
+  ['yesterday','week','lastweek','month','lastmonth'].forEach(t =>
+    document.getElementById('btn-'+t).classList.toggle('active', t===type));
+  bestState.cacheOverall={}; bestState.cacheStores={};
+  bestLoadData();
+}
+
+function bestOnDateChange() {
+  bestState.startDate=document.getElementById('date-start').value;
+  bestState.endDate=document.getElementById('date-end').value;
+  ['yesterday','week','lastweek','month','lastmonth'].forEach(t =>
+    document.getElementById('btn-'+t).classList.remove('active'));
+  bestState.cacheOverall={}; bestState.cacheStores={};
+  if (bestState.startDate && bestState.endDate) bestLoadData();
+}
+
+function bestSwitchTab(tab) {
+  bestState.tab=tab;
+  document.getElementById('tab-overall').classList.toggle('active', tab==='overall');
+  document.getElementById('tab-store').classList.toggle('active', tab==='store');
+  document.getElementById('store-picker').style.display = tab==='store' ? 'flex' : 'none';
+  bestLoadData();
+}
+
+function bestSwitchStore(name) {
+  bestState.store=name;
+  document.querySelectorAll('.store-pill').forEach(el => {
+    const on=el.dataset.store===name;
+    el.classList.toggle('active',on);
+    const col=BEST_STORE_COLORS[name]||'#1565c0';
+    el.style.background=on?col:'';
+    el.style.color=on?'#fff':'';
+    el.style.borderColor=on?col:'';
+  });
+  const key=bestState.startDate+'_'+bestState.endDate;
+  if (bestState.cacheStores[key]) bestRenderContent(bestState.cacheStores[key]);
+}
+
+async function bestLoadData() {
+  if (!bestState.startDate||!bestState.endDate) return;
+  const key=bestState.startDate+'_'+bestState.endDate;
+  const isAll=bestState.tab==='overall';
+  const cache=isAll?bestState.cacheOverall:bestState.cacheStores;
+  if (cache[key]) { bestRenderContent(cache[key]); return; }
+
+  bestShowLoading();
+  const rb=document.getElementById('best-refresh');
+  rb && rb.classList.add('spinning');
+
+  try {
+    let url=BEST_API_URL+'?startDate='+bestState.startDate+'&endDate='+bestState.endDate;
+    if (!isAll) url+='&view=stores';
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(), 90000);
+    let res;
+    try { res=await fetch(url,{signal:ctrl.signal}); } finally { clearTimeout(tid); }
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    if (data.error==='session_expired') { bestShowError('이지어드민 세션 만료\n쿠키를 갱신해 주세요.'); return; }
+    if (data.error) throw new Error(data.error);
+    cache[key]=data;
+    if (data.updatedAt) document.getElementById('best-updated-at').textContent='⏱ '+data.updatedAt;
+    bestRenderContent(data);
+  } catch(err) {
+    bestShowError(err.name==='AbortError'
+      ? '요청 시간 초과 (90초)\nApps Script에서 precomputeAndCache를 실행하세요.'
+      : err.message);
+  } finally {
+    rb && rb.classList.remove('spinning');
+  }
+}
+
+function bestRenderContent(data) {
+  document.getElementById('best-status').style.display='none';
+  document.getElementById('best-table').style.display='';
+  const isStore=bestState.tab==='store';
+  const lbl=bestState.startDate===bestState.endDate
+    ? bestState.startDate
+    : bestState.startDate+' ~ '+bestState.endDate;
+  if (isStore) {
+    const sd=(data.stores||[]).find(s=>s.name===bestState.store);
+    bestRenderTable(sd?sd.products:[], true, lbl);
+  } else {
+    bestRenderTable(data.overall||[], false, lbl);
+  }
+}
+
+function bestRenderTable(items, isStore, label) {
+  const tbody=document.getElementById('table-tbody');
+  const titleBar=document.getElementById('section-title-bar');
+  const topN=isStore?10:20;
+  const col=BEST_STORE_COLORS[bestState.store]||'#1565c0';
+  titleBar.style.background=isStore?col:'#0f172a';
+  document.getElementById('section-icon').textContent=isStore?'🏪':'🥇';
+  document.getElementById('section-title').textContent=
+    isStore ? bestState.store+'  TOP '+topN+'  ·  '+label
+            : '전체 판매 베스트  TOP '+topN+'  ·  '+label;
+  if (!items||!items.length) {
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:48px;color:#94a3b8;font-size:15px">해당 기간에 데이터가 없습니다.</td></tr>';
+    return;
+  }
+  const medals=['🥇','🥈','🥉'];
+  const fmtP=v=>v?Number(v).toLocaleString('ko-KR')+'원':'-';
+  const fmtQ=v=>v?Number(v).toLocaleString('ko-KR')+'개':'-';
+  tbody.innerHTML=items.slice(0,topN).map((item,idx)=>{
+    const r=idx+1;
+    const rStr=r<=3?medals[r-1]:r+'위';
+    const img=item.i
+      ?`<img src="${item.i}" style="width:50px;height:50px;object-fit:contain;border-radius:6px;border:1px solid #f1f5f9" loading="lazy" onerror="this.style.display='none'">`
+      :'<span style="color:#e2e8f0;font-size:22px">▪</span>';
+    return `<tr class="${r<=3?'best-rank-'+r:''}">
+      <td style="text-align:center;font-weight:700;font-size:${r<=3?'20':'15'}px;white-space:nowrap">${rStr}</td>
+      <td style="text-align:center;padding:8px 10px">${img}</td>
+      <td><span class="category-badge">${item.c||'-'}</span></td>
+      <td style="white-space:normal;min-width:140px;font-weight:500">${item.n||'-'}</td>
+      <td>${fmtP(item.p)}</td>
+      <td>${fmtQ(item.q)}</td>
+      <td style="font-weight:700;color:${isStore?col:'#0ea5e9'}">${fmtP(item.s)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function bestShowLoading() {
+  const st=document.getElementById('best-status');
+  st.style.display='flex'; st.style.flexDirection='row';
+  st.innerHTML='<div class="spinner" style="margin-right:12px"></div><span style="color:#64748b">데이터 불러오는 중...</span>';
+  document.getElementById('table-tbody').innerHTML='';
+  document.getElementById('best-table').style.display='none';
+}
+function bestShowError(msg) {
+  const st=document.getElementById('best-status');
+  st.style.display='flex'; st.style.flexDirection='column';
+  st.innerHTML=`<span style="font-size:36px;margin-bottom:10px">⚠️</span><span style="color:#dc2626;font-size:14px;white-space:pre-line">${msg}</span>`;
+  document.getElementById('table-tbody').innerHTML='';
+  document.getElementById('best-table').style.display='none';
+}
+function bestRefresh() {
+  bestState.cacheOverall={}; bestState.cacheStores={};
+  bestLoadData();
+}
+
+function initBestStores() {
+  const picker=document.getElementById('store-picker');
+  picker.innerHTML=BEST_STORES.map(name=>{
+    const on=name===bestState.store;
+    const col=BEST_STORE_COLORS[name]||'#1565c0';
+    return `<button class="store-pill${on?' active':''}" data-store="${name}"
+      onclick="bestSwitchStore('${name}')"
+      style="${on?`background:${col};color:#fff;border-color:${col}`:''}">
+      ${name}</button>`;
+  }).join('');
+  picker.style.display='none';
+}
+
+// ════════════════════════════════════════════════
+// ■ 초기화
+// ════════════════════════════════════════════════
+(async function init() {
+  try {
+    initBestStores();
+    const data=await callAPI();
+    processData(data);
+    document.getElementById('updated-at').textContent=data.updatedAt?'⏱ '+data.updatedAt:'';
+    const lastM=MONTHS_26.length>0?MLABELS[MONTHS_26.length-1]:'';
+    document.getElementById('note-total').textContent=`온라인 제외 · ${lastM}까지 집계`;
+    document.getElementById('note-store').textContent=`${lastM}까지 집계`;
+    const sel=document.getElementById('store-select');
+    STORE_LIST.forEach(name=>{
+      const o=document.createElement('option');
+      o.value=name; o.textContent=name; sel.appendChild(o);
+    });
+    state.store.name=STORE_LIST[0]||'';
+    document.getElementById('loading').style.display='none';
+    renderTotal();
+  } catch(e) {
+    document.getElementById('loading-spinner').style.display='none';
+    document.getElementById('loading-msg').innerHTML=
+      `<span style="font-size:36px">⚠️</span>\n<strong style="color:#dc2626">데이터 로드 실패</strong>\n${e.message}`;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
