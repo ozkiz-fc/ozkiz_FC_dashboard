@@ -265,6 +265,7 @@ tr:hover td{background:#f8fafc}
         <button id="btn-lastweek" class="period-btn" onclick="bestSetPeriod('lastweek')">전주</button>
         <button id="btn-month"    class="period-btn" onclick="bestSetPeriod('month')">이번달</button>
         <button id="btn-lastmonth" class="period-btn" onclick="bestSetPeriod('lastmonth')">전월</button>
+        <button id="btn-cumul"    class="period-btn" onclick="bestSetPeriod('cumul')">누적</button>
         <div class="date-input-wrap">
           <input type="date" id="date-start" class="date-input" onchange="bestOnDateChange()">
           <span style="color:#94a3b8;font-weight:700;padding:0 2px">~</span>
@@ -823,12 +824,15 @@ function bestSetPeriod(type) {
     const first=new Date(today.getFullYear(),today.getMonth(),1);
     end=new Date(first); end.setDate(first.getDate()-1);
     start=new Date(end.getFullYear(),end.getMonth(),1);
+  } else if (type==='cumul') {
+    start=new Date(today.getFullYear(),0,1); // 올해 1월 1일
+    end=yest;
   }
   bestState.startDate=toYMD(start);
   bestState.endDate=toYMD(end);
   document.getElementById('date-start').value=bestState.startDate;
   document.getElementById('date-end').value=bestState.endDate;
-  ['yesterday','week','lastweek','month','lastmonth'].forEach(t =>
+  ['yesterday','week','lastweek','month','lastmonth','cumul'].forEach(t =>
     document.getElementById('btn-'+t).classList.toggle('active', t===type));
   bestState.cacheOverall={}; bestState.cacheStores={};
   bestLoadData();
@@ -837,7 +841,7 @@ function bestSetPeriod(type) {
 function bestOnDateChange() {
   bestState.startDate=document.getElementById('date-start').value;
   bestState.endDate=document.getElementById('date-end').value;
-  ['yesterday','week','lastweek','month','lastmonth'].forEach(t =>
+  ['yesterday','week','lastweek','month','lastmonth','cumul'].forEach(t =>
     document.getElementById('btn-'+t).classList.remove('active'));
   bestState.cacheOverall={}; bestState.cacheStores={};
   if (bestState.startDate && bestState.endDate) bestLoadData();
