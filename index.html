@@ -1095,7 +1095,7 @@ function memoRenderList() {
     <div class="memo-card" id="memo-card-${m.id}" onclick="memoToggle('${m.id}',event)">
       <div class="memo-card-header">
         <span class="memo-card-week">${escHtml(m.weekLabel)}</span>
-        <span class="memo-card-date">${escHtml(String(m.reportDate))}</span>
+        <span class="memo-card-date">${escHtml(String(m.reportDate).slice(0,10))}</span>
       </div>
       <div class="memo-card-preview">${escHtml(m.content.split('\n').filter(l=>l.trim()&&!l.startsWith('#'))[0]||'')}</div>
       <div class="memo-body" id="memo-body-${m.id}">${memoMd(m.content)}</div>
