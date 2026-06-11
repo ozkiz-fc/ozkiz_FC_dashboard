@@ -1153,10 +1153,8 @@ function memoSave() {
   const content    = document.getElementById('memo-content').value.trim();
   const id         = document.getElementById('memo-editing-id').value;
   if (!weekLabel || !content) { alert('주차와 내용을 입력해주세요.'); return; }
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: new URLSearchParams({action:'saveMemo', id, weekLabel, reportDate, content})
-  })
+  const url = SCRIPT_URL + '?' + new URLSearchParams({action:'saveMemo', id, weekLabel, reportDate, content});
+  fetch(url)
     .then(r => r.json())
     .then(d => { if(d.ok){ memoHideEditor(); memoLoaded=false; memoLoadAll(); } else alert('저장 실패'); })
     .catch(() => alert('저장 실패. 다시 시도해주세요.'));
@@ -1171,10 +1169,8 @@ function memoEdit(id, e) {
 function memoDelete(id, e) {
   e.stopPropagation();
   if (!confirm('이 리포트를 삭제할까요?')) return;
-  fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: new URLSearchParams({action:'deleteMemo', id})
-  })
+  const url = SCRIPT_URL + '?' + new URLSearchParams({action:'deleteMemo', id});
+  fetch(url)
     .then(r => r.json())
     .then(d => { if(d.ok){ memoLoaded=false; memoLoadAll(); } else alert('삭제 실패'); })
     .catch(() => alert('삭제 실패.'));
