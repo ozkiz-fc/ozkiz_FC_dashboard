@@ -135,6 +135,44 @@ tr:hover td{background:#f8fafc}
   .best-period-row{gap:5px}
   .period-btn{font-size:13px;padding:6px 11px}
 }
+
+/* ── 주간 리포트 ── */
+.memo-wrap{padding:24px 28px 32px}
+.memo-editor{background:#fff;border-radius:12px;border:1.5px solid #e2e8f0;padding:22px;margin-bottom:20px;box-shadow:0 1px 4px #0000000a;display:none}
+.memo-editor.visible{display:block}
+.memo-editor-row{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.memo-label{font-size:13px;font-weight:700;color:#475569;margin-bottom:6px}
+.memo-field-input{border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 12px;font-size:14px;color:#334155;font-family:inherit;width:100%}
+.memo-field-input:focus{outline:none;border-color:#0ea5e9}
+.memo-textarea{width:100%;border:1.5px solid #cbd5e1;border-radius:8px;padding:12px;font-size:14px;color:#334155;font-family:inherit;resize:vertical;min-height:320px;line-height:1.7}
+.memo-textarea:focus{outline:none;border-color:#0ea5e9}
+.memo-editor-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.memo-save-btn{padding:8px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.memo-save-btn:hover{background:#0284c7}
+.memo-cancel-btn{padding:8px 16px;background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.memo-new-btn{padding:8px 18px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.memo-new-btn:hover{background:#0284c7}
+.memo-list{display:flex;flex-direction:column;gap:14px}
+.memo-card{background:#fff;border-radius:12px;border:1.5px solid #e2e8f0;padding:20px 22px;box-shadow:0 1px 4px #0000000a;cursor:pointer;transition:border-color .2s}
+.memo-card:hover{border-color:#94a3b8}
+.memo-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.memo-card-week{font-size:16px;font-weight:700;color:#0f172a}
+.memo-card-date{font-size:13px;color:#94a3b8}
+.memo-card-preview{font-size:14px;color:#64748b;line-height:1.6;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.memo-card-actions{display:flex;gap:6px;margin-top:14px;border-top:1px solid #f1f5f9;padding-top:12px}
+.memo-edit-btn{padding:5px 12px;background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.memo-edit-btn:hover{background:#e2e8f0}
+.memo-delete-btn{padding:5px 12px;background:#fff;color:#dc2626;border:1.5px solid #fca5a5;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.memo-delete-btn:hover{background:#fef2f2}
+.memo-body{margin-top:14px;font-size:15px;line-height:1.9;color:#334155;border-top:1px solid #f1f5f9;padding-top:14px;display:none}
+.memo-body.open{display:block}
+.memo-body h2{font-size:18px;font-weight:700;margin:18px 0 8px;color:#0f172a;padding-bottom:6px;border-bottom:2px solid #e2e8f0}
+.memo-body h3{font-size:16px;font-weight:700;margin:14px 0 6px;color:#1e293b}
+.memo-body h4{font-size:15px;font-weight:700;margin:10px 0 4px;color:#334155}
+.memo-body ul{padding-left:22px;margin:4px 0 10px}
+.memo-body li{margin-bottom:5px}
+.memo-body p{margin-bottom:6px}
+.memo-empty{text-align:center;padding:60px 28px;color:#94a3b8;font-size:15px;line-height:1.8}
 </style>
 </head>
 <body>
@@ -181,6 +219,19 @@ tr:hover td{background:#f8fafc}
         </button>
         <button class="nav-sub-item" id="nav-best-store" onclick="switchMain('best','store')">
           <span class="nav-sub-dot">●</span> 매장별
+        </button>
+      </div>
+    </div>
+    <!-- 주간 리포트 그룹 -->
+    <div class="nav-group">
+      <button class="nav-group-hd" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
+        <span class="nav-icon">📝</span>
+        <span>주간 리포트</span>
+        <span class="nav-chevron">▾</span>
+      </button>
+      <div class="nav-sub collapsed" id="sub-memo">
+        <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
+          <span class="nav-sub-dot">●</span> 리포트 목록
         </button>
       </div>
     </div>
@@ -298,6 +349,42 @@ tr:hover td{background:#f8fafc}
           </thead>
           <tbody id="table-tbody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ■ 주간 리포트 -->
+  <div id="sec-memo" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">📝 주간 리포트</span>
+      </div>
+      <div class="topbar-right">
+        <button class="memo-new-btn" onclick="memoShowEditor()">+ 새 리포트</button>
+      </div>
+    </div>
+    <div class="memo-wrap">
+      <div class="memo-editor" id="memo-editor">
+        <div class="memo-editor-row">
+          <div style="flex:0 0 200px">
+            <div class="memo-label">주차 (예: 6월 1주차)</div>
+            <input class="memo-field-input" id="memo-week" type="text" placeholder="6월 1주차">
+          </div>
+          <div style="flex:0 0 170px">
+            <div class="memo-label">작성일</div>
+            <input class="memo-field-input" id="memo-date" type="date">
+          </div>
+        </div>
+        <div class="memo-label">내용 (마크다운: ## 제목, ### 소제목, - 항목, **굵게**)</div>
+        <textarea class="memo-textarea" id="memo-content" placeholder="## 이익 및 매출 Summary&#10;### 6월 1주차 영업이익 +391만원&#10;- 내용을 작성하세요..."></textarea>
+        <input type="hidden" id="memo-editing-id" value="">
+        <div class="memo-editor-btns">
+          <button class="memo-cancel-btn" onclick="memoHideEditor()">취소</button>
+          <button class="memo-save-btn" onclick="memoSave()">저장</button>
+        </div>
+      </div>
+      <div class="memo-list" id="memo-list">
+        <div class="memo-empty">불러오는 중...</div>
       </div>
     </div>
   </div>
@@ -741,7 +828,7 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['total','store','best'].forEach(k =>
+  ['total','store','best','memo'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
@@ -751,10 +838,12 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-store').classList.toggle('active', tab==='store');
   document.getElementById('nav-best-overall').classList.toggle('active', isBest && bTab==='overall');
   document.getElementById('nav-best-store').classList.toggle('active', isBest && bTab==='store');
+  document.getElementById('nav-memo').classList.toggle('active', tab==='memo');
 
   // 그룹 헤더 활성화
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
   document.getElementById('grp-best').classList.toggle('active', isBest);
+  document.getElementById('grp-memo').classList.toggle('active', tab==='memo');
 
   if (tab==='total') renderTotal();
   else if (tab==='store') renderStore();
@@ -763,6 +852,9 @@ function switchMain(tab, subTab) {
     document.getElementById('store-picker').style.display = bestState.tab==='store' ? 'flex' : 'none';
     if (!bestState.startDate) bestSetPeriod('yesterday');
     else bestLoadData();
+  }
+  else if (tab==='memo') {
+    if (!memoLoaded) memoLoadAll();
   }
 }
 function setGran(sec, val) {
@@ -975,6 +1067,117 @@ function initBestStores() {
       ${name}</button>`;
   }).join('');
   picker.style.display='none';
+}
+
+// ════════════════════════════════════════════════
+// ■ 주간 리포트
+// ════════════════════════════════════════════════
+let memoData = [], memoLoaded = false;
+
+function memoLoadAll() {
+  document.getElementById('memo-list').innerHTML = '<div class="memo-empty">불러오는 중...</div>';
+  fetch(SCRIPT_URL + '?action=getMemos')
+    .then(r => r.json())
+    .then(d => { memoData = d.memos || []; memoLoaded = true; memoRenderList(); })
+    .catch(() => {
+      document.getElementById('memo-list').innerHTML =
+        '<div class="memo-empty" style="color:#dc2626">불러오기 실패. 새로고침 해주세요.</div>';
+    });
+}
+
+function memoRenderList() {
+  const el = document.getElementById('memo-list');
+  if (!memoData.length) {
+    el.innerHTML = '<div class="memo-empty">작성된 리포트가 없습니다.<br>+ 새 리포트 버튼을 눌러 첫 리포트를 작성하세요.</div>';
+    return;
+  }
+  el.innerHTML = memoData.map(m => `
+    <div class="memo-card" id="memo-card-${m.id}" onclick="memoToggle('${m.id}',event)">
+      <div class="memo-card-header">
+        <span class="memo-card-week">${escHtml(m.weekLabel)}</span>
+        <span class="memo-card-date">${escHtml(String(m.reportDate))}</span>
+      </div>
+      <div class="memo-card-preview">${escHtml(m.content.split('\n').filter(l=>l.trim()&&!l.startsWith('#'))[0]||'')}</div>
+      <div class="memo-body" id="memo-body-${m.id}">${memoMd(m.content)}</div>
+      <div class="memo-card-actions">
+        <button class="memo-edit-btn" onclick="memoEdit('${m.id}',event)">✏️ 수정</button>
+        <button class="memo-delete-btn" onclick="memoDelete('${m.id}',event)">🗑️ 삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function memoMd(md) {
+  const inl = s => s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  let html = '', inUl = false;
+  for (const raw of md.split('\n')) {
+    const l = escHtml(raw);
+    if      (l.startsWith('#### ')) { if(inUl){html+='</ul>';inUl=false;} html+=`<h4>${inl(l.slice(5))}</h4>`; }
+    else if (l.startsWith('### '))  { if(inUl){html+='</ul>';inUl=false;} html+=`<h3>${inl(l.slice(4))}</h3>`; }
+    else if (l.startsWith('## '))   { if(inUl){html+='</ul>';inUl=false;} html+=`<h2>${inl(l.slice(3))}</h2>`; }
+    else if (l.startsWith('# '))    { if(inUl){html+='</ul>';inUl=false;} html+=`<h2>${inl(l.slice(2))}</h2>`; }
+    else if (l.startsWith('- '))    { if(!inUl){html+='<ul>';inUl=true;}  html+=`<li>${inl(l.slice(2))}</li>`; }
+    else if (l.trim()==='')         { if(inUl){html+='</ul>';inUl=false;} html+='<br>'; }
+    else                             { if(inUl){html+='</ul>';inUl=false;} html+=`<p>${inl(l)}</p>`; }
+  }
+  if (inUl) html += '</ul>';
+  return html;
+}
+
+function memoToggle(id, e) {
+  if (e.target.closest('.memo-card-actions')) return;
+  document.getElementById('memo-body-'+id).classList.toggle('open');
+}
+
+function memoShowEditor(id, weekLabel, reportDate, content) {
+  const ed = document.getElementById('memo-editor');
+  document.getElementById('memo-week').value = weekLabel || '';
+  document.getElementById('memo-date').value = reportDate || new Date().toISOString().slice(0,10);
+  document.getElementById('memo-content').value = content || '';
+  document.getElementById('memo-editing-id').value = id || '';
+  ed.classList.add('visible');
+  ed.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function memoHideEditor() {
+  document.getElementById('memo-editor').classList.remove('visible');
+  document.getElementById('memo-editing-id').value = '';
+}
+
+function memoSave() {
+  const weekLabel  = document.getElementById('memo-week').value.trim();
+  const reportDate = document.getElementById('memo-date').value;
+  const content    = document.getElementById('memo-content').value.trim();
+  const id         = document.getElementById('memo-editing-id').value;
+  if (!weekLabel || !content) { alert('주차와 내용을 입력해주세요.'); return; }
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: new URLSearchParams({action:'saveMemo', id, weekLabel, reportDate, content})
+  })
+    .then(r => r.json())
+    .then(d => { if(d.ok){ memoHideEditor(); memoLoaded=false; memoLoadAll(); } else alert('저장 실패'); })
+    .catch(() => alert('저장 실패. 다시 시도해주세요.'));
+}
+
+function memoEdit(id, e) {
+  e.stopPropagation();
+  const m = memoData.find(x => x.id === id);
+  if (m) memoShowEditor(m.id, m.weekLabel, m.reportDate, m.content);
+}
+
+function memoDelete(id, e) {
+  e.stopPropagation();
+  if (!confirm('이 리포트를 삭제할까요?')) return;
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: new URLSearchParams({action:'deleteMemo', id})
+  })
+    .then(r => r.json())
+    .then(d => { if(d.ok){ memoLoaded=false; memoLoadAll(); } else alert('삭제 실패'); })
+    .catch(() => alert('삭제 실패.'));
 }
 
 // ════════════════════════════════════════════════
