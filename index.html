@@ -524,8 +524,9 @@ function pct(cur, prev) {
 }
 function diffHtml(diff) {
   if (!diff) return '-';
-  const cls = diff>=0 ? 'growth-up' : 'growth-down';
-  return `<span class="${cls}">${diff>0?'+':''}${M(diff)}</span>`;
+  const r = Math.round(diff);
+  const cls = r>=0 ? 'growth-up' : 'growth-down';
+  return `<span class="${cls}">${r>0?'+':''}${M(r)}</span>`;
 }
 function cv(amt, qty) {
   if (!amt && !qty) return '<span style="color:#e2e8f0">-</span>';
@@ -1447,7 +1448,7 @@ function tblProfitStoreCumulative(id,store){
   const d25=PM25.map(m=>({p:m.stores[store]?.profit||0,s:m.stores[store]?.sales||0}));
   const tot26p=d26.reduce((s,d)=>s+d.p,0),tot26s=d26.reduce((s,d)=>s+d.s,0);
   const tot25p=d25.slice(0,n).reduce((s,d)=>s+d.p,0),tot25s=d25.slice(0,n).reduce((s,d)=>s+d.s,0);
-  const cv=(p,s)=>`<div style="color:${p<0?'#dc2626':'#334155'}">${p?p.toLocaleString('ko-KR')+'원':'-'}</div><div style="font-size:12px;color:#94a3b8">${profitRate(p,s)!==null?profitRate(p,s).toFixed(1)+'%':''}</div>`;
+  const cv=(p,s)=>`<div style="color:${p<0?'#dc2626':'#334155'}">${p?Math.round(p).toLocaleString('ko-KR')+'원':'-'}</div><div style="font-size:12px;color:#94a3b8">${profitRate(p,s)!==null?profitRate(p,s).toFixed(1)+'%':''}</div>`;
   document.getElementById(id).innerHTML=`
     <table><thead><tr>
       <th>연도</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
