@@ -541,7 +541,8 @@ function tblCumulative(id) {
 // ── 테이블: 월별 ──
 function tblMonthly(id, store) {
   const n=MONTHS_26.length, lbl=ytdLbl();
-  let sum26a=0,sum25a=0,sum26q=0,sum25q=0, rows='';
+  let sum26a=0,sum25a=0,sum26q=0,sum25q=0;
+  const rowsArr=[];
   MONTHS_26.forEach((m26,i) => {
     const amt26=store?(m26.stores[store]?.amount||0):m26.total_amount;
     const qty26=store?(m26.stores[store]?.qty||0):m26.total_qty;
@@ -552,21 +553,15 @@ function tblMonthly(id, store) {
     const isLast=i===n-1;
     const ap26=qty26>0?Math.round(amt26/qty26):0;
     const ap25=qty25>0?Math.round(amt25/qty25):0;
-    rows+=`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
+    rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
       <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
       <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
       <td class="td-growth">${pct(amt26,amt25)}</td>
-      <td class="td-growth">${diffHtml(amt26-amt25)}</td></tr>`;
+      <td class="td-growth">${diffHtml(amt26-amt25)}</td></tr>`);
   });
-  for (let i=n; i<12; i++) {
-    const amt25=store?(MONTHS_25[i]?.stores?.[store]?.amount||0):(MONTHS_25[i]?.total_amount||0);
-    const qty25=store?(MONTHS_25[i]?.stores?.[store]?.qty||0):(MONTHS_25[i]?.total_qty||0);
-    const ap25=qty25>0?Math.round(amt25/qty25):0;
-    rows+=`<tr style="opacity:.4"><td>${MLABELS[i]}</td><td style="color:#e2e8f0">-</td><td>-</td><td>-</td><td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td><td>-</td><td>-</td></tr>`;
-  }
   const sumAp26=sum26q>0?Math.round(sum26a/sum26q):0;
   const sumAp25=sum25q>0?Math.round(sum25a/sum25q):0;
-  rows+=`<tr class="td-total"><td>누적 (${lbl})</td>
+  const totalRow=`<tr class="td-total"><td>누적 (${lbl})</td>
     <td>${M(sum26a)}</td><td>${QTY(sum26q)}</td><td>${AVG(sumAp26)}</td>
     <td>${M(sum25a)}</td><td>${QTY(sum25q)}</td><td>${AVG(sumAp25)}</td>
     <td class="td-growth">${pct(sum26a,sum25a)}</td>
@@ -575,7 +570,7 @@ function tblMonthly(id, store) {
     <table><thead><tr>
       <th>월</th><th>26년 매출</th><th>수량</th><th>객단가</th>
       <th>25년 매출</th><th>수량</th><th>객단가</th><th>전년비</th><th>증감액</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+    </tr></thead><tbody>${rowsArr.reverse().join('')}${totalRow}</tbody></table>`;
 }
 
 // ── 테이블: 주차별 ──
@@ -584,7 +579,8 @@ function tblWeekly(id, store) {
     document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center;font-size:15px">주차별 데이터 없음</div>';
     return;
   }
-  let sum26a=0,sum25a=0,sum26q=0,sum25q=0, rows='';
+  let sum26a=0,sum25a=0,sum26q=0,sum25q=0;
+  const rowsArr=[];
   WEEKS_26.forEach(w26 => {
     const w25=WEEKS_25MAP[w26.label];
     const amt26=store?(w26.stores[store]?.amount||0):w26.total_amount;
@@ -594,15 +590,15 @@ function tblWeekly(id, store) {
     sum26a+=amt26; sum25a+=amt25; sum26q+=qty26; sum25q+=qty25;
     const ap26=qty26>0?Math.round(amt26/qty26):0;
     const ap25=qty25>0?Math.round(amt25/qty25):0;
-    rows+=`<tr><td>${w26.label}</td>
+    rowsArr.push(`<tr><td>${w26.label}</td>
       <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
       <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
       <td class="td-growth">${pct(amt26,amt25)}</td>
-      <td class="td-growth">${(amt26&&amt25)?diffHtml(amt26-amt25):'-'}</td></tr>`;
+      <td class="td-growth">${(amt26&&amt25)?diffHtml(amt26-amt25):'-'}</td></tr>`);
   });
   const sumAp26=sum26q>0?Math.round(sum26a/sum26q):0;
   const sumAp25=sum25q>0?Math.round(sum25a/sum25q):0;
-  rows+=`<tr class="td-total"><td>누적 합계</td>
+  const totalRow=`<tr class="td-total"><td>누적 합계</td>
     <td>${M(sum26a)}</td><td>${QTY(sum26q)}</td><td>${AVG(sumAp26)}</td>
     <td>${M(sum25a)}</td><td>${QTY(sum25q)}</td><td>${AVG(sumAp25)}</td>
     <td class="td-growth">${pct(sum26a,sum25a)}</td>
@@ -611,7 +607,7 @@ function tblWeekly(id, store) {
     <table><thead><tr>
       <th>주차</th><th>26년 매출</th><th>수량</th><th>객단가</th>
       <th>25년 매출</th><th>수량</th><th>객단가</th><th>전년비</th><th>증감액</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+    </tr></thead><tbody>${rowsArr.reverse().join('')}${totalRow}</tbody></table>`;
 }
 
 // ── 테이블: 일별 ──
