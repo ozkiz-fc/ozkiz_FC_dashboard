@@ -207,6 +207,22 @@ tr:hover td{background:#f8fafc}
         </button>
       </div>
     </div>
+    <!-- 영업이익 그룹 -->
+    <div class="nav-group">
+      <button class="nav-group-hd open" id="grp-profit" onclick="toggleGroup('grp-profit','sub-profit')">
+        <span class="nav-icon">💹</span>
+        <span>영업이익</span>
+        <span class="nav-chevron">▾</span>
+      </button>
+      <div class="nav-sub" id="sub-profit">
+        <button class="nav-sub-item" id="nav-profit-total" onclick="switchMain('profit-total')">
+          <span class="nav-sub-dot">●</span> 전체 매장
+        </button>
+        <button class="nav-sub-item" id="nav-profit-store" onclick="switchMain('profit-store')">
+          <span class="nav-sub-dot">●</span> 매장별
+        </button>
+      </div>
+    </div>
     <!-- 판매 베스트 그룹 -->
     <div class="nav-group">
       <button class="nav-group-hd open" id="grp-best" onclick="toggleGroup('grp-best','sub-best')">
@@ -297,6 +313,58 @@ tr:hover td{background:#f8fafc}
         <canvas id="canvas-store"></canvas>
       </div>
       <div id="table-store" class="table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ■ 영업이익 · 전체 매장 -->
+  <div id="sec-profit-total" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">영업이익 · 전체 매장</span>
+        <span id="profit-updated-at" class="updated"></span>
+      </div>
+      <div class="topbar-right">
+        <div class="btn-group" id="gran-profit-total">
+          <button class="active" onclick="setProfitGran('total','cumulative')">누적</button>
+          <button onclick="setProfitGran('total','monthly')">월별</button>
+          <button onclick="setProfitGran('total','weekly')">주차별</button>
+          <button onclick="setProfitGran('total','daily')">일별</button>
+        </div>
+      </div>
+    </div>
+    <div class="summary-cards" id="cards-profit-total"></div>
+    <div class="content-area">
+      <div class="chart-wrap">
+        <div class="chart-title" id="chart-profit-total-title"></div>
+        <canvas id="canvas-profit-total"></canvas>
+      </div>
+      <div id="table-profit-total" class="table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ■ 영업이익 · 매장별 -->
+  <div id="sec-profit-store" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">영업이익 · 매장별</span>
+        <select class="store-select" id="profit-store-select" onchange="onProfitStoreChange()"></select>
+      </div>
+      <div class="topbar-right">
+        <div class="btn-group" id="gran-profit-store">
+          <button class="active" onclick="setProfitGran('store','cumulative')">누적</button>
+          <button onclick="setProfitGran('store','monthly')">월별</button>
+          <button onclick="setProfitGran('store','weekly')">주차별</button>
+          <button onclick="setProfitGran('store','daily')">일별</button>
+        </div>
+      </div>
+    </div>
+    <div class="summary-cards" id="cards-profit-store"></div>
+    <div class="content-area">
+      <div class="chart-wrap">
+        <div class="chart-title" id="chart-profit-store-title"></div>
+        <canvas id="canvas-profit-store"></canvas>
+      </div>
+      <div id="table-profit-store" class="table-wrap"></div>
     </div>
   </div>
 
@@ -825,25 +893,31 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['total','store','best','memo'].forEach(k =>
+  ['total','store','profit-total','profit-store','best','memo'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
   const isBest = tab === 'best';
+  const isProfit = tab==='profit-total'||tab==='profit-store';
   const bTab   = subTab || bestState.tab || 'overall';
   document.getElementById('nav-total').classList.toggle('active', tab==='total');
   document.getElementById('nav-store').classList.toggle('active', tab==='store');
+  document.getElementById('nav-profit-total').classList.toggle('active', tab==='profit-total');
+  document.getElementById('nav-profit-store').classList.toggle('active', tab==='profit-store');
   document.getElementById('nav-best-overall').classList.toggle('active', isBest && bTab==='overall');
   document.getElementById('nav-best-store').classList.toggle('active', isBest && bTab==='store');
   document.getElementById('nav-memo').classList.toggle('active', tab==='memo');
 
   // 그룹 헤더 활성화
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
+  document.getElementById('grp-profit').classList.toggle('active', isProfit);
   document.getElementById('grp-best').classList.toggle('active', isBest);
   document.getElementById('grp-memo').classList.toggle('active', tab==='memo');
 
   if (tab==='total') renderTotal();
   else if (tab==='store') renderStore();
+  else if (tab==='profit-total') renderProfitTotal();
+  else if (tab==='profit-store') renderProfitStore();
   else if (tab==='best') {
     if (subTab) bestState.tab = subTab;
     document.getElementById('store-picker').style.display = bestState.tab==='store' ? 'flex' : 'none';
@@ -1175,12 +1249,379 @@ function memoDelete(id, e) {
 }
 
 // ════════════════════════════════════════════════
+// ■ 영업이익
+// ════════════════════════════════════════════════
+let PROFIT_DATA=null,PSTORES=[],PM26=[],PM25=[],PW26=[],PW25MAP={};
+let PDAILY_26=null,PDAILY_25=null;
+const profitState={total:{gran:'cumulative'},store:{gran:'cumulative',name:''}};
+
+function profitAxisFmt(v){
+  const abs=Math.abs(v),sign=v<0?'-':'';
+  return abs>=1e8?sign+(abs/1e8).toFixed(1)+'억':sign+Math.round(abs/1e6)+'M';
+}
+const Mp=v=>v!==0&&v!=null?v.toLocaleString('ko-KR')+'원':'-';
+const Mcard_p=v=>{const abs=Math.abs(v),sign=v<0?'-':'';return sign+(abs>=1e8?(abs/1e8).toFixed(1)+'억':(abs/1e6).toFixed(1)+'M');};
+const profitRate=(profit,sales)=>sales?profit/sales*100:null;
+
+function callProfitAPI(){
+  return new Promise((resolve,reject)=>{
+    const cbName='_pcb_'+Date.now();
+    const el=document.createElement('script');
+    const tid=setTimeout(()=>{delete window[cbName];el.remove();reject(new Error('영업이익 응답 시간 초과'));},30000);
+    window[cbName]=d=>{clearTimeout(tid);delete window[cbName];el.remove();d.error?reject(new Error(d.error)):resolve(d);};
+    el.src=`${SCRIPT_URL}?action=getProfit&callback=${cbName}`;
+    el.onerror=()=>{clearTimeout(tid);reject(new Error('영업이익 API 오류'));};
+    document.head.appendChild(el);
+  });
+}
+
+function processProfitData(d){
+  PROFIT_DATA=d; PSTORES=d.stores||[];
+  PM26=d.monthly_26||[]; PM25=d.monthly_25||[];
+  PW26=d.weekly_26||[]; PW25MAP={};
+  (d.weekly_25||[]).forEach(w=>{PW25MAP[w.label]=w;});
+  PDAILY_26=d.daily_26; PDAILY_25=d.daily_25;
+}
+
+function renderProfitCards(cardId,mon26,mon25){
+  const n=mon26.length;
+  const ya26p=mon26.reduce((s,m)=>s+m.total_profit,0);
+  const ya25p=mon25.slice(0,n).reduce((s,m)=>s+m.total_profit,0);
+  const ya26s=mon26.reduce((s,m)=>s+m.total_sales,0);
+  const ya25s=mon25.slice(0,n).reduce((s,m)=>s+m.total_sales,0);
+  const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
+  document.getElementById(cardId).innerHTML=`
+    <div class="card card-c1">
+      <div class="card-label">26년 누적 영업이익 (${ytdLbl()})</div>
+      <div class="card-value" style="font-size:26px;color:${ya26p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya26p)}</div>
+      <div class="card-sub">${Mp(ya26p)}</div>
+    </div>
+    <div class="card card-c2">
+      <div class="card-label">25년 동기 영업이익 (${ytdLbl()})</div>
+      <div class="card-value" style="font-size:26px;color:${ya25p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya25p)}</div>
+      <div class="card-sub">${Mp(ya25p)}</div>
+    </div>
+    <div class="card card-c3">
+      <div class="card-label">전년 동기 대비</div>
+      <div class="card-value" style="font-size:28px">${pct(ya26p,ya25p)}</div>
+      <div class="card-sub">${diffHtml(ya26p-ya25p)}</div>
+    </div>
+    <div class="card card-c4">
+      <div class="card-label">이익률 (26년 / 25년)</div>
+      <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
+      <div class="card-sub">25년 동기: ${r25!==null?r25.toFixed(1)+'%':'-'}</div>
+    </div>`;
+}
+
+function tblProfitCumulative(id){
+  const n=PM26.length,lbl=ytdLbl();
+  let rows='',tot26p=0,tot25p=0,tot26s=0,tot25s=0;
+  PSTORES.forEach(name=>{
+    const v26p=PM26.reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
+    const v25p=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
+    const v26s=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+    const v25s=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+    if(!v26p&&!v25p) return;
+    tot26p+=v26p;tot25p+=v25p;tot26s+=v26s;tot25s+=v25s;
+    const r26=profitRate(v26p,v26s),r25=profitRate(v25p,v25s);
+    rows+=`<tr><td>${name}</td>
+      <td style="color:${v26p<0?'#dc2626':''}">${Mp(v26p)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
+      <td style="color:${v25p<0?'#dc2626':''}">${Mp(v25p)}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
+      <td class="td-growth">${pct(v26p,v25p)}</td><td class="td-growth">${diffHtml(v26p-v25p)}</td></tr>`;
+  });
+  const tr26=profitRate(tot26p,tot26s),tr25=profitRate(tot25p,tot25s);
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr><th>매장명</th>
+      <th>26년 영업이익 (${lbl})</th><th>이익률</th>
+      <th>25년 영업이익 (${lbl})</th><th>이익률</th>
+      <th>전년비</th><th>증감액</th></tr></thead><tbody>${rows}
+    <tr class="td-total"><td>전체 합계</td>
+      <td style="color:${tot26p<0?'#dc2626':''}">${Mp(tot26p)}</td><td>${tr26!==null?tr26.toFixed(1)+'%':'-'}</td>
+      <td style="color:${tot25p<0?'#dc2626':''}">${Mp(tot25p)}</td><td>${tr25!==null?tr25.toFixed(1)+'%':'-'}</td>
+      <td class="td-growth">${pct(tot26p,tot25p)}</td><td class="td-growth">${diffHtml(tot26p-tot25p)}</td>
+    </tr></tbody></table>`;
+}
+
+function tblProfitMonthly(id,store){
+  let sum26p=0,sum25p=0,sum26s=0,sum25s=0;
+  const rowsArr=[];
+  PM26.forEach((m26,i)=>{
+    const p26=store?(m26.stores[store]?.profit||0):m26.total_profit;
+    const s26=store?(m26.stores[store]?.sales||0):m26.total_sales;
+    const m25=PM25[i]||{};
+    const p25=store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0);
+    const s25=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
+    sum26p+=p26;sum25p+=p25;sum26s+=s26;sum25s+=s25;
+    const r26=profitRate(p26,s26),r25=profitRate(p25,s25);
+    const isLast=i===PM26.length-1;
+    rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
+      <td style="color:${p26<0?'#dc2626':''}">${Mp(p26)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
+      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
+      <td class="td-growth">${pct(p26,p25)}</td><td class="td-growth">${diffHtml(p26-p25)}</td></tr>`);
+  });
+  const totR26=profitRate(sum26p,sum26s),totR25=profitRate(sum25p,sum25s);
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr><th>월</th>
+      <th>26년 영업이익</th><th>이익률</th>
+      <th>25년 영업이익</th><th>이익률</th>
+      <th>전년비</th><th>증감액</th></tr></thead><tbody>
+    ${rowsArr.reverse().join('')}
+    <tr class="td-total"><td>누적 (${ytdLbl()})</td>
+      <td style="color:${sum26p<0?'#dc2626':''}">${Mp(sum26p)}</td><td>${totR26!==null?totR26.toFixed(1)+'%':'-'}</td>
+      <td style="color:${sum25p<0?'#dc2626':''}">${Mp(sum25p)}</td><td>${totR25!==null?totR25.toFixed(1)+'%':'-'}</td>
+      <td class="td-growth">${pct(sum26p,sum25p)}</td><td class="td-growth">${diffHtml(sum26p-sum25p)}</td>
+    </tr></tbody></table>`;
+}
+
+function tblProfitWeekly(id,store){
+  if(!PW26.length){
+    document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">주차별 데이터 없음</div>';
+    return;
+  }
+  let sum26p=0,sum25p=0,sum26s=0;
+  const rowsArr=[];
+  PW26.forEach(w26=>{
+    const w25=PW25MAP[w26.label];
+    const p26=store?(w26.stores[store]?.profit||0):w26.total_profit;
+    const s26=store?(w26.stores[store]?.sales||0):w26.total_sales;
+    const p25=store?(w25?.stores[store]?.profit||0):(w25?.total_profit||0);
+    sum26p+=p26;sum25p+=p25;sum26s+=s26;
+    const r26=profitRate(p26,s26);
+    rowsArr.push(`<tr><td>${w26.label}</td>
+      <td style="color:${p26<0?'#dc2626':''}">${Mp(p26)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
+      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td><td>-</td>
+      <td class="td-growth">${pct(p26,p25)}</td><td class="td-growth">${p26&&p25?diffHtml(p26-p25):'-'}</td></tr>`);
+  });
+  const totR26=profitRate(sum26p,sum26s);
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr><th>주차</th>
+      <th>26년 영업이익</th><th>이익률</th>
+      <th>25년 영업이익</th><th>이익률</th>
+      <th>전년비</th><th>증감액</th></tr></thead><tbody>
+    ${rowsArr.reverse().join('')}
+    <tr class="td-total"><td>누적 합계</td>
+      <td style="color:${sum26p<0?'#dc2626':''}">${Mp(sum26p)}</td><td>${totR26!==null?totR26.toFixed(1)+'%':'-'}</td>
+      <td style="color:${sum25p<0?'#dc2626':''}">${Mp(sum25p)}</td><td>-</td>
+      <td class="td-growth">${pct(sum26p,sum25p)}</td><td class="td-growth">${diffHtml(sum26p-sum25p)}</td>
+    </tr></tbody></table>`;
+}
+
+function tblProfitDaily(id,store){
+  const daily=PDAILY_26;
+  if(!daily||!daily.labels.length){
+    document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">일별 데이터 없음</div>';
+    return;
+  }
+  const profits=store?daily.stores[store]?.profit:daily.total_profit;
+  const sales=store?daily.stores[store]?.sales:daily.total_sales;
+  if(!profits){
+    document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">해당 매장 데이터 없음</div>';
+    return;
+  }
+  const len=daily.labels.length,START=Math.max(0,len-30);
+  const dow=['일','월','화','수','목','금','토'];
+  let rows='';
+  for(let i=len-1;i>=START;i--){
+    const p=profits[i]||0,s=sales?sales[i]||0:0,prevP=i>0?profits[i-1]||0:null;
+    const r=profitRate(p,s);
+    const d=new Date('2026-'+daily.labels[i]);
+    const dayLabel=isNaN(d.getTime())?daily.labels[i]:`${daily.labels[i]} (${dow[d.getDay()]})`;
+    rows+=`<tr><td>${dayLabel}</td>
+      <td style="color:${p<0?'#dc2626':''}">${Mp(p)}</td>
+      <td>${r!==null?r.toFixed(1)+'%':'-'}</td>
+      <td class="td-growth">${prevP!==null?pct(p,prevP):'<span class="growth-flat">-</span>'}</td></tr>`;
+  }
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>날짜</th><th>영업이익</th><th>이익률</th><th>전일 대비</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function tblProfitStoreCumulative(id,store){
+  const n=PM26.length;
+  const mon=Array.from({length:Math.max(n,4)},(_,i)=>i);
+  const d26=PM26.map(m=>({p:m.stores[store]?.profit||0,s:m.stores[store]?.sales||0}));
+  const d25=PM25.map(m=>({p:m.stores[store]?.profit||0,s:m.stores[store]?.sales||0}));
+  const tot26p=d26.reduce((s,d)=>s+d.p,0),tot26s=d26.reduce((s,d)=>s+d.s,0);
+  const tot25p=d25.slice(0,n).reduce((s,d)=>s+d.p,0),tot25s=d25.slice(0,n).reduce((s,d)=>s+d.s,0);
+  const cv=(p,s)=>`<div style="color:${p<0?'#dc2626':'#334155'}">${p?p.toLocaleString('ko-KR')+'원':'-'}</div><div style="font-size:12px;color:#94a3b8">${profitRate(p,s)!==null?profitRate(p,s).toFixed(1)+'%':''}</div>`;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>연도</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
+    </tr></thead><tbody>
+    <tr><td>2025년</td>${mon.map(i=>`<td>${cv(d25[i]?.p||0,d25[i]?.s||0)}</td>`).join('')}<td>${cv(tot25p,tot25s)}</td></tr>
+    <tr><td>2026년</td>${d26.map((d,i)=>`<td>${cv(d.p,d.s)}${i===n-1?'<span class="partial-badge">집계중</span>':''}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td style="color:#e2e8f0">-</td>').join('')}<td>${cv(tot26p,tot26s)}</td></tr>
+    <tr class="td-total"><td>전년비</td>${mon.map(i=>`<td class="td-growth">${pct(d26[i]?.p||0,d25[i]?.p||0)}</td>`).join('')}<td class="td-growth">${pct(tot26p,tot25p)}</td></tr>
+    </tbody></table>`;
+}
+
+function chartProfitBarLine(cid,labels,d25,d26){
+  killChart(cid);
+  const gr=d26.map((v,i)=>d25[i]&&d25[i]!==0?+((v-d25[i])/Math.abs(d25[i])*100).toFixed(1):null);
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'2025년',data:d25,backgroundColor:CHART_COLORS.bar25,borderRadius:4,order:2},
+      {label:'2026년',data:d26,backgroundColor:d26.map(v=>v>=0?CHART_COLORS.bar26:'#dc262670'),borderRadius:4,order:2},
+      {label:'전년비(%)',data:gr,type:'line',borderColor:CHART_COLORS.growth,
+       backgroundColor:CHART_COLORS.growth+'20',borderWidth:2,pointRadius:5,
+       pointBackgroundColor:CHART_COLORS.growth,yAxisID:'y2',order:1,tension:.3}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
+          bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return c.dataset.yAxisID==='y2'
+            ?` 전년비: ${c.parsed.y>0?'+':''}${c.parsed.y}%`
+            :` ${c.dataset.label}: ${c.parsed.y?.toLocaleString('ko-KR')}원`;}}}},
+      scales:{
+        x:{ticks:{color:CHART_COLORS.tick,font:{size:13}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:profitAxisFmt},grid:{color:CHART_COLORS.gridY}},
+        y2:{position:'right',ticks:{color:CHART_COLORS.growth,font:{size:13},callback:v=>v+'%'},grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+}
+
+function chartProfitMonthly(cid,store){
+  const labels=PM26.map(m=>MLABELS[m.month-1]);
+  const d26=PM26.map(m=>store?(m.stores[store]?.profit||0):m.total_profit);
+  const d25=PM26.map((_,i)=>store?(PM25[i]?.stores[store]?.profit||0):(PM25[i]?.total_profit||0));
+  chartProfitBarLine(cid,labels,d25,d26);
+}
+
+function chartProfitWeekly(cid,store){
+  if(!PW26.length) return;
+  const labels=PW26.map(w=>w.label);
+  const d26=PW26.map(w=>store?(w.stores[store]?.profit||0):w.total_profit);
+  const d25=PW26.map(w=>{const w5=PW25MAP[w.label];return store?(w5?.stores[store]?.profit||0):(w5?.total_profit||0);});
+  chartProfitBarLine(cid,labels,d25,d26);
+}
+
+function chartProfitCumulativeLine(cid,store){
+  killChart(cid);
+  const d25=MLABELS.map((_,i)=>store?(PM25[i]?.stores[store]?.profit||0):(PM25[i]?.total_profit||0));
+  const d26=MLABELS.map((_,i)=>i<PM26.length?(store?(PM26[i]?.stores[store]?.profit||0):(PM26[i]?.total_profit||0)):null);
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'line',
+    data:{labels:MLABELS,datasets:[
+      {label:'2025년',data:d25,borderColor:CHART_COLORS.line25,borderDash:[6,3],
+       borderWidth:2,pointRadius:4,pointBackgroundColor:CHART_COLORS.line25,backgroundColor:'transparent',tension:.3,order:2},
+      {label:'2026년',data:d26,borderColor:CHART_COLORS.line26,borderWidth:2.5,
+       pointRadius:5,pointBackgroundColor:CHART_COLORS.line26,backgroundColor:CHART_COLORS.line26+'18',fill:true,tension:.3,order:1}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
+          bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return ` ${c.dataset.label}: ${c.parsed.y?.toLocaleString('ko-KR')}원`;}}}},
+      scales:{
+        x:{ticks:{color:CHART_COLORS.tick,font:{size:13}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:profitAxisFmt},grid:{color:CHART_COLORS.gridY}}
+      }
+    }
+  });
+}
+
+function chartProfitDaily(cid,store){
+  const daily=PDAILY_26;
+  if(!daily||!daily.labels.length) return;
+  killChart(cid);
+  const profits=store?daily.stores[store]?.profit:daily.total_profit;
+  if(!profits) return;
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'line',
+    data:{labels:daily.labels,datasets:[
+      {label:'영업이익',data:profits,borderColor:CHART_COLORS.line26,
+       backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
+          bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return ` 영업이익: ${c.parsed.y?.toLocaleString('ko-KR')}원`;}}}},
+      scales:{
+        x:{ticks:{color:CHART_COLORS.tick,maxRotation:45,maxTicksLimit:15,font:{size:12}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:profitAxisFmt},grid:{color:CHART_COLORS.gridY}}
+      }
+    }
+  });
+}
+
+function renderProfitTotal(){
+  if(!PROFIT_DATA) return;
+  const {gran}=profitState.total;
+  renderProfitCards('cards-profit-total',PM26,PM25);
+  const t=document.getElementById('chart-profit-total-title');
+  if(gran==='cumulative'){
+    t.textContent='월별 영업이익 추이 · 25·26년 비교';
+    chartProfitCumulativeLine('canvas-profit-total',null);
+    tblProfitCumulative('table-profit-total');
+  } else if(gran==='monthly'){
+    t.textContent='월별 영업이익 · 25·26년 비교';
+    chartProfitMonthly('canvas-profit-total',null);
+    tblProfitMonthly('table-profit-total',null);
+  } else if(gran==='weekly'){
+    t.textContent='주차별 영업이익 · 25·26년 비교';
+    chartProfitWeekly('canvas-profit-total',null);
+    tblProfitWeekly('table-profit-total',null);
+  } else {
+    t.textContent='일별 영업이익 추이 (2026년)';
+    chartProfitDaily('canvas-profit-total',null);
+    tblProfitDaily('table-profit-total',null);
+  }
+}
+
+function renderProfitStore(){
+  if(!PROFIT_DATA) return;
+  const {gran,name}=profitState.store;
+  const mon26=PM26.map(m=>({total_profit:m.stores[name]?.profit||0,total_sales:m.stores[name]?.sales||0}));
+  const mon25=PM25.map(m=>({total_profit:m.stores[name]?.profit||0,total_sales:m.stores[name]?.sales||0}));
+  renderProfitCards('cards-profit-store',mon26,mon25);
+  const t=document.getElementById('chart-profit-store-title');
+  if(gran==='cumulative'){
+    t.textContent='월별 영업이익 추이 · 25·26년 비교';
+    chartProfitCumulativeLine('canvas-profit-store',name);
+    tblProfitStoreCumulative('table-profit-store',name);
+  } else if(gran==='monthly'){
+    t.textContent='월별 영업이익 · 25·26년 비교';
+    chartProfitMonthly('canvas-profit-store',name);
+    tblProfitMonthly('table-profit-store',name);
+  } else if(gran==='weekly'){
+    t.textContent='주차별 영업이익 · 25·26년 비교';
+    chartProfitWeekly('canvas-profit-store',name);
+    tblProfitWeekly('table-profit-store',name);
+  } else {
+    t.textContent='일별 영업이익 추이 (2026년)';
+    chartProfitDaily('canvas-profit-store',name);
+    tblProfitDaily('table-profit-store',name);
+  }
+}
+
+function setProfitGran(sec,val){
+  profitState[sec].gran=val;
+  document.getElementById('gran-profit-'+sec).querySelectorAll('button').forEach((b,i)=>
+    b.classList.toggle('active',['cumulative','monthly','weekly','daily'][i]===val));
+  if(sec==='total') renderProfitTotal(); else renderProfitStore();
+}
+
+function onProfitStoreChange(){
+  profitState.store.name=document.getElementById('profit-store-select').value;
+  renderProfitStore();
+}
+
+// ════════════════════════════════════════════════
 // ■ 초기화
 // ════════════════════════════════════════════════
 (async function init() {
   try {
     initBestStores();
-    const data=await callAPI();
+    const [salesRes,profitRes]=await Promise.allSettled([callAPI(),callProfitAPI()]);
+    if(salesRes.status==='rejected') throw salesRes.reason;
+    const data=salesRes.value;
     processData(data);
     document.getElementById('updated-at').textContent=data.updatedAt?'⏱ '+data.updatedAt:'';
     const lastM=MONTHS_26.length>0?MLABELS[MONTHS_26.length-1]:'';
@@ -1192,6 +1633,15 @@ function memoDelete(id, e) {
       o.value=name; o.textContent=name; sel.appendChild(o);
     });
     state.store.name=STORE_LIST[0]||'';
+    if(profitRes.status==='fulfilled'){
+      processProfitData(profitRes.value);
+      if(PROFIT_DATA?.updatedAt) document.getElementById('profit-updated-at').textContent='⏱ '+PROFIT_DATA.updatedAt;
+      const psel=document.getElementById('profit-store-select');
+      PSTORES.forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;psel.appendChild(o);});
+      profitState.store.name=PSTORES[0]||'';
+    } else {
+      console.warn('영업이익 데이터 로드 실패:',profitRes.reason);
+    }
     document.getElementById('loading').style.display='none';
     renderTotal();
   } catch(e) {
