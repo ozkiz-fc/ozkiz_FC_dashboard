@@ -1259,8 +1259,8 @@ function profitAxisFmt(v){
   const abs=Math.abs(v),sign=v<0?'-':'';
   return abs>=1e8?sign+(abs/1e8).toFixed(1)+'억':sign+Math.round(abs/1e6)+'M';
 }
-const Mp=v=>v!==0&&v!=null?v.toLocaleString('ko-KR')+'원':'-';
-const Mcard_p=v=>{const abs=Math.abs(v),sign=v<0?'-':'';return sign+(abs>=1e8?(abs/1e8).toFixed(1)+'억':(abs/1e6).toFixed(1)+'M');};
+const Mp=v=>v!==0&&v!=null?Math.round(v).toLocaleString('ko-KR')+'원':'-';
+const Mcard_p=v=>{const abs=Math.abs(v),sign=v<0?'-':'';return sign+(abs>=1e8?Math.round(abs/1e8)+'억':Math.round(abs/1e6)+'M');};
 const profitRate=(profit,sales)=>sales?profit/sales*100:null;
 
 function callProfitAPI(){
@@ -1277,11 +1277,14 @@ function callProfitAPI(){
 
 function processProfitData(d){
   PROFIT_DATA=d; PSTORES=d.stores||[];
-  PM26=d.monthly_26||[]; PM25=d.monthly_25||[];
+  const curMonth=new Date().getMonth()+1;
+  PM26=(d.monthly_26||[]).filter(m=>m.month<=curMonth);
+  PM25=d.monthly_25||[];
   PW26=d.weekly_26||[]; PW25MAP={};
   (d.weekly_25||[]).forEach(w=>{PW25MAP[w.label]=w;});
   PDAILY_26=d.daily_26; PDAILY_25=d.daily_25;
 }
+const profitYtdLbl=()=>PM26.length>0?`1~${MLABELS[PM26[PM26.length-1].month-1]}`:(ytdLbl()||'');
 
 function renderProfitCards(cardId,mon26,mon25){
   const n=mon26.length;
@@ -1292,12 +1295,12 @@ function renderProfitCards(cardId,mon26,mon25){
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
   document.getElementById(cardId).innerHTML=`
     <div class="card card-c1">
-      <div class="card-label">26년 누적 영업이익 (${ytdLbl()})</div>
+      <div class="card-label">26년 누적 영업이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya26p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya26p)}</div>
       <div class="card-sub">${Mp(ya26p)}</div>
     </div>
     <div class="card card-c2">
-      <div class="card-label">25년 동기 영업이익 (${ytdLbl()})</div>
+      <div class="card-label">25년 동기 영업이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya25p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya25p)}</div>
       <div class="card-sub">${Mp(ya25p)}</div>
     </div>
@@ -1314,7 +1317,7 @@ function renderProfitCards(cardId,mon26,mon25){
 }
 
 function tblProfitCumulative(id){
-  const n=PM26.length,lbl=ytdLbl();
+  const n=PM26.length,lbl=profitYtdLbl();
   let rows='',tot26p=0,tot25p=0,tot26s=0,tot25s=0;
   PSTORES.forEach(name=>{
     const v26p=PM26.reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
