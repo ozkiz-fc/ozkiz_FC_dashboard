@@ -176,12 +176,6 @@ tr:hover td{background:#f8fafc}
 .memo-empty{text-align:center;padding:60px 28px;color:#94a3b8;font-size:15px;line-height:1.8}
 
 /* ── 재고현황 ── */
-.inv-search-bar{display:flex;gap:10px;padding:16px 24px;background:#fff;border-bottom:1px solid #e2e8f0;align-items:center}
-.inv-search-input{flex:1;max-width:420px;padding:9px 14px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:15px;font-family:inherit;outline:none;color:#334155}
-.inv-search-input:focus{border-color:#0ea5e9}
-.inv-search-btn{padding:9px 22px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-size:15px;font-family:inherit;font-weight:700;cursor:pointer}
-.inv-search-btn:hover{background:#0284c7}
-.inv-search-hint{font-size:13px;color:#94a3b8;padding:8px 24px}
 </style>
 </head>
 <body>
@@ -270,9 +264,6 @@ tr:hover td{background:#f8fafc}
       <div class="nav-sub" id="sub-inv">
         <button class="nav-sub-item" id="nav-inv-summary" onclick="switchMain('inv-summary')">
           <span class="nav-sub-dot">●</span> 매장별 재고
-        </button>
-        <button class="nav-sub-item" id="nav-inv-search" onclick="switchMain('inv-search')">
-          <span class="nav-sub-dot">●</span> 제품 검색
         </button>
       </div>
     </div>
@@ -503,22 +494,6 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
-  <!-- ■ 재고현황 · 제품 검색 -->
-  <div id="sec-inv-search" class="section-wrap">
-    <div class="topbar">
-      <div class="topbar-left">
-        <span class="page-title">📦 재고현황 · 제품 검색</span>
-      </div>
-    </div>
-    <div class="inv-search-bar">
-      <input type="text" id="inv-search-input" class="inv-search-input"
-        placeholder="제품명 입력 (예: 원피스)" onkeydown="if(event.key==='Enter')invSearch()">
-      <button class="inv-search-btn" onclick="invSearch()">검색</button>
-    </div>
-    <p class="inv-search-hint">제품명 일부로 검색 · 재고 0인 매장은 흐리게 표시됩니다</p>
-    <div id="inv-search-status"></div>
-    <div id="table-inv-search" class="table-wrap" style="margin:0 28px 32px"></div>
-  </div>
 
 </div><!-- /main-wrapper -->
 
@@ -956,13 +931,13 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['total','store','profit-total','profit-store','best','memo','inv-summary','inv-search'].forEach(k =>
+  ['total','store','profit-total','profit-store','best','memo','inv-summary'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
   const isBest = tab === 'best';
   const isProfit = tab==='profit-total'||tab==='profit-store';
-  const isInv = tab==='inv-summary'||tab==='inv-search';
+  const isInv = tab==='inv-summary';
   const bTab   = subTab || bestState.tab || 'overall';
   document.getElementById('nav-total').classList.toggle('active', tab==='total');
   document.getElementById('nav-store').classList.toggle('active', tab==='store');
@@ -972,7 +947,6 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-best-store').classList.toggle('active', isBest && bTab==='store');
   document.getElementById('nav-memo').classList.toggle('active', tab==='memo');
   document.getElementById('nav-inv-summary').classList.toggle('active', tab==='inv-summary');
-  document.getElementById('nav-inv-search').classList.toggle('active', tab==='inv-search');
 
   // 그룹 헤더 활성화
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
@@ -997,9 +971,6 @@ function switchMain(tab, subTab) {
   else if (tab==='inv-summary') {
     if (!invLoaded) invLoadSummary();
     else renderInvSummary();
-  }
-  else if (tab==='inv-search') {
-    setTimeout(() => document.getElementById('inv-search-input').focus(), 100);
   }
 }
 function setGran(sec, val) {
@@ -1749,16 +1720,17 @@ function renderInvSummary() {
   // 카드
   if (lat) {
     document.getElementById('inv-updated-at').textContent = '⏱ ' + lat.date + ' 스냅샷';
+    const fmtW = v => v ? Math.floor(v/10000).toLocaleString()+'만원' : '-';
     document.getElementById('cards-inv').innerHTML = `
       <div class="card card-c1">
         <div class="card-label">전체 재고 수량</div>
-        <div class="card-value" style="font-size:28px">${lat.total_qty.toLocaleString()}개</div>
-        <div class="card-sub">본사: ${lat.bonsa_qty.toLocaleString()}개 · 이동중: ${lat.moving_qty.toLocaleString()}개</div>
+        <div class="card-value" style="font-size:28px">${(lat.total_qty||0).toLocaleString()}개</div>
+        <div class="card-sub">본사: ${(lat.bonsa_qty||0).toLocaleString()}개 · 매장: ${(lat.store_qty||0).toLocaleString()}개</div>
       </div>
       <div class="card card-c2">
-        <div class="card-label">매장 재고 수량</div>
-        <div class="card-value" style="font-size:28px">${lat.store_qty.toLocaleString()}개</div>
-        <div class="card-sub">전체 − 본사 − 이동중</div>
+        <div class="card-label">전체 재고 원가</div>
+        <div class="card-value" style="font-size:26px">${fmtW(lat.total_cost)}</div>
+        <div class="card-sub">본사: ${fmtW(lat.bonsa_cost)} · 매장: ${fmtW(lat.store_cost)}</div>
       </div>
       <div class="card card-c3">
         <div class="card-label">데이터 적재 일수</div>
@@ -1813,73 +1785,33 @@ function chartInvTrend(cid, labels, totalData, storeData) {
 }
 
 function tblInvStores(id, stores) {
+  const fmtW = v => Math.floor(v/10000).toLocaleString()+'만원';
   const rows = INV_STORE_ORDER.map(name => {
-    const qty = stores[name] || 0;
-    const style = qty === 0 ? 'color:#cbd5e1' : 'font-weight:700';
-    return `<tr><td>${name}</td><td style="text-align:right;${style}">${qty ? qty.toLocaleString()+'개' : '-'}</td></tr>`;
+    const s = stores[name] || {qty:0, cost:0};
+    const dim = s.qty === 0 ? 'color:#cbd5e1' : 'font-weight:700';
+    return `<tr>
+      <td>${name}</td>
+      <td style="text-align:right;${dim}">${s.qty ? s.qty.toLocaleString()+'개' : '-'}</td>
+      <td style="text-align:right;${dim}">${s.cost ? fmtW(s.cost) : '-'}</td>
+    </tr>`;
   }).join('');
-  const total = INV_STORE_ORDER.reduce((s, n) => s + (stores[n] || 0), 0);
+  const totalQty  = INV_STORE_ORDER.reduce((s,n) => s + ((stores[n]||{}).qty||0), 0);
+  const totalCost = INV_STORE_ORDER.reduce((s,n) => s + ((stores[n]||{}).cost||0), 0);
   document.getElementById(id).innerHTML = `
-    <table><thead><tr><th>매장명</th><th style="text-align:right">재고 수량</th></tr></thead>
+    <table><thead><tr>
+      <th>매장명</th>
+      <th style="text-align:right">재고 수량</th>
+      <th style="text-align:right">재고 원가</th>
+    </tr></thead>
     <tbody>${rows}
-    <tr class="td-total"><td>매장 합계</td><td style="text-align:right">${total.toLocaleString()}개</td></tr>
+    <tr class="td-total">
+      <td>매장 합계</td>
+      <td style="text-align:right">${totalQty.toLocaleString()}개</td>
+      <td style="text-align:right">${fmtW(totalCost)}</td>
+    </tr>
     </tbody></table>`;
 }
 
-async function invSearch() {
-  const q = document.getElementById('inv-search-input').value.trim();
-  if (!q) return;
-  const st = document.getElementById('inv-search-status');
-  const tbl = document.getElementById('table-inv-search');
-  st.innerHTML = '<div style="padding:16px 24px;color:#64748b">검색중...</div>';
-  tbl.innerHTML = '';
-  try {
-    const d = await callInvAPI('search', q);
-    st.innerHTML = '';
-    tblInvSearch('table-inv-search', d.items || []);
-  } catch(e) {
-    st.innerHTML = `<div style="padding:16px 24px;color:#dc2626">⚠️ 검색 실패: ${e.message}</div>`;
-  }
-}
-
-function tblInvSearch(id, items) {
-  const el = document.getElementById(id);
-  if (!items.length) {
-    el.innerHTML = '<div style="padding:40px;color:#94a3b8;text-align:center">검색 결과가 없습니다.</div>';
-    return;
-  }
-  // 재고가 1 이상인 매장만 열로 표시
-  const storeCols = INV_STORE_ORDER.filter(n => items.some(it => (it.stores[n] || 0) > 0));
-  const fmtP = v => v ? Number(v).toLocaleString('ko-KR') + '원' : '-';
-  const header = `<tr>
-    <th style="text-align:left;min-width:140px">제품명</th>
-    <th style="text-align:left;min-width:80px">옵션</th>
-    <th style="text-align:right">전체재고</th>
-    <th style="text-align:right">본사</th>
-    <th style="text-align:right">판매가</th>
-    ${storeCols.map(n => `<th style="text-align:right">${n}</th>`).join('')}
-  </tr>`;
-  const body = items.map(item => {
-    const storeQtys = storeCols.map(n => {
-      const qty = item.stores[n] || 0;
-      return qty > 0
-        ? `<td style="text-align:right;font-weight:700">${qty}</td>`
-        : `<td style="text-align:right;color:#cbd5e1">-</td>`;
-    }).join('');
-    return `<tr>
-      <td style="white-space:normal;font-weight:600">${item.product_name}</td>
-      <td style="white-space:normal;font-size:13px;color:#64748b">${item.options || ''}</td>
-      <td style="text-align:right;font-weight:700">${item.stockall || 0}</td>
-      <td style="text-align:right;color:#64748b">${item.bonsa_stock || 0}</td>
-      <td style="text-align:right">${fmtP(item.price)}</td>
-      ${storeQtys}
-    </tr>`;
-  }).join('');
-  el.innerHTML = `<div style="overflow-x:auto">
-    <div style="font-size:13px;color:#64748b;padding:8px 16px">${items.length}개 옵션</div>
-    <table><thead>${header}</thead><tbody>${body}</tbody></table>
-  </div>`;
-}
 
 // ════════════════════════════════════════════════
 // ■ 초기화
