@@ -174,6 +174,14 @@ tr:hover td{background:#f8fafc}
 .memo-body li{margin-bottom:5px}
 .memo-body p{margin-bottom:6px}
 .memo-empty{text-align:center;padding:60px 28px;color:#94a3b8;font-size:15px;line-height:1.8}
+
+/* ── 재고현황 ── */
+.inv-search-bar{display:flex;gap:10px;padding:16px 24px;background:#fff;border-bottom:1px solid #e2e8f0;align-items:center}
+.inv-search-input{flex:1;max-width:420px;padding:9px 14px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:15px;font-family:inherit;outline:none;color:#334155}
+.inv-search-input:focus{border-color:#0ea5e9}
+.inv-search-btn{padding:9px 22px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-size:15px;font-family:inherit;font-weight:700;cursor:pointer}
+.inv-search-btn:hover{background:#0284c7}
+.inv-search-hint{font-size:13px;color:#94a3b8;padding:8px 24px}
 </style>
 </head>
 <body>
@@ -249,6 +257,22 @@ tr:hover td{background:#f8fafc}
       <div class="nav-sub" id="sub-memo">
         <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
           <span class="nav-sub-dot">●</span> 리포트 목록
+        </button>
+      </div>
+    </div>
+    <!-- 재고현황 그룹 -->
+    <div class="nav-group">
+      <button class="nav-group-hd open" id="grp-inv" onclick="toggleGroup('grp-inv','sub-inv')">
+        <span class="nav-icon">📦</span>
+        <span>재고현황</span>
+        <span class="nav-chevron">▾</span>
+      </button>
+      <div class="nav-sub" id="sub-inv">
+        <button class="nav-sub-item" id="nav-inv-summary" onclick="switchMain('inv-summary')">
+          <span class="nav-sub-dot">●</span> 매장별 재고
+        </button>
+        <button class="nav-sub-item" id="nav-inv-search" onclick="switchMain('inv-search')">
+          <span class="nav-sub-dot">●</span> 제품 검색
         </button>
       </div>
     </div>
@@ -456,6 +480,44 @@ tr:hover td{background:#f8fafc}
         <div class="memo-empty">불러오는 중...</div>
       </div>
     </div>
+  </div>
+
+  <!-- ■ 재고현황 · 매장별 -->
+  <div id="sec-inv-summary" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">📦 재고현황 · 매장별</span>
+        <span id="inv-updated-at" class="updated"></span>
+      </div>
+      <div class="topbar-right">
+        <button class="refresh-btn" onclick="invRefresh()" title="새로고침">🔄</button>
+      </div>
+    </div>
+    <div class="summary-cards" id="cards-inv"></div>
+    <div class="content-area">
+      <div class="chart-wrap">
+        <div class="chart-title" id="chart-inv-title">재고 추이 (일별)</div>
+        <canvas id="canvas-inv"></canvas>
+      </div>
+      <div id="table-inv" class="table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ■ 재고현황 · 제품 검색 -->
+  <div id="sec-inv-search" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">📦 재고현황 · 제품 검색</span>
+      </div>
+    </div>
+    <div class="inv-search-bar">
+      <input type="text" id="inv-search-input" class="inv-search-input"
+        placeholder="제품명 입력 (예: 원피스)" onkeydown="if(event.key==='Enter')invSearch()">
+      <button class="inv-search-btn" onclick="invSearch()">검색</button>
+    </div>
+    <p class="inv-search-hint">제품명 일부로 검색 · 재고 0인 매장은 흐리게 표시됩니다</p>
+    <div id="inv-search-status"></div>
+    <div id="table-inv-search" class="table-wrap" style="margin:0 28px 32px"></div>
   </div>
 
 </div><!-- /main-wrapper -->
@@ -894,12 +956,13 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['total','store','profit-total','profit-store','best','memo'].forEach(k =>
+  ['total','store','profit-total','profit-store','best','memo','inv-summary','inv-search'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
   const isBest = tab === 'best';
   const isProfit = tab==='profit-total'||tab==='profit-store';
+  const isInv = tab==='inv-summary'||tab==='inv-search';
   const bTab   = subTab || bestState.tab || 'overall';
   document.getElementById('nav-total').classList.toggle('active', tab==='total');
   document.getElementById('nav-store').classList.toggle('active', tab==='store');
@@ -908,12 +971,15 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-best-overall').classList.toggle('active', isBest && bTab==='overall');
   document.getElementById('nav-best-store').classList.toggle('active', isBest && bTab==='store');
   document.getElementById('nav-memo').classList.toggle('active', tab==='memo');
+  document.getElementById('nav-inv-summary').classList.toggle('active', tab==='inv-summary');
+  document.getElementById('nav-inv-search').classList.toggle('active', tab==='inv-search');
 
   // 그룹 헤더 활성화
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
   document.getElementById('grp-profit').classList.toggle('active', isProfit);
   document.getElementById('grp-best').classList.toggle('active', isBest);
   document.getElementById('grp-memo').classList.toggle('active', tab==='memo');
+  document.getElementById('grp-inv').classList.toggle('active', isInv);
 
   if (tab==='total') renderTotal();
   else if (tab==='store') renderStore();
@@ -927,6 +993,13 @@ function switchMain(tab, subTab) {
   }
   else if (tab==='memo') {
     if (!memoLoaded) memoLoadAll();
+  }
+  else if (tab==='inv-summary') {
+    if (!invLoaded) invLoadSummary();
+    else renderInvSummary();
+  }
+  else if (tab==='inv-search') {
+    setTimeout(() => document.getElementById('inv-search-input').focus(), 100);
   }
 }
 function setGran(sec, val) {
@@ -1615,6 +1688,197 @@ function setProfitGran(sec,val){
 function onProfitStoreChange(){
   profitState.store.name=document.getElementById('profit-store-select').value;
   renderProfitStore();
+}
+
+// ════════════════════════════════════════════════
+// ■ 재고현황
+// ════════════════════════════════════════════════
+const INV_API_URL = 'https://script.google.com/a/macros/openhan.kr/s/AKfycbxoMaX5-jFHJxu0MteABHstUwRsG_tBL2ZimcrHDDQsgjW3Sg0aC4E--3ZJSYlzxMb-/exec';
+const INV_STORE_ORDER = [
+  '남악','부천','의정부','인천','유성','여수','율하','충장',
+  '동수원','송파','제주','괴정','강서','순천','평택','고척',
+  '원주','마리오','창원','평촌','면세점','STCO현풍','STCO용인','(롯)평촌'
+];
+
+let INV_DATA = null, invLoaded = false;
+
+function callInvAPI(inv_type, q) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_invcb_' + Date.now();
+    const el = document.createElement('script');
+    const tid = setTimeout(() => {
+      delete window[cbName]; el.remove();
+      reject(new Error('재고 API 응답 시간 초과 (30초)'));
+    }, 30000);
+    window[cbName] = d => {
+      clearTimeout(tid); delete window[cbName]; el.remove();
+      d.error ? reject(new Error(d.error)) : resolve(d);
+    };
+    let src = INV_API_URL + '?action=inventory&inv_type=' + inv_type + '&callback=' + cbName;
+    if (q) src += '&q=' + encodeURIComponent(q);
+    el.src = src;
+    el.onerror = () => { clearTimeout(tid); reject(new Error('재고 API 연결 오류')); };
+    document.head.appendChild(el);
+  });
+}
+
+async function invLoadSummary() {
+  const cards = document.getElementById('cards-inv');
+  const tbl = document.getElementById('table-inv');
+  cards.innerHTML = '<div style="padding:24px;color:#64748b;grid-column:1/-1">데이터 불러오는 중...</div>';
+  tbl.innerHTML = '';
+  try {
+    INV_DATA = await callInvAPI('summary');
+    invLoaded = true;
+    renderInvSummary();
+  } catch(e) {
+    cards.innerHTML = `<div style="padding:24px;color:#dc2626;grid-column:1/-1">⚠️ 로드 실패: ${e.message}</div>`;
+  }
+}
+
+function invRefresh() {
+  INV_DATA = null; invLoaded = false;
+  invLoadSummary();
+}
+
+function renderInvSummary() {
+  if (!INV_DATA) return;
+  const d = INV_DATA;
+  const lat = d.latest;
+
+  // 카드
+  if (lat) {
+    document.getElementById('inv-updated-at').textContent = '⏱ ' + lat.date + ' 스냅샷';
+    document.getElementById('cards-inv').innerHTML = `
+      <div class="card card-c1">
+        <div class="card-label">전체 재고 수량</div>
+        <div class="card-value" style="font-size:28px">${lat.total_qty.toLocaleString()}개</div>
+        <div class="card-sub">본사: ${lat.bonsa_qty.toLocaleString()}개 · 이동중: ${lat.moving_qty.toLocaleString()}개</div>
+      </div>
+      <div class="card card-c2">
+        <div class="card-label">매장 재고 수량</div>
+        <div class="card-value" style="font-size:28px">${lat.store_qty.toLocaleString()}개</div>
+        <div class="card-sub">전체 − 본사 − 이동중</div>
+      </div>
+      <div class="card card-c3">
+        <div class="card-label">데이터 적재 일수</div>
+        <div class="card-value" style="font-size:28px">${(d.history||[]).length}일</div>
+        <div class="card-sub">매일 오전 6시 자동 저장</div>
+      </div>`;
+  } else {
+    document.getElementById('cards-inv').innerHTML =
+      '<div style="padding:24px;color:#94a3b8;grid-column:1/-1">저장된 스냅샷이 없습니다. Apps Script에서 saveInventorySnapshot()을 먼저 실행하세요.</div>';
+  }
+
+  // 트렌드 차트
+  const hist = d.history || [];
+  if (hist.length > 1) {
+    chartInvTrend('canvas-inv', hist.map(h=>h.date), hist.map(h=>h.total_qty), hist.map(h=>h.store_qty));
+  } else {
+    document.getElementById('chart-inv-title').textContent = '재고 추이 (데이터 2일 이상부터 표시)';
+  }
+
+  // 매장별 테이블
+  if (lat && lat.stores) {
+    tblInvStores('table-inv', lat.stores);
+  }
+}
+
+function chartInvTrend(cid, labels, totalData, storeData) {
+  killChart(cid);
+  charts[cid] = new Chart(document.getElementById(cid).getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: '전체 재고', data: totalData, borderColor: '#0ea5e9',
+        backgroundColor: '#0ea5e918', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3 },
+      { label: '매장 재고', data: storeData, borderColor: '#8b5cf6',
+        backgroundColor: '#8b5cf618', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3 }
+    ]},
+    options: {
+      responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: CHART_COLORS.legend, font: { size: 13 } } },
+        tooltip: {
+          backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title,
+          bodyColor: CHART_COLORS.tooltip.body,
+          callbacks: { label(c) { return ` ${c.dataset.label}: ${c.parsed.y.toLocaleString()}개`; } }
+        }
+      },
+      scales: {
+        x: { ticks: { color: CHART_COLORS.tick, maxRotation: 45, maxTicksLimit: 30, font: { size: 12 } }, grid: { color: CHART_COLORS.gridX } },
+        y: { ticks: { color: CHART_COLORS.tick, font: { size: 13 }, callback: v => v.toLocaleString() }, grid: { color: CHART_COLORS.gridY } }
+      }
+    }
+  });
+}
+
+function tblInvStores(id, stores) {
+  const rows = INV_STORE_ORDER.map(name => {
+    const qty = stores[name] || 0;
+    const style = qty === 0 ? 'color:#cbd5e1' : 'font-weight:700';
+    return `<tr><td>${name}</td><td style="text-align:right;${style}">${qty ? qty.toLocaleString()+'개' : '-'}</td></tr>`;
+  }).join('');
+  const total = INV_STORE_ORDER.reduce((s, n) => s + (stores[n] || 0), 0);
+  document.getElementById(id).innerHTML = `
+    <table><thead><tr><th>매장명</th><th style="text-align:right">재고 수량</th></tr></thead>
+    <tbody>${rows}
+    <tr class="td-total"><td>매장 합계</td><td style="text-align:right">${total.toLocaleString()}개</td></tr>
+    </tbody></table>`;
+}
+
+async function invSearch() {
+  const q = document.getElementById('inv-search-input').value.trim();
+  if (!q) return;
+  const st = document.getElementById('inv-search-status');
+  const tbl = document.getElementById('table-inv-search');
+  st.innerHTML = '<div style="padding:16px 24px;color:#64748b">검색중...</div>';
+  tbl.innerHTML = '';
+  try {
+    const d = await callInvAPI('search', q);
+    st.innerHTML = '';
+    tblInvSearch('table-inv-search', d.items || []);
+  } catch(e) {
+    st.innerHTML = `<div style="padding:16px 24px;color:#dc2626">⚠️ 검색 실패: ${e.message}</div>`;
+  }
+}
+
+function tblInvSearch(id, items) {
+  const el = document.getElementById(id);
+  if (!items.length) {
+    el.innerHTML = '<div style="padding:40px;color:#94a3b8;text-align:center">검색 결과가 없습니다.</div>';
+    return;
+  }
+  // 재고가 1 이상인 매장만 열로 표시
+  const storeCols = INV_STORE_ORDER.filter(n => items.some(it => (it.stores[n] || 0) > 0));
+  const fmtP = v => v ? Number(v).toLocaleString('ko-KR') + '원' : '-';
+  const header = `<tr>
+    <th style="text-align:left;min-width:140px">제품명</th>
+    <th style="text-align:left;min-width:80px">옵션</th>
+    <th style="text-align:right">전체재고</th>
+    <th style="text-align:right">본사</th>
+    <th style="text-align:right">판매가</th>
+    ${storeCols.map(n => `<th style="text-align:right">${n}</th>`).join('')}
+  </tr>`;
+  const body = items.map(item => {
+    const storeQtys = storeCols.map(n => {
+      const qty = item.stores[n] || 0;
+      return qty > 0
+        ? `<td style="text-align:right;font-weight:700">${qty}</td>`
+        : `<td style="text-align:right;color:#cbd5e1">-</td>`;
+    }).join('');
+    return `<tr>
+      <td style="white-space:normal;font-weight:600">${item.product_name}</td>
+      <td style="white-space:normal;font-size:13px;color:#64748b">${item.options || ''}</td>
+      <td style="text-align:right;font-weight:700">${item.stockall || 0}</td>
+      <td style="text-align:right;color:#64748b">${item.bonsa_stock || 0}</td>
+      <td style="text-align:right">${fmtP(item.price)}</td>
+      ${storeQtys}
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<div style="overflow-x:auto">
+    <div style="font-size:13px;color:#64748b;padding:8px 16px">${items.length}개 옵션</div>
+    <table><thead>${header}</thead><tbody>${body}</tbody></table>
+  </div>`;
 }
 
 // ════════════════════════════════════════════════
