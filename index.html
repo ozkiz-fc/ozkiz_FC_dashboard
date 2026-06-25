@@ -1085,15 +1085,15 @@ function renderHomeProfitCards() {
     return;
   }
   const n = PM26.length;
-  const ytdP26 = PM26.reduce((s,m)=>s+(m.total_profit||0), 0);
-  const ytdP25 = PM25.slice(0,n).reduce((s,m)=>s+(m.total_profit||0), 0);
-  const curMP26 = PM26[n-1]?.total_profit || 0;
-  const curMP25 = PM25[n-1]?.total_profit || 0;
+  const ytdP26 = Math.round(PM26.reduce((s,m)=>s+(m.total_profit||0), 0));
+  const ytdP25 = Math.round(PM25.slice(0,n).reduce((s,m)=>s+(m.total_profit||0), 0));
+  const curMP26 = Math.round(PM26[n-1]?.total_profit || 0);
+  const curMP25 = Math.round(PM25[n-1]?.total_profit || 0);
   const moLbl = MLABELS[(PM26[n-1]?.month||1)-1];
   const lastPW = PW26[PW26.length-1];
   const lastPW25 = lastPW ? PW25MAP[lastPW.label] : null;
-  const wP26 = lastPW?.total_profit || 0;
-  const wP25 = lastPW25?.total_profit || 0;
+  const wP26 = Math.round(lastPW?.total_profit || 0);
+  const wP25 = Math.round(lastPW25?.total_profit || 0);
   const wLbl = lastPW?.label ? lastPW.label+' 주간' : '이번주';
   el.innerHTML = `
     <div class="card card-c1">
