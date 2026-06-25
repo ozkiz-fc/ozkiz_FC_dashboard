@@ -518,6 +518,10 @@ tr:hover td{background:#f8fafc}
         <div class="chart-title" id="chart-inv-store-title">매장별 재고 추이</div>
         <canvas id="canvas-inv-store"></canvas>
       </div>
+      <div class="chart-wrap" id="wrap-inv-cat" style="display:none">
+        <div class="chart-title">카테고리별 원가 비중 (상위 제품 기준)</div>
+        <div style="height:260px;position:relative"><canvas id="canvas-inv-cat"></canvas></div>
+      </div>
       <div id="table-inv-top" class="table-wrap"></div>
     </div>
   </div>
@@ -2015,6 +2019,7 @@ function renderInvStoreContent() {
   const tbl = document.getElementById('table-inv-top');
   if (invTopCache[name]) {
     tblInvTopProducts(tbl, invTopCache[name], name);
+    chartInvCategory('canvas-inv-cat', invTopCache[name]);
   } else {
     invLoadTopProducts(name);
   }
@@ -2075,14 +2080,71 @@ function callInvTopProducts(storeName) {
 async function invLoadTopProducts(storeName) {
   const tbl = document.getElementById('table-inv-top');
   tbl.innerHTML = '<div style="padding:24px;color:#64748b;text-align:center">원가 상위 제품 조회 중... (10~20초 소요)</div>';
+  document.getElementById('wrap-inv-cat').style.display = 'none';
   try {
     const result = await callInvTopProducts(storeName);
     invTopCache[storeName] = result.products || [];
     tblInvTopProducts(tbl, invTopCache[storeName], storeName);
+    chartInvCategory('canvas-inv-cat', invTopCache[storeName]);
   } catch(e) {
     tbl.innerHTML = `<div style="padding:20px;color:#dc2626">⚠️ 로드 실패: ${e.message}<br>
       <button onclick="invLoadTopProducts('${storeName.replace(/'/g,"\\'")}')" style="margin-top:12px;padding:6px 18px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer">재시도</button></div>`;
   }
+}
+
+function chartInvCategory(cid, products) {
+  if (!products || products.length === 0) return;
+  // 제품명 첫 번째 '-' 앞이 카테고리
+  const catMap = {};
+  products.forEach(p => {
+    const cat = p.name.includes('-') ? p.name.split('-')[0] : '기타';
+    if (!catMap[cat]) catMap[cat] = {qty: 0, cost: 0};
+    catMap[cat].qty  += p.qty;
+    catMap[cat].cost += p.cost;
+  });
+  const sorted = Object.entries(catMap).sort((a, b) => b[1].cost - a[1].cost);
+  const labels = sorted.map(e => e[0]);
+  const costs  = sorted.map(e => Math.floor(e[1].cost / 10000));
+  const qtys   = sorted.map(e => e[1].qty);
+  const palette = ['#0ea5e9','#8b5cf6','#f97316','#10b981','#f43f5e','#eab308','#06b6d4','#a855f7'];
+  const bgColors = labels.map((_, i) => palette[i % palette.length] + 'cc');
+
+  document.getElementById('wrap-inv-cat').style.display = '';
+  killChart(cid);
+  charts[cid] = new Chart(document.getElementById(cid).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '원가(만원)', data: costs, backgroundColor: bgColors,
+          borderColor: bgColors.map(c => c.slice(0,7)), borderWidth: 1, yAxisID: 'y' },
+        { label: '수량(개)', data: qtys, backgroundColor: '#94a3b844',
+          borderColor: '#94a3b8', borderWidth: 1, yAxisID: 'y2', type: 'line',
+          pointRadius: 4, tension: 0.3, fill: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: CHART_COLORS.legend, font: { size: 13 } } },
+        tooltip: {
+          backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title,
+          bodyColor: CHART_COLORS.tooltip.body,
+          callbacks: { label(c) {
+            if (c.dataset.yAxisID === 'y2') return ` 수량: ${c.parsed.y.toLocaleString()}개`;
+            return ` 원가: ${c.parsed.y.toLocaleString()}만원`;
+          }}
+        }
+      },
+      scales: {
+        x: { ticks: { color: CHART_COLORS.tick, font: { size: 13 } }, grid: { color: CHART_COLORS.gridX } },
+        y: { ticks: { color: CHART_COLORS.tick, callback: v => v.toLocaleString()+'만' }, grid: { color: CHART_COLORS.gridY } },
+        y2: { position: 'right', grid: { display: false },
+          ticks: { color: '#94a3b8', callback: v => v.toLocaleString()+'개' } }
+      }
+    }
+  });
 }
 
 function tblInvTopProducts(container, products, storeName) {
