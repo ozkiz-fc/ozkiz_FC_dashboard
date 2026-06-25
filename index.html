@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>오즈키즈 FC 통합 대시보드</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Malgun Gothic','Segoe UI',sans-serif;background:#f0f4f8;color:#1e293b;min-height:100vh;display:flex;font-size:16px}
@@ -196,9 +197,30 @@ tr:hover td{background:#f8fafc}
 .home-profit-cards{grid-template-columns:repeat(3,1fr)!important}
 .home-best-grid{display:grid!important;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 24px 28px;overflow-x:visible;min-height:unset;align-items:unset}
 .home-best-grid .best-card{flex:unset;width:auto}
+/* ── Auth Overlay ── */
+#auth-overlay{position:fixed;inset:0;background:#0f172a;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center}
+.auth-box{text-align:center;padding:48px 40px;background:#1e293b;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:360px}
+.auth-logo{font-size:52px;margin-bottom:20px}
+.auth-title{font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:8px}
+.auth-sub{font-size:13px;color:#64748b;margin-bottom:32px}
+#auth-error{margin-top:16px;color:#f87171;font-size:13px;min-height:20px;white-space:pre-line}
+.auth-user-wrap{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#0f172a;border-radius:8px}
+.auth-user-email{font-size:11px;color:#94a3b8;flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.auth-signout-btn{background:none;border:none;color:#64748b;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:4px;font-family:inherit;flex-shrink:0}
+.auth-signout-btn:hover{color:#f87171}
 </style>
 </head>
 <body>
+
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">🏆</div>
+    <div class="auth-title">오즈키즈 FC 대시보드</div>
+    <div class="auth-sub">@openhan.kr 계정으로 로그인하세요</div>
+    <div id="auth-google-btn"></div>
+    <div id="auth-error"></div>
+  </div>
+</div>
 
 <div id="loading">
   <div class="spinner" id="loading-spinner"></div>
@@ -268,16 +290,16 @@ tr:hover td{background:#f8fafc}
         </button>
       </div>
     </div>
-    <!-- 주간 리포트 그룹 -->
+    <!-- 회의록 그룹 -->
     <div class="nav-group">
       <button class="nav-group-hd open" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
         <span class="nav-icon">📝</span>
-        <span>주간 리포트</span>
+        <span>회의록</span>
         <span class="nav-chevron">▾</span>
       </button>
       <div class="nav-sub" id="sub-memo">
         <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
-          <span class="nav-sub-dot">●</span> 리포트 목록
+          <span class="nav-sub-dot">●</span> 주간 회의록
         </button>
       </div>
     </div>
@@ -299,7 +321,11 @@ tr:hover td{background:#f8fafc}
     </div>
   </nav>
   <div class="sidebar-footer">
-    <p>온라인 매출 제외</p>
+    <div class="auth-user-wrap">
+      <span id="auth-user-email" class="auth-user-email">로그인 중...</span>
+      <button class="auth-signout-btn" onclick="authSignOut()">로그아웃</button>
+    </div>
+    <p style="margin-top:8px">온라인 매출 제외</p>
     <p>Google Sheets 연동</p>
   </div>
 </aside>
@@ -489,11 +515,11 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
-  <!-- ■ 주간 리포트 -->
+  <!-- ■ 회의록 -->
   <div id="sec-memo" class="section-wrap">
     <div class="topbar">
       <div class="topbar-left">
-        <span class="page-title">📝 주간 리포트</span>
+        <span class="page-title">📝 회의록</span>
       </div>
       <div class="topbar-right">
         <button class="memo-new-btn" onclick="memoShowEditor()">+ 새 리포트</button>
@@ -2480,7 +2506,7 @@ function tblInvTopProducts(container, products, storeName) {
 // ════════════════════════════════════════════════
 // ■ 초기화
 // ════════════════════════════════════════════════
-(async function init() {
+async function init() {
   try {
     initBestStores();
     const [salesRes,profitRes]=await Promise.allSettled([callAPI(),callProfitAPI()]);
@@ -2514,7 +2540,69 @@ function tblInvTopProducts(container, products, storeName) {
       `<span style="font-size:36px">⚠️</span>\n<strong style="color:#dc2626">데이터 로드 실패</strong>\n${e.message}`;
     console.error(e);
   }
-})();
+}
+
+// ── Google OAuth ──
+const GAUTH_CLIENT_ID = '635013906306-bd8o7n05dqhibrji3aiou9huop688ccu.apps.googleusercontent.com';
+const ALLOWED_DOMAIN = 'openhan.kr';
+
+function parseJwt(token) {
+  const b64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(atob(b64));
+}
+
+function authSignOut() {
+  sessionStorage.removeItem('ozkiz_auth');
+  location.reload();
+}
+
+function showAuthUser(email) {
+  const el = document.getElementById('auth-user-email');
+  if (el) el.textContent = email;
+}
+
+function handleCredential(response) {
+  const payload = parseJwt(response.credential);
+  const email = (payload.email || '').toLowerCase();
+  const name = payload.name || email;
+  if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
+    document.getElementById('auth-error').textContent =
+      `@${ALLOWED_DOMAIN} 이메일만 접근 가능합니다.\n현재 계정: ${email}`;
+    return;
+  }
+  sessionStorage.setItem('ozkiz_auth', JSON.stringify({ email, name }));
+  document.getElementById('auth-overlay').style.display = 'none';
+  showAuthUser(email);
+  init();
+}
+
+function authStart() {
+  const cached = sessionStorage.getItem('ozkiz_auth');
+  if (cached) {
+    try {
+      const info = JSON.parse(cached);
+      if (info.email && info.email.endsWith('@' + ALLOWED_DOMAIN)) {
+        showAuthUser(info.email);
+        init();
+        return;
+      }
+    } catch(e) {}
+    sessionStorage.removeItem('ozkiz_auth');
+  }
+  document.getElementById('auth-overlay').style.display = 'flex';
+  google.accounts.id.initialize({
+    client_id: GAUTH_CLIENT_ID,
+    callback: handleCredential,
+    auto_select: true
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('auth-google-btn'),
+    { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ko', width: 280 }
+  );
+  google.accounts.id.prompt();
+}
+
+window.addEventListener('load', authStart);
 </script>
 </body>
 </html>
