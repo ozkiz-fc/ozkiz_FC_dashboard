@@ -194,6 +194,8 @@ tr:hover td{background:#f8fafc}
 .home-sub-title{padding:16px 28px 8px;font-size:13px;font-weight:700;color:#64748b;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
 .home-section-divider{margin:4px 24px 0;border:none;border-top:1.5px solid #e2e8f0}
 .home-profit-cards{grid-template-columns:repeat(3,1fr)!important}
+.home-best-grid{display:grid!important;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 24px 28px;overflow-x:visible;min-height:unset;align-items:unset}
+.home-best-grid .best-card{flex:unset;width:auto}
 </style>
 </head>
 <body>
@@ -320,14 +322,14 @@ tr:hover td{background:#f8fafc}
     <div class="home-sub-title">📊 영업이익</div>
     <div class="summary-cards home-profit-cards" id="cards-home-profit"></div>
     <!-- 차트 나란히 -->
-    <div class="content-area" style="gap:20px;align-items:flex-start">
+    <div class="content-area" style="flex-direction:row;gap:20px">
       <div class="chart-wrap" style="flex:1;min-width:260px">
         <div class="chart-title">월별 매출 추이 · 25·26년</div>
         <canvas id="canvas-home-trend" style="max-height:220px"></canvas>
       </div>
-      <div class="chart-wrap" style="flex:1;min-width:260px">
+      <div class="chart-wrap" style="flex:1.4;min-width:300px">
         <div class="chart-title" id="home-store-title">이번달 매장별 매출</div>
-        <canvas id="canvas-home-stores" style="max-height:360px"></canvas>
+        <canvas id="canvas-home-stores" style="max-height:420px"></canvas>
       </div>
     </div>
     <!-- 이번 주 판매 베스트 TOP 20 -->
@@ -337,7 +339,7 @@ tr:hover td{background:#f8fafc}
       <button onclick="switchMain('best','overall')" style="background:none;border:1.5px solid #e2e8f0;color:#64748b;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">전체 보기 →</button>
     </div>
     <div id="home-best-status" style="display:none;padding:12px 28px;color:#64748b;font-size:13px"></div>
-    <div class="best-cards-wrap" id="home-best-wrap" style="min-height:200px"></div>
+    <div class="best-cards-wrap home-best-grid" id="home-best-wrap"></div>
   </div>
 
   <!-- ■ 전체 매장 -->
@@ -1002,10 +1004,14 @@ function chartHomeStores() {
   const entries = Object.entries(last.stores || {})
     .map(([name, d]) => ({name, amt: d.amount || 0}))
     .filter(e => e.amt > 0)
-    .sort((a, b) => b.amt - a.amt)
-    .slice(0, 12);
+    .sort((a, b) => b.amt - a.amt);
   document.getElementById('home-store-title').textContent =
-    MLABELS[last.month - 1] + ' 매장별 매출 (상위 ' + entries.length + '개)';
+    MLABELS[last.month - 1] + ' 매장별 매출 (전체 ' + entries.length + '개)';
+  const palette = ['#1565c0','#0277bd','#0288d1','#0097a7','#00838f','#2e7d32',
+    '#388e3c','#558b2f','#9e9d24','#f57f17','#e65100','#bf360c','#ad1457',
+    '#6a1b9a','#4527a0','#283593','#00695c','#2e7d32','#558b2f','#388e3c',
+    '#e65100','#7b1fa2','#1565c0','#0097a7'];
+  const getCol = (name, idx) => BEST_STORE_COLORS[name] || palette[idx % palette.length];
   const valLabelPlugin = {
     id: 'homeStoreVals',
     afterDatasetsDraw(chart) {
@@ -1015,11 +1021,11 @@ function chartHomeStores() {
           const v = ds.data[idx];
           if (!v) return;
           ctx.save();
-          ctx.fillStyle = '#475569';
-          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = '#334155';
+          ctx.font = 'bold 10px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(v + 'M', bar.x, bar.y - 4);
+          ctx.fillText(v + 'M', bar.x, bar.y - 3);
           ctx.restore();
         });
       });
@@ -1033,19 +1039,19 @@ function chartHomeStores() {
         labels: entries.map(e => e.name),
         datasets: [{
           data: entries.map(e => +(e.amt/1e6).toFixed(1)),
-          backgroundColor: '#3b82f620',
-          borderColor: '#3b82f6',
+          backgroundColor: entries.map((e,i) => getCol(e.name,i) + '35'),
+          borderColor: entries.map((e,i) => getCol(e.name,i)),
           borderWidth: 2,
-          borderRadius: 6
+          borderRadius: 5
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 22 } },
+        layout: { padding: { top: 20 } },
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid:{display:false}, ticks:{font:{size:11}} },
+          x: { grid:{display:false}, ticks:{font:{size:10}} },
           y: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v+'M'}, beginAtZero:true }
         }
       },
@@ -1060,15 +1066,15 @@ function renderHomeProfitCards() {
     return;
   }
   const n = PM26.length;
-  const ytdP26 = PM26.reduce((s,m)=>s+(m.total_amount||0), 0);
-  const ytdP25 = PM25.slice(0,n).reduce((s,m)=>s+(m.total_amount||0), 0);
-  const curMP26 = PM26[n-1]?.total_amount || 0;
-  const curMP25 = PM25[n-1]?.total_amount || 0;
+  const ytdP26 = PM26.reduce((s,m)=>s+(m.total_profit||0), 0);
+  const ytdP25 = PM25.slice(0,n).reduce((s,m)=>s+(m.total_profit||0), 0);
+  const curMP26 = PM26[n-1]?.total_profit || 0;
+  const curMP25 = PM25[n-1]?.total_profit || 0;
   const moLbl = MLABELS[(PM26[n-1]?.month||1)-1];
   const lastPW = PW26[PW26.length-1];
   const lastPW25 = lastPW ? PW25MAP[lastPW.label] : null;
-  const wP26 = lastPW?.total_amount || 0;
-  const wP25 = lastPW25?.total_amount || 0;
+  const wP26 = lastPW?.total_profit || 0;
+  const wP25 = lastPW25?.total_profit || 0;
   const wLbl = lastPW?.label ? lastPW.label+' 주간' : '이번주';
   el.innerHTML = `
     <div class="card card-c1">
