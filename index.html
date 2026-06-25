@@ -999,35 +999,37 @@ function renderHome() {
   loadHomeBest();
 }
 function chartHomeStores() {
-  const last = MONTHS_26[MONTHS_26.length - 1];
-  if (!last) return;
-  const entries = Object.entries(last.stores || {})
-    .map(([name, d]) => ({name, amt: d.amount || 0}))
-    .filter(e => e.amt > 0)
-    .sort((a, b) => b.amt - a.amt);
-  document.getElementById('home-store-title').textContent =
-    MLABELS[last.month - 1] + ' 매장별 매출 (전체 ' + entries.length + '개)';
-  const palette = ['#1565c0','#0277bd','#0288d1','#0097a7','#00838f','#2e7d32',
-    '#388e3c','#558b2f','#9e9d24','#f57f17','#e65100','#bf360c','#ad1457',
-    '#6a1b9a','#4527a0','#283593','#00695c','#2e7d32','#558b2f','#388e3c',
-    '#e65100','#7b1fa2','#1565c0','#0097a7'];
-  const getCol = (name, idx) => BEST_STORE_COLORS[name] || palette[idx % palette.length];
+  const wCur = WEEKS_26[WEEKS_26.length - 1];
+  const wPrev = WEEKS_26[WEEKS_26.length - 2];
+  if (!wCur) return;
+  const entries = Object.entries(wCur.stores || {})
+    .map(([name, d]) => ({
+      name,
+      cur: d.amount || 0,
+      prev: wPrev?.stores?.[name]?.amount || 0
+    }))
+    .filter(e => e.cur > 0)
+    .sort((a, b) => b.cur - a.cur);
+  const titleEl = document.getElementById('home-store-title');
+  titleEl.textContent = wPrev
+    ? wCur.label + ' 금주 매장별 매출 vs ' + wPrev.label + ' 전주'
+    : wCur.label + ' 주간 매장별 매출';
   const valLabelPlugin = {
     id: 'homeStoreVals',
     afterDatasetsDraw(chart) {
       const ctx = chart.ctx;
-      chart.data.datasets.forEach((ds, i) => {
-        chart.getDatasetMeta(i).data.forEach((bar, idx) => {
-          const v = ds.data[idx];
-          if (!v) return;
-          ctx.save();
-          ctx.fillStyle = '#334155';
-          ctx.font = 'bold 10px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillText(v.toLocaleString('ko-KR') + '만', bar.x, bar.y - 3);
-          ctx.restore();
-        });
+      // 금주(dataset 1) 바 위에만 수치 표시
+      const meta = chart.getDatasetMeta(1);
+      meta.data.forEach((bar, idx) => {
+        const v = chart.data.datasets[1].data[idx];
+        if (!v) return;
+        ctx.save();
+        ctx.fillStyle = '#0369a1';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(v.toLocaleString('ko-KR') + '만', bar.x, bar.y - 3);
+        ctx.restore();
       });
     }
   };
@@ -1037,22 +1039,39 @@ function chartHomeStores() {
       type: 'bar',
       data: {
         labels: entries.map(e => e.name),
-        datasets: [{
-          data: entries.map(e => Math.round(e.amt/10000)),
-          backgroundColor: entries.map((e,i) => getCol(e.name,i) + '35'),
-          borderColor: entries.map((e,i) => getCol(e.name,i)),
-          borderWidth: 2,
-          borderRadius: 5
-        }]
+        datasets: [
+          {
+            label: (wPrev?.label || '전주') + ' 전주',
+            data: entries.map(e => Math.round(e.prev / 10000)),
+            backgroundColor: '#94a3b899',
+            borderRadius: 4
+          },
+          {
+            label: wCur.label + ' 금주',
+            data: entries.map(e => Math.round(e.cur / 10000)),
+            backgroundColor: '#0ea5e9bb',
+            borderRadius: 4
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 20 } },
-        plugins: { legend: { display: false } },
+        layout: { padding: { top: 22 } },
+        plugins: {
+          legend: { display: true, position: 'top',
+            labels: { color: '#475569', font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString('ko-KR')}만원`
+            }
+          }
+        },
         scales: {
-          x: { grid:{display:false}, ticks:{font:{size:10}} },
-          y: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v.toLocaleString('ko-KR')+'만'}, beginAtZero:true }
+          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: { grid: { color: '#f1f5f9' },
+               ticks: { callback: v => v.toLocaleString('ko-KR') + '만' },
+               beginAtZero: true }
         }
       },
       plugins: [valLabelPlugin]
