@@ -968,26 +968,26 @@ function renderHome() {
   document.getElementById('cards-home').innerHTML = `
     <div class="card card-c1">
       <div class="card-label">26년 누적 매출 (${lbl})</div>
-      <div class="card-value">${Mcard(ytd26)}</div>
-      <div class="card-qty">25년 동기 ${Mcard(ytd25)}</div>
+      <div class="card-value" style="font-size:19px">${M(ytd26)}</div>
+      <div class="card-qty">25년 동기 ${M(ytd25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytd26,ytd25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 매출</div>
-      <div class="card-value">${Mcard(curMo26)}</div>
-      <div class="card-qty">25년 동월 ${Mcard(curMo25)}</div>
+      <div class="card-value" style="font-size:19px">${M(curMo26)}</div>
+      <div class="card-qty">25년 동월 ${M(curMo25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMo26,curMo25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
       <div class="card-label">${wLbl} 매출</div>
-      <div class="card-value">${Mcard(wAmt26)}</div>
-      <div class="card-qty">25년 동주 ${Mcard(wAmt25)}</div>
+      <div class="card-value" style="font-size:19px">${M(wAmt26)}</div>
+      <div class="card-qty">25년 동주 ${M(wAmt25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(wAmt26,wAmt25)}&nbsp;전년 동주</div>
     </div>
     <div class="card card-c4">
       <div class="card-label">매장 재고 원가</div>
       ${invCost != null
-        ? `<div class="card-value">${Mcard(invCost)}</div><div class="card-sub">${invCost.toLocaleString()}원</div>`
+        ? `<div class="card-value" style="font-size:19px">${M(invCost)}</div>`
         : `<div class="card-value" style="font-size:18px;color:#94a3b8">—</div>
            <div style="margin-top:10px"><button onclick="invLoadSummary(false)" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600">재고 불러오기</button></div>`
       }
@@ -1025,7 +1025,7 @@ function chartHomeStores() {
           ctx.font = 'bold 10px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(v + 'M', bar.x, bar.y - 3);
+          ctx.fillText(v.toLocaleString('ko-KR') + '만', bar.x, bar.y - 3);
           ctx.restore();
         });
       });
@@ -1038,7 +1038,7 @@ function chartHomeStores() {
       data: {
         labels: entries.map(e => e.name),
         datasets: [{
-          data: entries.map(e => +(e.amt/1e6).toFixed(1)),
+          data: entries.map(e => Math.round(e.amt/10000)),
           backgroundColor: entries.map((e,i) => getCol(e.name,i) + '35'),
           borderColor: entries.map((e,i) => getCol(e.name,i)),
           borderWidth: 2,
@@ -1052,7 +1052,7 @@ function chartHomeStores() {
         plugins: { legend: { display: false } },
         scales: {
           x: { grid:{display:false}, ticks:{font:{size:10}} },
-          y: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v+'M'}, beginAtZero:true }
+          y: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v.toLocaleString('ko-KR')+'만'}, beginAtZero:true }
         }
       },
       plugins: [valLabelPlugin]
@@ -1079,20 +1079,20 @@ function renderHomeProfitCards() {
   el.innerHTML = `
     <div class="card card-c1">
       <div class="card-label">누적 영업이익 (${ytdLbl()})</div>
-      <div class="card-value">${Mcard(ytdP26)}</div>
-      <div class="card-qty">25년 동기 ${Mcard(ytdP25)}</div>
+      <div class="card-value" style="font-size:19px">${M(ytdP26)}</div>
+      <div class="card-qty">25년 동기 ${M(ytdP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytdP26,ytdP25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 영업이익</div>
-      <div class="card-value">${Mcard(curMP26)}</div>
-      <div class="card-qty">25년 동월 ${Mcard(curMP25)}</div>
+      <div class="card-value" style="font-size:19px">${M(curMP26)}</div>
+      <div class="card-qty">25년 동월 ${M(curMP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMP26,curMP25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
       <div class="card-label">${wLbl} 영업이익</div>
-      <div class="card-value">${Mcard(wP26)}</div>
-      <div class="card-qty">25년 동주 ${Mcard(wP25)}</div>
+      <div class="card-value" style="font-size:19px">${M(wP26)}</div>
+      <div class="card-qty">25년 동주 ${M(wP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(wP26,wP25)}&nbsp;전년 동주</div>
     </div>`;
 }
