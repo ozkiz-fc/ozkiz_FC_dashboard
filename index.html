@@ -2016,10 +2016,7 @@ function renderInvStoreContent() {
   if (invTopCache[name]) {
     tblInvTopProducts(tbl, invTopCache[name], name);
   } else {
-    tbl.innerHTML = `<div style="padding:24px;text-align:center">
-      <div style="color:#64748b;margin-bottom:12px;font-size:14px">원가 금액 기준 상위 제품을 조회합니다 (10~20초 소요)</div>
-      <button onclick="invLoadTopProducts('${name.replace(/'/g,"\\'")}')" style="padding:9px 24px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600">상위 제품 불러오기</button>
-    </div>`;
+    invLoadTopProducts(name);
   }
 }
 
