@@ -491,6 +491,10 @@ tr:hover td{background:#f8fafc}
         <canvas id="canvas-inv"></canvas>
       </div>
       <div id="table-inv" class="table-wrap"></div>
+      <div class="chart-wrap">
+        <div class="chart-title">매장별 재고 현황 (수량순)</div>
+        <div style="height:300px;position:relative"><canvas id="canvas-inv-bar"></canvas></div>
+      </div>
     </div>
   </div>
 
@@ -1716,25 +1720,39 @@ function renderInvSummary() {
   if (!INV_DATA) return;
   const d = INV_DATA;
   const lat = d.latest;
+  const hist = d.history || [];
+  const prev = hist.length >= 2 ? hist[hist.length - 2] : null;
 
-  // 카드
   if (lat) {
     document.getElementById('inv-updated-at').textContent = '⏱ ' + lat.date + ' 스냅샷';
     const fmtW = v => v ? Math.floor(v/10000).toLocaleString()+'만원' : '-';
+    const chg = (cur, prv, fmt) => {
+      if (!prev || prv == null) return '';
+      const diff = cur - prv;
+      if (diff === 0) return '';
+      const col = diff > 0 ? '#16a34a' : '#dc2626';
+      return `<span style="color:${col};font-size:13px;font-weight:600;margin-left:6px">${diff>0?'▲':'▼'}${fmt(Math.abs(diff))}</span>`;
+    };
+    const dQty  = chg(lat.total_qty||0, prev.total_qty||0, v => v.toLocaleString()+'개');
+    const dCost = chg(
+      Math.floor((lat.total_cost||0)/10000),
+      Math.floor((prev.total_cost||0)/10000),
+      v => v.toLocaleString()+'만원'
+    );
     document.getElementById('cards-inv').innerHTML = `
       <div class="card card-c1">
         <div class="card-label">전체 재고 수량</div>
-        <div class="card-value" style="font-size:28px">${(lat.total_qty||0).toLocaleString()}개</div>
+        <div class="card-value" style="font-size:26px">${(lat.total_qty||0).toLocaleString()}개${dQty}</div>
         <div class="card-sub">본사: ${(lat.bonsa_qty||0).toLocaleString()}개 · 매장: ${(lat.store_qty||0).toLocaleString()}개</div>
       </div>
       <div class="card card-c2">
         <div class="card-label">전체 재고 원가</div>
-        <div class="card-value" style="font-size:26px">${fmtW(lat.total_cost)}</div>
+        <div class="card-value" style="font-size:24px">${fmtW(lat.total_cost)}${dCost}</div>
         <div class="card-sub">본사: ${fmtW(lat.bonsa_cost)} · 매장: ${fmtW(lat.store_cost)}</div>
       </div>
       <div class="card card-c3">
         <div class="card-label">데이터 적재 일수</div>
-        <div class="card-value" style="font-size:28px">${(d.history||[]).length}일</div>
+        <div class="card-value" style="font-size:28px">${hist.length}일</div>
         <div class="card-sub">매일 오전 6시 자동 저장</div>
       </div>`;
   } else {
@@ -1742,29 +1760,35 @@ function renderInvSummary() {
       '<div style="padding:24px;color:#94a3b8;grid-column:1/-1">저장된 스냅샷이 없습니다. Apps Script에서 saveInventorySnapshot()을 먼저 실행하세요.</div>';
   }
 
-  // 트렌드 차트
-  const hist = d.history || [];
   if (hist.length > 1) {
-    chartInvTrend('canvas-inv', hist.map(h=>h.date), hist.map(h=>h.total_qty), hist.map(h=>h.store_qty));
+    chartInvTrend('canvas-inv',
+      hist.map(h=>h.date),
+      hist.map(h=>h.total_qty||0),
+      hist.map(h=>h.store_qty||0),
+      hist.map(h=>Math.floor((h.total_cost||0)/10000))
+    );
   } else {
     document.getElementById('chart-inv-title').textContent = '재고 추이 (데이터 2일 이상부터 표시)';
   }
 
-  // 매장별 테이블
   if (lat && lat.stores) {
     tblInvStores('table-inv', lat.stores);
+    chartInvBars('canvas-inv-bar', lat.stores);
   }
 }
 
-function chartInvTrend(cid, labels, totalData, storeData) {
+function chartInvTrend(cid, labels, totalData, storeData, costData) {
   killChart(cid);
   charts[cid] = new Chart(document.getElementById(cid).getContext('2d'), {
     type: 'line',
     data: { labels, datasets: [
       { label: '전체 재고', data: totalData, borderColor: '#0ea5e9',
-        backgroundColor: '#0ea5e918', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3 },
+        backgroundColor: '#0ea5e918', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3, yAxisID: 'y' },
       { label: '매장 재고', data: storeData, borderColor: '#8b5cf6',
-        backgroundColor: '#8b5cf618', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3 }
+        backgroundColor: '#8b5cf618', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3, yAxisID: 'y' },
+      { label: '원가(만원)', data: costData, borderColor: '#f97316',
+        backgroundColor: 'transparent', borderWidth: 2, pointRadius: 4, fill: false, tension: .3,
+        yAxisID: 'y2', borderDash: [5, 3] }
     ]},
     options: {
       responsive: true, interaction: { mode: 'index', intersect: false },
@@ -1773,12 +1797,17 @@ function chartInvTrend(cid, labels, totalData, storeData) {
         tooltip: {
           backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title,
           bodyColor: CHART_COLORS.tooltip.body,
-          callbacks: { label(c) { return ` ${c.dataset.label}: ${c.parsed.y.toLocaleString()}개`; } }
+          callbacks: { label(c) {
+            if (c.dataset.yAxisID === 'y2') return ` 원가: ${c.parsed.y.toLocaleString()}만원`;
+            return ` ${c.dataset.label}: ${c.parsed.y.toLocaleString()}개`;
+          }}
         }
       },
       scales: {
         x: { ticks: { color: CHART_COLORS.tick, maxRotation: 45, maxTicksLimit: 30, font: { size: 12 } }, grid: { color: CHART_COLORS.gridX } },
-        y: { ticks: { color: CHART_COLORS.tick, font: { size: 13 }, callback: v => v.toLocaleString() }, grid: { color: CHART_COLORS.gridY } }
+        y: { ticks: { color: CHART_COLORS.tick, font: { size: 13 }, callback: v => v.toLocaleString() }, grid: { color: CHART_COLORS.gridY } },
+        y2: { position: 'right', grid: { display: false },
+          ticks: { color: '#f97316', font: { size: 12 }, callback: v => v.toLocaleString()+'만' } }
       }
     }
   });
@@ -1786,11 +1815,23 @@ function chartInvTrend(cid, labels, totalData, storeData) {
 
 function tblInvStores(id, stores) {
   const fmtW = v => Math.floor(v/10000).toLocaleString()+'만원';
+  const qtys = INV_STORE_ORDER.map(n => (stores[n]||{}).qty||0);
+  const activeQtys = qtys.filter(v => v > 0);
+  const avgQty = activeQtys.length ? activeQtys.reduce((a,b)=>a+b,0)/activeQtys.length : 0;
+
   const rows = INV_STORE_ORDER.map(name => {
     const s = stores[name] || {qty:0, cost:0};
+    const isHigh = s.qty >= avgQty * 1.5;
+    const isLow  = s.qty > 0 && s.qty <= avgQty * 0.5;
+    const bg  = s.qty === 0 ? 'background:#fafafa' : isHigh ? 'background:#f0fdf4' : isLow ? 'background:#fff7ed' : '';
     const dim = s.qty === 0 ? 'color:#cbd5e1' : 'font-weight:700';
-    return `<tr>
-      <td>${name}</td>
+    const badge = isHigh
+      ? ' <span style="font-size:11px;background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 6px">과재고</span>'
+      : isLow
+      ? ' <span style="font-size:11px;background:#ffedd5;color:#c2410c;border-radius:4px;padding:1px 6px">저재고</span>'
+      : '';
+    return `<tr style="${bg}">
+      <td>${name}${badge}</td>
       <td style="text-align:right;${dim}">${s.qty ? s.qty.toLocaleString()+'개' : '-'}</td>
       <td style="text-align:right;${dim}">${s.cost ? fmtW(s.cost) : '-'}</td>
     </tr>`;
@@ -1810,6 +1851,50 @@ function tblInvStores(id, stores) {
       <td style="text-align:right">${fmtW(totalCost)}</td>
     </tr>
     </tbody></table>`;
+}
+
+function chartInvBars(cid, stores) {
+  killChart(cid);
+  const sorted = INV_STORE_ORDER
+    .map(n => ({
+      name: n,
+      qty:  (stores[n]||{}).qty||0,
+      cost: Math.floor(((stores[n]||{}).cost||0)/10000)
+    }))
+    .sort((a,b) => b.qty - a.qty);
+  charts[cid] = new Chart(document.getElementById(cid).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(s => s.name),
+      datasets: [
+        { label: '재고 수량', data: sorted.map(s => s.qty),
+          backgroundColor: '#0ea5e9aa', borderColor: '#0ea5e9', borderWidth: 1, yAxisID: 'y' },
+        { label: '원가(만원)', data: sorted.map(s => s.cost),
+          backgroundColor: '#f9731655', borderColor: '#f97316', borderWidth: 1, yAxisID: 'y2' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: CHART_COLORS.legend, font: { size: 13 } } },
+        tooltip: {
+          backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title,
+          bodyColor: CHART_COLORS.tooltip.body,
+          callbacks: { label(c) {
+            if (c.dataset.yAxisID === 'y2') return ` 원가: ${c.parsed.y.toLocaleString()}만원`;
+            return ` 재고: ${c.parsed.y.toLocaleString()}개`;
+          }}
+        }
+      },
+      scales: {
+        x: { ticks: { color: CHART_COLORS.tick, font: { size: 12 } }, grid: { color: CHART_COLORS.gridX } },
+        y: { ticks: { color: CHART_COLORS.tick, callback: v => v.toLocaleString() }, grid: { color: CHART_COLORS.gridY } },
+        y2: { position: 'right', grid: { display: false },
+          ticks: { color: '#f97316', callback: v => v.toLocaleString()+'만' } }
+      }
+    }
+  });
 }
 
 
