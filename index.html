@@ -176,6 +176,21 @@ tr:hover td{background:#f8fafc}
 .memo-empty{text-align:center;padding:60px 28px;color:#94a3b8;font-size:15px;line-height:1.8}
 
 /* ── 재고현황 ── */
+/* ── 판매 베스트 카드형 ── */
+.best-cards-wrap{display:flex;overflow-x:auto;gap:12px;padding:20px 24px 28px;scrollbar-width:thin;min-height:280px;align-items:flex-start}
+.best-cards-wrap::-webkit-scrollbar{height:5px}.best-cards-wrap::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:99px}
+.best-card{flex:0 0 158px;background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 4px #0000000a;transition:transform .15s,box-shadow .15s}
+.best-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px #0000001a}
+.best-card-img-wrap{width:100%;height:158px;background:#f8fafc;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.best-card-img-wrap img{width:100%;height:100%;object-fit:contain}
+.best-card-rank{position:absolute;top:8px;left:8px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;z-index:1;line-height:1}
+.best-card-rank-1{background:#f59e0b}.best-card-rank-2{background:#94a3b8}.best-card-rank-3{background:#cd7c3a}.best-card-rank-n{background:rgba(0,0,0,.42)}
+.best-card-body{padding:10px 12px 12px}
+.best-card-cat{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:#f1f5f9;color:#64748b;margin-bottom:5px}
+.best-card-name{font-size:12px;font-weight:600;color:#1e293b;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px;margin-bottom:8px}
+.best-card-qty{font-size:20px;font-weight:800;line-height:1}
+.best-card-amt{font-size:11px;color:#94a3b8;margin-top:3px}
+/* ── 홈 대시보드 ── */
 </style>
 </head>
 <body>
@@ -193,15 +208,22 @@ tr:hover td{background:#f8fafc}
     <div class="brand-sub">통합 대시보드</div>
   </div>
   <nav class="sidenav">
+    <!-- 홈 -->
+    <div class="nav-group">
+      <button class="nav-group-hd active" id="nav-home" onclick="switchMain('home')">
+        <span class="nav-icon">🏠</span>
+        <span>홈 대시보드</span>
+      </button>
+    </div>
     <!-- 매출 현황 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open active" id="grp-sales" onclick="toggleGroup('grp-sales','sub-sales')">
+      <button class="nav-group-hd open" id="grp-sales" onclick="toggleGroup('grp-sales','sub-sales')">
         <span class="nav-icon">📈</span>
         <span>매출 현황</span>
         <span class="nav-chevron">▾</span>
       </button>
       <div class="nav-sub" id="sub-sales">
-        <button class="nav-sub-item active" id="nav-total" onclick="switchMain('total')">
+        <button class="nav-sub-item" id="nav-total" onclick="switchMain('total')">
           <span class="nav-sub-dot">●</span> 전체 매장
         </button>
         <button class="nav-sub-item" id="nav-store" onclick="switchMain('store')">
@@ -280,8 +302,29 @@ tr:hover td{background:#f8fafc}
 <!-- ▸ 메인 -->
 <div class="main-wrapper">
 
+  <!-- ■ 홈 대시보드 -->
+  <div id="sec-home" class="section-wrap active">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">홈 대시보드</span>
+        <span id="home-updated-at" class="updated"></span>
+      </div>
+    </div>
+    <div class="summary-cards" id="cards-home"></div>
+    <div class="content-area" style="flex-direction:column;gap:20px">
+      <div class="chart-wrap" style="flex:none">
+        <div class="chart-title">월별 매출 추이 · 25·26년</div>
+        <canvas id="canvas-home-trend" style="max-height:220px"></canvas>
+      </div>
+      <div class="chart-wrap" style="flex:none">
+        <div class="chart-title" id="home-store-title">이번달 매장별 매출</div>
+        <canvas id="canvas-home-stores" style="max-height:360px"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- ■ 전체 매장 -->
-  <div id="sec-total" class="section-wrap active">
+  <div id="sec-total" class="section-wrap">
     <div class="topbar">
       <div class="topbar-left">
         <span class="page-title">전체 매장</span>
@@ -422,20 +465,7 @@ tr:hover td{background:#f8fafc}
       </div>
       <div class="best-table-wrap">
         <div class="best-status" id="best-status"></div>
-        <table class="best-table" id="best-table">
-          <thead>
-            <tr>
-              <th style="width:58px">순위</th>
-              <th style="width:72px">이미지</th>
-              <th style="text-align:left">분류</th>
-              <th style="text-align:left">제품명</th>
-              <th>판매가</th>
-              <th>수량</th>
-              <th>판매금액</th>
-            </tr>
-          </thead>
-          <tbody id="table-tbody"></tbody>
-        </table>
+        <div class="best-cards-wrap" id="best-cards-wrap"></div>
       </div>
     </div>
   </div>
@@ -901,6 +931,81 @@ function chartDaily(cid, store) {
 }
 
 // ── 렌더 ──
+function renderHome() {
+  const n = T26.length;
+  if (!n) return;
+  const ytd26 = T26.reduce((s,v)=>s+v, 0);
+  const ytd25 = T25.slice(0,n).reduce((s,v)=>s+v, 0);
+  const curMo26 = T26[n-1] || 0;
+  const lbl = ytdLbl();
+  const moLbl = MLABELS[MONTHS_26[n-1].month - 1];
+  const invCost = INV_DATA?.latest?.store_cost ?? null;
+  document.getElementById('cards-home').innerHTML = `
+    <div class="card card-c1">
+      <div class="card-label">26년 누적 매출 (${lbl})</div>
+      <div class="card-value">${Mcard(ytd26)}</div>
+      <div class="card-qty">25년 동기 ${Mcard(ytd25)}</div>
+      <div class="card-sub">${M(ytd26)}</div>
+    </div>
+    <div class="card card-c2">
+      <div class="card-label">${moLbl} 매출</div>
+      <div class="card-value">${Mcard(curMo26)}</div>
+      <div class="card-sub">${M(curMo26)}</div>
+    </div>
+    <div class="card card-c3">
+      <div class="card-label">전년 동기 대비 (누적)</div>
+      <div class="card-value" style="font-size:32px">${pct(ytd26, ytd25)}</div>
+      <div class="card-sub">${ytd26>=ytd25?'↑':'↓'} ${M(Math.abs(ytd26-ytd25))}</div>
+    </div>
+    <div class="card card-c4">
+      <div class="card-label">매장 재고 원가</div>
+      ${invCost != null
+        ? `<div class="card-value">${Mcard(invCost)}</div><div class="card-sub">${invCost.toLocaleString()}원</div>`
+        : `<div class="card-value" style="font-size:18px;color:#94a3b8">—</div>
+           <div style="margin-top:10px"><button onclick="invLoadSummary(false)" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600">재고 불러오기</button></div>`
+      }
+    </div>`;
+  if (DATA?.updatedAt) document.getElementById('home-updated-at').textContent = '⏱ ' + DATA.updatedAt;
+  chartMonthly('canvas-home-trend', null);
+  chartHomeStores();
+}
+function chartHomeStores() {
+  const last = MONTHS_26[MONTHS_26.length - 1];
+  if (!last) return;
+  const entries = Object.entries(last.stores || {})
+    .map(([name, d]) => ({name, amt: d.amount || 0}))
+    .filter(e => e.amt > 0)
+    .sort((a, b) => b.amt - a.amt)
+    .slice(0, 12);
+  document.getElementById('home-store-title').textContent =
+    MLABELS[last.month - 1] + ' 매장별 매출 (상위 ' + entries.length + '개)';
+  killChart('canvas-home-stores');
+  charts['canvas-home-stores'] = new Chart(
+    document.getElementById('canvas-home-stores').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: entries.map(e => e.name),
+        datasets: [{
+          data: entries.map(e => +(e.amt/1e6).toFixed(2)),
+          backgroundColor: '#3b82f620',
+          borderColor: '#3b82f6',
+          borderWidth: 2,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v+'M'} },
+          y: { grid:{display:false}, ticks:{font:{size:12}} }
+        }
+      }
+    }
+  );
+}
 function renderTotal() {
   const {gran}=state.total;
   renderCards('cards-total',T26,T25,Q26,Q25);
@@ -963,7 +1068,7 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['total','store','profit-total','profit-store','best','memo','inv-total','inv-store'].forEach(k =>
+  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
@@ -971,6 +1076,7 @@ function switchMain(tab, subTab) {
   const isProfit = tab==='profit-total'||tab==='profit-store';
   const isInv = tab==='inv-total'||tab==='inv-store';
   const bTab   = subTab || bestState.tab || 'overall';
+  document.getElementById('nav-home').classList.toggle('active', tab==='home');
   document.getElementById('nav-total').classList.toggle('active', tab==='total');
   document.getElementById('nav-store').classList.toggle('active', tab==='store');
   document.getElementById('nav-profit-total').classList.toggle('active', tab==='profit-total');
@@ -988,7 +1094,8 @@ function switchMain(tab, subTab) {
   document.getElementById('grp-memo').classList.toggle('active', tab==='memo');
   document.getElementById('grp-inv').classList.toggle('active', isInv);
 
-  if (tab==='total') renderTotal();
+  if (tab==='home') renderHome();
+  else if (tab==='total') renderTotal();
   else if (tab==='store') renderStore();
   else if (tab==='profit-total') renderProfitTotal();
   else if (tab==='profit-store') renderProfitStore();
@@ -1156,7 +1263,7 @@ function bestRenderContent(data) {
 }
 
 function bestRenderTable(items, isStore, label) {
-  const tbody=document.getElementById('table-tbody');
+  const wrap=document.getElementById('best-cards-wrap');
   const titleBar=document.getElementById('section-title-bar');
   const topN=isStore?10:20;
   const col=BEST_STORE_COLORS[bestState.store]||'#1565c0';
@@ -1166,27 +1273,29 @@ function bestRenderTable(items, isStore, label) {
     isStore ? bestState.store+'  TOP '+topN+'  ·  '+label
             : '전체 판매 베스트  TOP '+topN+'  ·  '+label;
   if (!items||!items.length) {
-    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:48px;color:#94a3b8;font-size:15px">해당 기간에 데이터가 없습니다.</td></tr>';
+    wrap.innerHTML='<div style="text-align:center;padding:48px;color:#94a3b8;font-size:15px;width:100%">해당 기간에 데이터가 없습니다.</div>';
     return;
   }
-  const medals=['🥇','🥈','🥉'];
   const fmtP=v=>v?Number(v).toLocaleString('ko-KR')+'원':'-';
   const fmtQ=v=>v?Number(v).toLocaleString('ko-KR')+'개':'-';
-  tbody.innerHTML=items.slice(0,topN).map((item,idx)=>{
+  const amtCol=isStore?col:'#0ea5e9';
+  const rankCls=r=>r===1?'best-card-rank-1':r===2?'best-card-rank-2':r===3?'best-card-rank-3':'best-card-rank-n';
+  const rankTxt=r=>r<=3?['🥇','🥈','🥉'][r-1]:r+'위';
+  wrap.innerHTML=items.slice(0,topN).map((item,idx)=>{
     const r=idx+1;
-    const rStr=r<=3?medals[r-1]:r+'위';
-    const img=item.i
-      ?`<img src="${item.i}" style="width:50px;height:50px;object-fit:contain;border-radius:6px;border:1px solid #f1f5f9" loading="lazy" onerror="this.style.display='none'">`
-      :'<span style="color:#e2e8f0;font-size:22px">▪</span>';
-    return `<tr class="${r<=3?'best-rank-'+r:''}">
-      <td style="text-align:center;font-weight:700;font-size:${r<=3?'20':'15'}px;white-space:nowrap">${rStr}</td>
-      <td style="text-align:center;padding:8px 10px">${img}</td>
-      <td><span class="category-badge">${item.c||'-'}</span></td>
-      <td style="white-space:normal;min-width:140px;font-weight:500">${item.n||'-'}</td>
-      <td>${fmtP(item.p)}</td>
-      <td>${fmtQ(item.q)}</td>
-      <td style="font-weight:700;color:${isStore?col:'#0ea5e9'}">${fmtP(item.s)}</td>
-    </tr>`;
+    const imgEl=item.i
+      ?`<img src="${item.i}" loading="lazy" onerror="this.style.display='none'">`
+      :'<div style="color:#e2e8f0;font-size:40px">▪</div>';
+    return `<div class="best-card">
+      <div class="best-card-img-wrap">${imgEl}</div>
+      <div class="best-card-rank ${rankCls(r)}">${rankTxt(r)}</div>
+      <div class="best-card-body">
+        <div class="best-card-cat">${item.c||'-'}</div>
+        <div class="best-card-name">${item.n||'-'}</div>
+        <div class="best-card-qty" style="color:${amtCol}">${fmtQ(item.q)}</div>
+        <div class="best-card-amt">${fmtP(item.s)}</div>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -1738,6 +1847,7 @@ async function invLoadSummary(goStore) {
   try {
     INV_DATA = await callInvAPI('summary');
     invLoaded = true;
+    if (state.main === 'home') { renderHome(); return; }
     if (goStore) renderInvStore();
     else renderInvTotal();
   } catch(e) {
@@ -2231,7 +2341,7 @@ function tblInvTopProducts(container, products, storeName) {
       console.warn('영업이익 데이터 로드 실패:',profitRes.reason);
     }
     document.getElementById('loading').style.display='none';
-    renderTotal();
+    renderHome();
   } catch(e) {
     document.getElementById('loading-spinner').style.display='none';
     document.getElementById('loading-msg').innerHTML=
