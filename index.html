@@ -191,6 +191,9 @@ tr:hover td{background:#f8fafc}
 .best-card-qty{font-size:20px;font-weight:800;line-height:1}
 .best-card-amt{font-size:11px;color:#94a3b8;margin-top:3px}
 /* ── 홈 대시보드 ── */
+.home-sub-title{padding:16px 28px 8px;font-size:13px;font-weight:700;color:#64748b;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
+.home-section-divider{margin:4px 24px 0;border:none;border-top:1.5px solid #e2e8f0}
+.home-profit-cards{grid-template-columns:repeat(3,1fr)!important}
 </style>
 </head>
 <body>
@@ -310,17 +313,31 @@ tr:hover td{background:#f8fafc}
         <span id="home-updated-at" class="updated"></span>
       </div>
     </div>
+    <!-- 매출 KPI 4개 -->
     <div class="summary-cards" id="cards-home"></div>
-    <div class="content-area" style="flex-direction:column;gap:20px">
-      <div class="chart-wrap" style="flex:none">
+    <!-- 영업이익 KPI 3개 -->
+    <hr class="home-section-divider">
+    <div class="home-sub-title">📊 영업이익</div>
+    <div class="summary-cards home-profit-cards" id="cards-home-profit"></div>
+    <!-- 차트 나란히 -->
+    <div class="content-area" style="gap:20px;align-items:flex-start">
+      <div class="chart-wrap" style="flex:1;min-width:260px">
         <div class="chart-title">월별 매출 추이 · 25·26년</div>
         <canvas id="canvas-home-trend" style="max-height:220px"></canvas>
       </div>
-      <div class="chart-wrap" style="flex:none">
+      <div class="chart-wrap" style="flex:1;min-width:260px">
         <div class="chart-title" id="home-store-title">이번달 매장별 매출</div>
         <canvas id="canvas-home-stores" style="max-height:360px"></canvas>
       </div>
     </div>
+    <!-- 이번 주 판매 베스트 TOP 20 -->
+    <hr class="home-section-divider">
+    <div class="home-sub-title">
+      🏆 이번 주 판매 베스트 TOP 20
+      <button onclick="switchMain('best','overall')" style="background:none;border:1.5px solid #e2e8f0;color:#64748b;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:600">전체 보기 →</button>
+    </div>
+    <div id="home-best-status" style="display:none;padding:12px 28px;color:#64748b;font-size:13px"></div>
+    <div class="best-cards-wrap" id="home-best-wrap" style="min-height:200px"></div>
   </div>
 
   <!-- ■ 전체 매장 -->
@@ -937,25 +954,33 @@ function renderHome() {
   const ytd26 = T26.reduce((s,v)=>s+v, 0);
   const ytd25 = T25.slice(0,n).reduce((s,v)=>s+v, 0);
   const curMo26 = T26[n-1] || 0;
-  const lbl = ytdLbl();
+  const curMo25 = T25[n-1] || 0;
   const moLbl = MLABELS[MONTHS_26[n-1].month - 1];
+  const weekLast = WEEKS_26[WEEKS_26.length-1];
+  const weekLast25 = weekLast ? WEEKS_25MAP[weekLast.label] : null;
+  const wAmt26 = weekLast?.total_amount || 0;
+  const wAmt25 = weekLast25?.total_amount || 0;
+  const wLbl = weekLast?.label ? weekLast.label+' 주간' : '이번주';
   const invCost = INV_DATA?.latest?.store_cost ?? null;
+  const lbl = ytdLbl();
   document.getElementById('cards-home').innerHTML = `
     <div class="card card-c1">
       <div class="card-label">26년 누적 매출 (${lbl})</div>
       <div class="card-value">${Mcard(ytd26)}</div>
       <div class="card-qty">25년 동기 ${Mcard(ytd25)}</div>
-      <div class="card-sub">${M(ytd26)}</div>
+      <div class="card-sub" style="margin-top:4px">${pct(ytd26,ytd25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 매출</div>
       <div class="card-value">${Mcard(curMo26)}</div>
-      <div class="card-sub">${M(curMo26)}</div>
+      <div class="card-qty">25년 동월 ${Mcard(curMo25)}</div>
+      <div class="card-sub" style="margin-top:4px">${pct(curMo26,curMo25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
-      <div class="card-label">전년 동기 대비 (누적)</div>
-      <div class="card-value" style="font-size:32px">${pct(ytd26, ytd25)}</div>
-      <div class="card-sub">${ytd26>=ytd25?'↑':'↓'} ${M(Math.abs(ytd26-ytd25))}</div>
+      <div class="card-label">${wLbl} 매출</div>
+      <div class="card-value">${Mcard(wAmt26)}</div>
+      <div class="card-qty">25년 동주 ${Mcard(wAmt25)}</div>
+      <div class="card-sub" style="margin-top:4px">${pct(wAmt26,wAmt25)}&nbsp;전년 동주</div>
     </div>
     <div class="card card-c4">
       <div class="card-label">매장 재고 원가</div>
@@ -966,8 +991,10 @@ function renderHome() {
       }
     </div>`;
   if (DATA?.updatedAt) document.getElementById('home-updated-at').textContent = '⏱ ' + DATA.updatedAt;
+  renderHomeProfitCards();
   chartMonthly('canvas-home-trend', null);
   chartHomeStores();
+  loadHomeBest();
 }
 function chartHomeStores() {
   const last = MONTHS_26[MONTHS_26.length - 1];
@@ -979,6 +1006,25 @@ function chartHomeStores() {
     .slice(0, 12);
   document.getElementById('home-store-title').textContent =
     MLABELS[last.month - 1] + ' 매장별 매출 (상위 ' + entries.length + '개)';
+  const valLabelPlugin = {
+    id: 'homeStoreVals',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      chart.data.datasets.forEach((ds, i) => {
+        chart.getDatasetMeta(i).data.forEach((bar, idx) => {
+          const v = ds.data[idx];
+          if (!v) return;
+          ctx.save();
+          ctx.fillStyle = '#475569';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(v + 'M', bar.x, bar.y - 4);
+          ctx.restore();
+        });
+      });
+    }
+  };
   killChart('canvas-home-stores');
   charts['canvas-home-stores'] = new Chart(
     document.getElementById('canvas-home-stores').getContext('2d'), {
@@ -986,7 +1032,7 @@ function chartHomeStores() {
       data: {
         labels: entries.map(e => e.name),
         datasets: [{
-          data: entries.map(e => +(e.amt/1e6).toFixed(2)),
+          data: entries.map(e => +(e.amt/1e6).toFixed(1)),
           backgroundColor: '#3b82f620',
           borderColor: '#3b82f6',
           borderWidth: 2,
@@ -994,17 +1040,114 @@ function chartHomeStores() {
         }]
       },
       options: {
-        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 22 } },
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v+'M'} },
-          y: { grid:{display:false}, ticks:{font:{size:12}} }
+          x: { grid:{display:false}, ticks:{font:{size:11}} },
+          y: { grid:{color:'#f1f5f9'}, ticks:{callback:v=>v+'M'}, beginAtZero:true }
         }
-      }
+      },
+      plugins: [valLabelPlugin]
     }
   );
+}
+function renderHomeProfitCards() {
+  const el = document.getElementById('cards-home-profit');
+  if (!PROFIT_DATA || !PM26.length) {
+    el.innerHTML = '<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">영업이익 데이터 없음</div>';
+    return;
+  }
+  const n = PM26.length;
+  const ytdP26 = PM26.reduce((s,m)=>s+(m.total_amount||0), 0);
+  const ytdP25 = PM25.slice(0,n).reduce((s,m)=>s+(m.total_amount||0), 0);
+  const curMP26 = PM26[n-1]?.total_amount || 0;
+  const curMP25 = PM25[n-1]?.total_amount || 0;
+  const moLbl = MLABELS[(PM26[n-1]?.month||1)-1];
+  const lastPW = PW26[PW26.length-1];
+  const lastPW25 = lastPW ? PW25MAP[lastPW.label] : null;
+  const wP26 = lastPW?.total_amount || 0;
+  const wP25 = lastPW25?.total_amount || 0;
+  const wLbl = lastPW?.label ? lastPW.label+' 주간' : '이번주';
+  el.innerHTML = `
+    <div class="card card-c1">
+      <div class="card-label">누적 영업이익 (${ytdLbl()})</div>
+      <div class="card-value">${Mcard(ytdP26)}</div>
+      <div class="card-qty">25년 동기 ${Mcard(ytdP25)}</div>
+      <div class="card-sub" style="margin-top:4px">${pct(ytdP26,ytdP25)}&nbsp;전년 대비</div>
+    </div>
+    <div class="card card-c2">
+      <div class="card-label">${moLbl} 영업이익</div>
+      <div class="card-value">${Mcard(curMP26)}</div>
+      <div class="card-qty">25년 동월 ${Mcard(curMP25)}</div>
+      <div class="card-sub" style="margin-top:4px">${pct(curMP26,curMP25)}&nbsp;전년 동월</div>
+    </div>
+    <div class="card card-c3">
+      <div class="card-label">${wLbl} 영업이익</div>
+      <div class="card-value">${Mcard(wP26)}</div>
+      <div class="card-qty">25년 동주 ${Mcard(wP25)}</div>
+      <div class="card-sub" style="margin-top:4px">${pct(wP26,wP25)}&nbsp;전년 동주</div>
+    </div>`;
+}
+let homeBestCache = {};
+async function loadHomeBest() {
+  const today = new Date();
+  const yest = new Date(today); yest.setDate(today.getDate()-1);
+  const day = today.getDay();
+  const back = day===0?5:day===1?6:day-2;
+  const tue = new Date(today); tue.setDate(today.getDate()-back);
+  const startDate = toYMD(tue);
+  const endDate = toYMD(yest);
+  const key = startDate+'_'+endDate;
+  const cached = bestState.cacheOverall[key] || homeBestCache[key];
+  if (cached) { renderHomeBestCards(cached); return; }
+  const status = document.getElementById('home-best-status');
+  status.style.display = 'block';
+  status.textContent = '이번 주 베스트 불러오는 중... (15~30초)';
+  document.getElementById('home-best-wrap').innerHTML = '';
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 90000);
+    let res;
+    try { res = await fetch(BEST_API_URL+'?startDate='+startDate+'&endDate='+endDate, {signal:ctrl.signal}); }
+    finally { clearTimeout(tid); }
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    homeBestCache[key] = data;
+    bestState.cacheOverall[key] = data;
+    renderHomeBestCards(data);
+  } catch(e) {
+    status.textContent = '베스트 로드 실패: ' + (e.name==='AbortError'?'시간 초과':e.message);
+  }
+}
+function renderHomeBestCards(data) {
+  const status = document.getElementById('home-best-status');
+  const wrap = document.getElementById('home-best-wrap');
+  const items = (data.overall || []).slice(0, 20);
+  if (!items.length) { status.textContent = '이번 주 데이터가 없습니다.'; return; }
+  status.style.display = 'none';
+  const fmtQ = v => v ? Number(v).toLocaleString('ko-KR')+'개' : '-';
+  const fmtP = v => v ? Number(v).toLocaleString('ko-KR')+'원' : '-';
+  const rankCls = r => r===1?'best-card-rank-1':r===2?'best-card-rank-2':r===3?'best-card-rank-3':'best-card-rank-n';
+  const rankTxt = r => r<=3?['🥇','🥈','🥉'][r-1]:r+'위';
+  wrap.innerHTML = items.map((item,idx) => {
+    const r = idx+1;
+    const imgEl = item.i
+      ? `<img src="${item.i}" loading="lazy" onerror="this.style.display='none'">`
+      : '<div style="color:#e2e8f0;font-size:40px">▪</div>';
+    return `<div class="best-card">
+      <div class="best-card-img-wrap">${imgEl}</div>
+      <div class="best-card-rank ${rankCls(r)}">${rankTxt(r)}</div>
+      <div class="best-card-body">
+        <div class="best-card-cat">${item.c||'-'}</div>
+        <div class="best-card-name">${item.n||'-'}</div>
+        <div class="best-card-qty" style="color:#0ea5e9">${fmtQ(item.q)}</div>
+        <div class="best-card-amt">${fmtP(item.s)}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 function renderTotal() {
   const {gran}=state.total;
@@ -1249,7 +1392,7 @@ async function bestLoadData() {
 
 function bestRenderContent(data) {
   document.getElementById('best-status').style.display='none';
-  document.getElementById('best-table').style.display='';
+  document.getElementById('best-cards-wrap').innerHTML='';
   const isStore=bestState.tab==='store';
   const lbl=bestState.startDate===bestState.endDate
     ? bestState.startDate
@@ -1303,15 +1446,13 @@ function bestShowLoading() {
   const st=document.getElementById('best-status');
   st.style.display='flex'; st.style.flexDirection='row';
   st.innerHTML='<div class="spinner" style="margin-right:12px"></div><span style="color:#64748b">데이터 불러오는 중...</span>';
-  document.getElementById('table-tbody').innerHTML='';
-  document.getElementById('best-table').style.display='none';
+  document.getElementById('best-cards-wrap').innerHTML='';
 }
 function bestShowError(msg) {
   const st=document.getElementById('best-status');
   st.style.display='flex'; st.style.flexDirection='column';
   st.innerHTML=`<span style="font-size:36px;margin-bottom:10px">⚠️</span><span style="color:#dc2626;font-size:14px;white-space:pre-line">${msg}</span>`;
-  document.getElementById('table-tbody').innerHTML='';
-  document.getElementById('best-table').style.display='none';
+  document.getElementById('best-cards-wrap').innerHTML='';
 }
 function bestRefresh() {
   bestState.cacheOverall={}; bestState.cacheStores={};
