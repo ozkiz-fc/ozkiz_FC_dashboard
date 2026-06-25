@@ -321,13 +321,13 @@ tr:hover td{background:#f8fafc}
     <hr class="home-section-divider">
     <div class="home-sub-title">📊 영업이익</div>
     <div class="summary-cards home-profit-cards" id="cards-home-profit"></div>
-    <!-- 차트 나란히 -->
-    <div class="content-area" style="flex-direction:row;gap:20px">
-      <div class="chart-wrap" style="flex:1;min-width:260px">
-        <div class="chart-title">월별 매출 추이 · 25·26년</div>
+    <!-- 차트 2행 -->
+    <div class="content-area" style="gap:20px">
+      <div class="chart-wrap">
+        <div class="chart-title">주차별 매출 추이 · 25·26년</div>
         <canvas id="canvas-home-trend" style="max-height:220px"></canvas>
       </div>
-      <div class="chart-wrap" style="flex:1.4;min-width:300px">
+      <div class="chart-wrap">
         <div class="chart-title" id="home-store-title">이번달 매장별 매출</div>
         <canvas id="canvas-home-stores" style="max-height:420px"></canvas>
       </div>
@@ -994,7 +994,7 @@ function renderHome() {
     </div>`;
   if (DATA?.updatedAt) document.getElementById('home-updated-at').textContent = '⏱ ' + DATA.updatedAt;
   renderHomeProfitCards();
-  chartMonthly('canvas-home-trend', null);
+  chartWeekly('canvas-home-trend', null);
   chartHomeStores();
   loadHomeBest();
 }
