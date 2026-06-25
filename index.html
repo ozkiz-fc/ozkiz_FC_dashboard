@@ -1168,8 +1168,8 @@ function renderHomeBestCards(data) {
       <div class="best-card-body">
         <div class="best-card-cat">${item.c||'-'}</div>
         <div class="best-card-name">${item.n||'-'}</div>
-        <div class="best-card-qty" style="color:#0ea5e9">${fmtQ(item.q)}</div>
-        <div class="best-card-amt">${fmtP(item.s)}</div>
+        <div class="best-card-qty" style="color:#0ea5e9">${fmtP(item.s)}</div>
+        <div class="best-card-amt">${fmtQ(item.q)}</div>
       </div>
     </div>`;
   }).join('');
@@ -1460,8 +1460,8 @@ function bestRenderTable(items, isStore, label) {
       <div class="best-card-body">
         <div class="best-card-cat">${item.c||'-'}</div>
         <div class="best-card-name">${item.n||'-'}</div>
-        <div class="best-card-qty" style="color:${amtCol}">${fmtQ(item.q)}</div>
-        <div class="best-card-amt">${fmtP(item.s)}</div>
+        <div class="best-card-qty" style="color:${amtCol}">${fmtP(item.s)}</div>
+        <div class="best-card-amt">${fmtQ(item.q)}</div>
       </div>
     </div>`;
   }).join('');
