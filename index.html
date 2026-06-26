@@ -2069,20 +2069,35 @@ function callInvAPI(inv_type, q) {
 
 async function invLoadSummary(goStore) {
   const loadId = goStore ? 'cards-inv-store' : 'cards-inv';
+
+  // sessionStorage 캐시 확인 (재고는 하루 1회 업데이트 → 2시간 캐시)
+  try {
+    const raw = sessionStorage.getItem('ozkiz_inv_summary_v1');
+    if (raw) {
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts < 2 * 60 * 60 * 1000) {
+        INV_DATA = data; invLoaded = true;
+        if (state.main === 'home') { renderHome(); return; }
+        if (goStore) renderInvStore(); else renderInvTotal();
+        return;
+      }
+    }
+  } catch(e) {}
+
   document.getElementById(loadId).innerHTML = '<div style="padding:24px;color:#64748b;grid-column:1/-1">데이터 불러오는 중...</div>';
-  if (!goStore) document.getElementById('table-inv').innerHTML = '';
   try {
     INV_DATA = await callInvAPI('summary');
     invLoaded = true;
+    try { sessionStorage.setItem('ozkiz_inv_summary_v1', JSON.stringify({ data: INV_DATA, ts: Date.now() })); } catch(e) {}
     if (state.main === 'home') { renderHome(); return; }
-    if (goStore) renderInvStore();
-    else renderInvTotal();
+    if (goStore) renderInvStore(); else renderInvTotal();
   } catch(e) {
     document.getElementById(loadId).innerHTML = `<div style="padding:24px;color:#dc2626;grid-column:1/-1">⚠️ 로드 실패: ${e.message}</div>`;
   }
 }
 
 function invRefresh() {
+  sessionStorage.removeItem('ozkiz_inv_summary_v1');
   INV_DATA = null; invLoaded = false;
   invLoadSummary(state.main === 'inv-store');
 }
