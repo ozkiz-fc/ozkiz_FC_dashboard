@@ -2321,23 +2321,29 @@ function chartInvCostTrend(cid, labels, costData, color, label) {
 async function invLoadProductsAll() {
   const status = document.getElementById('inv-products-status');
   const wrap = document.getElementById('inv-products-wrap');
-  if (wrap.querySelector('table')) return; // 이미 로드됨
-  status.style.display = '';
-  status.textContent = '전체 합산 조회 중... (20~40초 소요, 최초 1회)';
-  wrap.innerHTML = '';
-  try {
-    let products = null;
-    try {
-      const raw = sessionStorage.getItem('ozkiz_inv_top_all_v1');
-      if (raw) { const { data, ts } = JSON.parse(raw); if (Date.now() - ts < 4*60*60*1000) products = data; }
-    } catch(e) {}
-    if (!products) {
-      const result = await callInvTopProductsAll();
-      products = result.products || [];
-      try { sessionStorage.setItem('ozkiz_inv_top_all_v1', JSON.stringify({ data: products, ts: Date.now() })); } catch(e) {}
-    }
+  if (wrap.querySelector('table')) return;
+
+  const prods = INV_DATA && INV_DATA.top_products;
+  if (prods && prods.length > 0) {
     status.style.display = 'none';
-    tblInvTopProducts(wrap, products.slice(0, 20), '전체 합산');
+    tblInvTopProducts(wrap, prods.slice(0, 20), '전체 합산');
+    return;
+  }
+
+  // 캐시된 summary에 top_products 없으면 새로 로드
+  status.style.display = '';
+  status.textContent = '데이터 새로 불러오는 중...';
+  sessionStorage.removeItem('ozkiz_inv_summary_v1');
+  try {
+    const fresh = await callInvAPI('summary');
+    INV_DATA = fresh; invLoaded = true;
+    try { sessionStorage.setItem('ozkiz_inv_summary_v1', JSON.stringify({data: fresh, ts: Date.now()})); } catch(e) {}
+    if (fresh.top_products && fresh.top_products.length > 0) {
+      status.style.display = 'none';
+      tblInvTopProducts(wrap, fresh.top_products.slice(0, 20), '전체 합산');
+    } else {
+      status.textContent = '집계 데이터가 없습니다. 매일 오전 6시 자동 업데이트됩니다.';
+    }
   } catch(e) {
     status.textContent = `⚠️ 로드 실패: ${e.message}`;
   }
