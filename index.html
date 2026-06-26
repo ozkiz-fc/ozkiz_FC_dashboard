@@ -584,7 +584,7 @@ tr:hover td{background:#f8fafc}
       <button onclick="invLoadProductsForStore()" style="padding:4px 14px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit">조회</button>
     </div>
     <div id="inv-products-status" style="padding:8px 24px;color:#94a3b8;font-size:13px;display:none"></div>
-    <div class="best-cards-wrap home-best-grid" id="inv-products-wrap"></div>
+    <div class="table-wrap" id="inv-products-wrap"></div>
   </div>
 
   <!-- ■ 재고현황 · 매장별 -->
@@ -2344,33 +2344,10 @@ async function invLoadProductsForStore() {
       invTopCache[storeName] = result.products || [];
     }
     status.style.display = 'none';
-    invRenderProductCards(wrap, invTopCache[storeName].slice(0, 20));
+    tblInvTopProducts(wrap, invTopCache[storeName].slice(0, 20), storeName);
   } catch(e) {
     status.textContent = `⚠️ 로드 실패: ${e.message}`;
   }
-}
-
-function invRenderProductCards(wrap, products) {
-  if (!products || products.length === 0) {
-    wrap.innerHTML = '<div style="padding:24px;color:#94a3b8">데이터가 없습니다.</div>';
-    return;
-  }
-  const fmtW = v => Math.floor(v/10000).toLocaleString()+'만원';
-  const rankCls = i => i===0?'best-card-rank-1':i===1?'best-card-rank-2':i===2?'best-card-rank-3':'best-card-rank-n';
-  wrap.innerHTML = products.map((p, i) => `
-    <div class="best-card">
-      <div class="best-card-img-wrap">
-        ${p.img
-          ? `<img src="${p.img}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=font-size:28px>📦</span>'">`
-          : '<span style="font-size:28px">📦</span>'}
-        <div class="best-card-rank ${rankCls(i)}">${i+1}</div>
-      </div>
-      <div class="best-card-body">
-        <div class="best-card-name">${p.name}</div>
-        <div class="best-card-qty" style="font-size:15px;color:#f97316;font-weight:800;margin-top:6px">${fmtW(p.cost)}</div>
-        <div class="best-card-amt">${p.qty.toLocaleString()}개 · 단가 ${p.org_price.toLocaleString()}원</div>
-      </div>
-    </div>`).join('');
 }
 
 // ════════════════════════════════════════════════
