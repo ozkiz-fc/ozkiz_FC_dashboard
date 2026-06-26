@@ -620,6 +620,7 @@ tr:hover td{background:#f8fafc}
 // ■ 매출 대시보드 — API & 데이터 처리
 // ════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfpCkdx5mp3sBkgjA1IMsNdJNl24D4tow7wwhVsAkdrjDz2uyUp7-bZhFv4OG3whFa/exec';
+const CACHE_TTL = 60 * 60 * 1000; // 세션 캐시 60분
 
 const MLABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 let DATA=null, STORE_LIST=[], MONTHS_26=[], MONTHS_25=[];
@@ -628,6 +629,13 @@ let WEEKS_26=[], WEEKS_25MAP={}, DAILY=null;
 
 function callAPI() {
   return new Promise((resolve, reject) => {
+    try {
+      const raw = sessionStorage.getItem('ozkiz_sales_v2');
+      if (raw) {
+        const { data, ts } = JSON.parse(raw);
+        if (Date.now() - ts < CACHE_TTL) { resolve(data); return; }
+      }
+    } catch(e) {}
     const cbName = '_apicb_' + Date.now();
     const el = document.createElement('script');
     const tid = setTimeout(() => {
@@ -636,6 +644,9 @@ function callAPI() {
     }, 10000);
     window[cbName] = d => {
       clearTimeout(tid); delete window[cbName]; el.remove();
+      if (!d.error) {
+        try { sessionStorage.setItem('ozkiz_sales_v2', JSON.stringify({ data: d, ts: Date.now() })); } catch(e) {}
+      }
       d.error ? reject(new Error(d.error)) : resolve(d);
     };
     el.src = `${SCRIPT_URL}?callback=${cbName}`;
@@ -1118,7 +1129,7 @@ function chartHomeStores() {
 function renderHomeProfitCards() {
   const el = document.getElementById('cards-home-profit');
   if (!PROFIT_DATA || !PM26.length) {
-    el.innerHTML = '<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">영업이익 데이터 없음</div>';
+    el.innerHTML = '<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">영업이익 불러오는 중...</div>';
     return;
   }
   const n = PM26.length;
@@ -1659,10 +1670,23 @@ const profitRate=(profit,sales)=>sales?profit/sales*100:null;
 
 function callProfitAPI(){
   return new Promise((resolve,reject)=>{
+    try {
+      const raw = sessionStorage.getItem('ozkiz_profit_v2');
+      if (raw) {
+        const { data, ts } = JSON.parse(raw);
+        if (Date.now() - ts < CACHE_TTL) { resolve(data); return; }
+      }
+    } catch(e) {}
     const cbName='_pcb_'+Date.now();
     const el=document.createElement('script');
     const tid=setTimeout(()=>{delete window[cbName];el.remove();reject(new Error('영업이익 응답 시간 초과'));},30000);
-    window[cbName]=d=>{clearTimeout(tid);delete window[cbName];el.remove();d.error?reject(new Error(d.error)):resolve(d);};
+    window[cbName]=d=>{
+      clearTimeout(tid);delete window[cbName];el.remove();
+      if (!d.error) {
+        try { sessionStorage.setItem('ozkiz_profit_v2', JSON.stringify({ data: d, ts: Date.now() })); } catch(e) {}
+      }
+      d.error?reject(new Error(d.error)):resolve(d);
+    };
     el.src=`${SCRIPT_URL}?action=getProfit&callback=${cbName}`;
     el.onerror=()=>{clearTimeout(tid);reject(new Error('영업이익 API 오류'));};
     document.head.appendChild(el);
@@ -2609,34 +2633,42 @@ function tblInvTopProducts(container, products, storeName) {
 async function init() {
   try {
     initBestStores();
-    const [salesRes,profitRes]=await Promise.allSettled([callAPI(),callProfitAPI()]);
-    if(salesRes.status==='rejected') throw salesRes.reason;
-    const data=salesRes.value;
+
+    // Phase 1: 매출 데이터 먼저 → 홈 즉시 표시
+    const data = await callAPI();
     processData(data);
-    document.getElementById('updated-at').textContent=data.updatedAt?'⏱ '+data.updatedAt:'';
-    const lastM=MONTHS_26.length>0?MLABELS[MONTHS_26.length-1]:'';
-    document.getElementById('note-total').textContent=`온라인 제외 · ${lastM}까지 집계`;
-    document.getElementById('note-store').textContent=`${lastM}까지 집계`;
-    const sel=document.getElementById('store-select');
-    STORE_LIST.forEach(name=>{
-      const o=document.createElement('option');
-      o.value=name; o.textContent=name; sel.appendChild(o);
+    document.getElementById('updated-at').textContent = data.updatedAt ? '⏱ ' + data.updatedAt : '';
+    const lastM = MONTHS_26.length > 0 ? MLABELS[MONTHS_26.length-1] : '';
+    document.getElementById('note-total').textContent = `온라인 제외 · ${lastM}까지 집계`;
+    document.getElementById('note-store').textContent = `${lastM}까지 집계`;
+    const sel = document.getElementById('store-select');
+    STORE_LIST.forEach(name => {
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name; sel.appendChild(o);
     });
-    state.store.name=STORE_LIST[0]||'';
-    if(profitRes.status==='fulfilled'){
-      processProfitData(profitRes.value);
-      if(PROFIT_DATA?.updatedAt) document.getElementById('profit-updated-at').textContent='⏱ '+PROFIT_DATA.updatedAt;
-      const psel=document.getElementById('profit-store-select');
-      PSTORES.forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;psel.appendChild(o);});
-      profitState.store.name=PSTORES[0]||'';
-    } else {
-      console.warn('영업이익 데이터 로드 실패:',profitRes.reason);
-    }
-    document.getElementById('loading').style.display='none';
+    state.store.name = STORE_LIST[0] || '';
+    document.getElementById('loading').style.display = 'none';
     renderHome();
+
+    // Phase 2: 영업이익 백그라운드 로드 (홈 렌더 차단 안 함)
+    callProfitAPI().then(profitData => {
+      processProfitData(profitData);
+      if (PROFIT_DATA?.updatedAt) document.getElementById('profit-updated-at').textContent = '⏱ ' + PROFIT_DATA.updatedAt;
+      const psel = document.getElementById('profit-store-select');
+      if (psel.options.length === 0) {
+        PSTORES.forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; psel.appendChild(o); });
+        profitState.store.name = PSTORES[0] || '';
+      }
+      if (state.main === 'home') renderHomeProfitCards();
+    }).catch(e => {
+      console.warn('영업이익 로드 실패:', e);
+      const el = document.getElementById('cards-home-profit');
+      if (el) el.innerHTML = '<div style="grid-column:1/-1;padding:12px;color:#dc2626;font-size:13px">⚠️ 영업이익 로드 실패</div>';
+    });
+
   } catch(e) {
-    document.getElementById('loading-spinner').style.display='none';
-    document.getElementById('loading-msg').innerHTML=
+    document.getElementById('loading-spinner').style.display = 'none';
+    document.getElementById('loading-msg').innerHTML =
       `<span style="font-size:36px">⚠️</span>\n<strong style="color:#dc2626">데이터 로드 실패</strong>\n${e.message}`;
     console.error(e);
   }
