@@ -579,9 +579,7 @@ tr:hover td{background:#f8fafc}
     </div>
     <hr class="home-section-divider">
     <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
-      📦 제품별 재고 <span style="font-size:11px;color:#94a3b8;font-weight:400">원가 높은 순 TOP 20</span>
-      <select id="inv-products-store-sel" style="font-size:12px;padding:3px 8px;border-radius:6px;border:1.5px solid #e2e8f0;color:#475569;font-family:inherit;cursor:pointer"></select>
-      <button onclick="invLoadProductsForStore()" style="padding:4px 14px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit">조회</button>
+      📦 제품별 재고 <span style="font-size:11px;color:#94a3b8;font-weight:400">전체 매장 합산 · 원가 높은 순 TOP 20</span>
     </div>
     <div id="inv-products-status" style="padding:8px 24px;color:#94a3b8;font-size:13px;display:none"></div>
     <div class="table-wrap" id="inv-products-wrap"></div>
@@ -2159,7 +2157,7 @@ function renderInvTotal() {
   if (lat && lat.stores) {
     chartInvBars('canvas-inv-bar', lat.stores);
   }
-  initInvProductStoreSel();
+  invLoadProductsAll();
 }
 
 function chartInvTrend(cid, labels, totalData, storeData, costData) {
@@ -2320,49 +2318,26 @@ function chartInvCostTrend(cid, labels, costData, color, label) {
   });
 }
 
-function initInvProductStoreSel() {
-  const sel = document.getElementById('inv-products-store-sel');
-  if (sel.options.length > 0) return;
-  const allOpt = document.createElement('option');
-  allOpt.value = '__all__'; allOpt.textContent = '전체 합산'; sel.appendChild(allOpt);
-  INV_STORE_ORDER.forEach(name => {
-    const o = document.createElement('option');
-    o.value = name; o.textContent = name; sel.appendChild(o);
-  });
-}
-
-async function invLoadProductsForStore() {
-  const sel = document.getElementById('inv-products-store-sel');
-  const storeName = sel.value;
-  if (!storeName) return;
-  const isAll = storeName === '__all__';
+async function invLoadProductsAll() {
   const status = document.getElementById('inv-products-status');
   const wrap = document.getElementById('inv-products-wrap');
+  if (wrap.querySelector('table')) return; // 이미 로드됨
   status.style.display = '';
-  status.textContent = isAll ? '전체 합산 조회 중... (20~40초 소요, 최초 1회)' : `${storeName} 제품 데이터 조회 중... (10~20초 소요)`;
+  status.textContent = '전체 합산 조회 중... (20~40초 소요, 최초 1회)';
   wrap.innerHTML = '';
   try {
-    if (isAll) {
-      let products = null;
-      try {
-        const raw = sessionStorage.getItem('ozkiz_inv_top_all_v1');
-        if (raw) { const { data, ts } = JSON.parse(raw); if (Date.now() - ts < 4*60*60*1000) products = data; }
-      } catch(e) {}
-      if (!products) {
-        const result = await callInvTopProductsAll();
-        products = result.products || [];
-        try { sessionStorage.setItem('ozkiz_inv_top_all_v1', JSON.stringify({ data: products, ts: Date.now() })); } catch(e) {}
-      }
-      status.style.display = 'none';
-      tblInvTopProducts(wrap, products.slice(0, 20), '전체 합산');
-    } else {
-      if (!invTopCache[storeName]) {
-        const result = await callInvTopProducts(storeName);
-        invTopCache[storeName] = result.products || [];
-      }
-      status.style.display = 'none';
-      tblInvTopProducts(wrap, invTopCache[storeName].slice(0, 20), storeName);
+    let products = null;
+    try {
+      const raw = sessionStorage.getItem('ozkiz_inv_top_all_v1');
+      if (raw) { const { data, ts } = JSON.parse(raw); if (Date.now() - ts < 4*60*60*1000) products = data; }
+    } catch(e) {}
+    if (!products) {
+      const result = await callInvTopProductsAll();
+      products = result.products || [];
+      try { sessionStorage.setItem('ozkiz_inv_top_all_v1', JSON.stringify({ data: products, ts: Date.now() })); } catch(e) {}
     }
+    status.style.display = 'none';
+    tblInvTopProducts(wrap, products.slice(0, 20), '전체 합산');
   } catch(e) {
     status.textContent = `⚠️ 로드 실패: ${e.message}`;
   }
