@@ -565,15 +565,26 @@ tr:hover td{background:#f8fafc}
     <div class="summary-cards" id="cards-inv"></div>
     <div class="content-area">
       <div class="chart-wrap">
-        <div class="chart-title" id="chart-inv-title">재고 추이 (일별)</div>
-        <canvas id="canvas-inv"></canvas>
+        <div class="chart-title" id="chart-inv-title-a">전체 재고 원가 추이 (일별)</div>
+        <canvas id="canvas-inv-total-cost"></canvas>
       </div>
-      <div id="table-inv" class="table-wrap"></div>
       <div class="chart-wrap">
-        <div class="chart-title">매장별 재고 현황 (수량순)</div>
-        <div style="height:300px;position:relative"><canvas id="canvas-inv-bar"></canvas></div>
+        <div class="chart-title" id="chart-inv-title-b">매장 재고 원가 추이 (일별)</div>
+        <canvas id="canvas-inv-store-cost"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">매장별 재고 원가 현황 (원가 높은 순)</div>
+        <div style="height:420px;position:relative"><canvas id="canvas-inv-bar"></canvas></div>
       </div>
     </div>
+    <hr class="home-section-divider">
+    <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
+      📦 제품별 재고 <span style="font-size:11px;color:#94a3b8;font-weight:400">원가 높은 순 TOP 20</span>
+      <select id="inv-products-store-sel" style="font-size:12px;padding:3px 8px;border-radius:6px;border:1.5px solid #e2e8f0;color:#475569;font-family:inherit;cursor:pointer"></select>
+      <button onclick="invLoadProductsForStore()" style="padding:4px 14px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit">조회</button>
+    </div>
+    <div id="inv-products-status" style="padding:8px 24px;color:#94a3b8;font-size:13px;display:none"></div>
+    <div class="best-cards-wrap home-best-grid" id="inv-products-wrap"></div>
   </div>
 
   <!-- ■ 재고현황 · 매장별 -->
@@ -2097,20 +2108,19 @@ function renderInvTotal() {
   }
 
   if (hist.length > 1) {
-    chartInvTrend('canvas-inv',
-      hist.map(h=>h.date),
-      hist.map(h=>h.total_qty||0),
-      hist.map(h=>h.store_qty||0),
-      hist.map(h=>Math.floor((h.total_cost||0)/10000))
-    );
+    chartInvCostTrend('canvas-inv-total-cost', hist.map(h=>h.date),
+      hist.map(h=>Math.floor((h.total_cost||0)/10000)), '#0ea5e9', '전체 원가');
+    chartInvCostTrend('canvas-inv-store-cost', hist.map(h=>h.date),
+      hist.map(h=>Math.floor((h.store_cost||0)/10000)), '#8b5cf6', '매장 원가');
   } else {
-    document.getElementById('chart-inv-title').textContent = '재고 추이 (데이터 2일 이상부터 표시)';
+    ['chart-inv-title-a','chart-inv-title-b'].forEach(id => {
+      document.getElementById(id).textContent += ' (데이터 2일 이상부터 표시)';
+    });
   }
-
   if (lat && lat.stores) {
-    tblInvStores('table-inv', lat.stores);
     chartInvBars('canvas-inv-bar', lat.stores);
   }
+  initInvProductStoreSel();
 }
 
 function chartInvTrend(cid, labels, totalData, storeData, costData) {
@@ -2191,48 +2201,138 @@ function tblInvStores(id, stores) {
 
 function chartInvBars(cid, stores) {
   killChart(cid);
+  const palette = ['#0ea5e9','#8b5cf6','#10b981','#f97316','#f43f5e','#eab308','#06b6d4','#a855f7','#ec4899','#84cc16'];
   const sorted = INV_STORE_ORDER
-    .map(n => ({
-      name: n,
-      qty:  (stores[n]||{}).qty||0,
-      cost: Math.floor(((stores[n]||{}).cost||0)/10000)
-    }))
-    .sort((a,b) => b.qty - a.qty);
+    .map(n => ({ name: n, qty: (stores[n]||{}).qty||0, cost: Math.floor(((stores[n]||{}).cost||0)/10000) }))
+    .filter(e => e.cost > 0)
+    .sort((a,b) => b.cost - a.cost);
+
   charts[cid] = new Chart(document.getElementById(cid).getContext('2d'), {
     type: 'bar',
     data: {
       labels: sorted.map(s => s.name),
-      datasets: [
-        { label: '재고 수량', data: sorted.map(s => s.qty),
-          backgroundColor: '#0ea5e9aa', borderColor: '#0ea5e9', borderWidth: 1, yAxisID: 'y' },
-        { label: '원가(만원)', data: sorted.map(s => s.cost),
-          backgroundColor: '#f9731655', borderColor: '#f97316', borderWidth: 1, yAxisID: 'y2' }
-      ]
+      datasets: [{
+        label: '재고 원가',
+        data: sorted.map(s => s.cost),
+        backgroundColor: sorted.map((_, i) => palette[i % palette.length] + 'cc'),
+        borderColor: sorted.map((_, i) => palette[i % palette.length]),
+        borderWidth: 1.5
+      }]
     },
+    plugins: [{
+      id: 'invBarLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          const val = data.datasets[0].data[i];
+          ctx.save();
+          ctx.fillStyle = '#475569';
+          ctx.font = 'bold 11px "Malgun Gothic",sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(val.toLocaleString()+'만', bar.x, bar.y - 4);
+          ctx.restore();
+        });
+      }
+    }],
     options: {
       responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: CHART_COLORS.legend, font: { size: 13 } } },
+        legend: { display: false },
         tooltip: {
-          backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title,
-          bodyColor: CHART_COLORS.tooltip.body,
-          callbacks: { label(c) {
-            if (c.dataset.yAxisID === 'y2') return ` 원가: ${c.parsed.y.toLocaleString()}만원`;
-            return ` 재고: ${c.parsed.y.toLocaleString()}개`;
-          }}
+          backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title, bodyColor: CHART_COLORS.tooltip.body,
+          callbacks: {
+            label(c) { return ` 원가: ${c.parsed.y.toLocaleString()}만원`; },
+            afterLabel(c) { return ` 수량: ${sorted[c.dataIndex].qty.toLocaleString()}개`; }
+          }
         }
       },
       scales: {
         x: { ticks: { color: CHART_COLORS.tick, font: { size: 12 } }, grid: { color: CHART_COLORS.gridX } },
-        y: { ticks: { color: CHART_COLORS.tick, callback: v => v.toLocaleString() }, grid: { color: CHART_COLORS.gridY } },
-        y2: { position: 'right', grid: { display: false },
-          ticks: { color: '#f97316', callback: v => v.toLocaleString()+'만' } }
+        y: { ticks: { color: CHART_COLORS.tick, callback: v => v.toLocaleString()+'만' }, grid: { color: CHART_COLORS.gridY } }
       }
     }
   });
 }
 
+
+function chartInvCostTrend(cid, labels, costData, color, label) {
+  killChart(cid);
+  charts[cid] = new Chart(document.getElementById(cid).getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label, data: costData, borderColor: color,
+        backgroundColor: color + '18', borderWidth: 2.5, pointRadius: 4, fill: true, tension: .3 }
+    ]},
+    options: {
+      responsive: true, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: CHART_COLORS.legend, font: { size: 13 } } },
+        tooltip: {
+          backgroundColor: CHART_COLORS.tooltip.bg, titleColor: CHART_COLORS.tooltip.title, bodyColor: CHART_COLORS.tooltip.body,
+          callbacks: { label(c) { return ` ${label}: ${c.parsed.y.toLocaleString()}만원`; } }
+        }
+      },
+      scales: {
+        x: { ticks: { color: CHART_COLORS.tick, maxRotation: 45, maxTicksLimit: 30, font: { size: 12 } }, grid: { color: CHART_COLORS.gridX } },
+        y: { ticks: { color: CHART_COLORS.tick, callback: v => v.toLocaleString()+'만' }, grid: { color: CHART_COLORS.gridY } }
+      }
+    }
+  });
+}
+
+function initInvProductStoreSel() {
+  const sel = document.getElementById('inv-products-store-sel');
+  if (sel.options.length > 0) return;
+  INV_STORE_ORDER.forEach(name => {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name; sel.appendChild(o);
+  });
+}
+
+async function invLoadProductsForStore() {
+  const sel = document.getElementById('inv-products-store-sel');
+  const storeName = sel.value;
+  if (!storeName) return;
+  const status = document.getElementById('inv-products-status');
+  const wrap = document.getElementById('inv-products-wrap');
+  status.style.display = '';
+  status.textContent = `${storeName} 제품 데이터 조회 중... (10~20초 소요)`;
+  wrap.innerHTML = '';
+  try {
+    if (!invTopCache[storeName]) {
+      const result = await callInvTopProducts(storeName);
+      invTopCache[storeName] = result.products || [];
+    }
+    status.style.display = 'none';
+    invRenderProductCards(wrap, invTopCache[storeName].slice(0, 20));
+  } catch(e) {
+    status.textContent = `⚠️ 로드 실패: ${e.message}`;
+  }
+}
+
+function invRenderProductCards(wrap, products) {
+  if (!products || products.length === 0) {
+    wrap.innerHTML = '<div style="padding:24px;color:#94a3b8">데이터가 없습니다.</div>';
+    return;
+  }
+  const fmtW = v => Math.floor(v/10000).toLocaleString()+'만원';
+  const rankCls = i => i===0?'best-card-rank-1':i===1?'best-card-rank-2':i===2?'best-card-rank-3':'best-card-rank-n';
+  wrap.innerHTML = products.map((p, i) => `
+    <div class="best-card">
+      <div class="best-card-img-wrap">
+        ${p.img
+          ? `<img src="${p.img}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=font-size:28px>📦</span>'">`
+          : '<span style="font-size:28px">📦</span>'}
+        <div class="best-card-rank ${rankCls(i)}">${i+1}</div>
+      </div>
+      <div class="best-card-body">
+        <div class="best-card-name">${p.name}</div>
+        <div class="best-card-qty" style="font-size:15px;color:#f97316;font-weight:800;margin-top:6px">${fmtW(p.cost)}</div>
+        <div class="best-card-amt">${p.qty.toLocaleString()}개 · 단가 ${p.org_price.toLocaleString()}원</div>
+      </div>
+    </div>`).join('');
+}
 
 // ════════════════════════════════════════════════
 // ■ 재고현황 · 매장별
