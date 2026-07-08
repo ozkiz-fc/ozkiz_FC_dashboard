@@ -190,6 +190,10 @@ tr:hover td{background:#f8fafc}
 .best-card-name{font-size:12px;font-weight:600;color:#1e293b;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px;margin-bottom:8px}
 .best-card-qty{font-size:20px;font-weight:800;line-height:1}
 .best-card-amt{font-size:11px;color:#94a3b8;margin-top:3px}
+.best-bar-wrap{height:3px;background:#f1f5f9;border-radius:99px;margin-top:9px;overflow:hidden}
+.best-bar{height:100%;border-radius:99px;transition:width .4s ease}
+.best-overall-badge{position:absolute;top:8px;right:8px;font-size:10px;font-weight:700;color:#fff;background:#0f172a;padding:2px 7px;border-radius:99px;z-index:1;white-space:nowrap;line-height:1.5}
+.best-overall-badge-out{background:#cbd5e1;color:#64748b}
 /* ── 홈 대시보드 ── */
 .home-sub-title{padding:16px 28px 8px;font-size:13px;font-weight:700;color:#64748b;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
 .home-section-divider{margin:4px 24px 0;border:none;border-top:1.5px solid #e2e8f0}
@@ -510,6 +514,13 @@ tr:hover td{background:#f8fafc}
       <div class="best-table-wrap">
         <div class="best-status" id="best-status"></div>
         <div class="best-cards-wrap home-best-grid" id="best-cards-wrap"></div>
+        <div id="best-cat-chart-wrap" style="display:none;align-items:flex-start;gap:24px;padding:20px 24px 24px;border-top:1px solid #f1f5f9">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:10px">카테고리 분포</div>
+            <canvas id="canvas-best-cat" width="130" height="130"></canvas>
+          </div>
+          <div id="best-cat-legend" style="padding-top:20px"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1485,6 +1496,7 @@ function bestRenderTable(items, isStore, label) {
   document.getElementById('section-title').textContent=
     isStore ? bestState.store+'  TOP '+topN+'  ·  '+label
             : '전체 판매 베스트  TOP '+topN+'  ·  '+label;
+  document.getElementById('best-cat-chart-wrap').style.display='none';
   if (!items||!items.length) {
     wrap.innerHTML='<div style="text-align:center;padding:48px;color:#94a3b8;font-size:15px;width:100%">해당 기간에 데이터가 없습니다.</div>';
     return;
@@ -1494,22 +1506,66 @@ function bestRenderTable(items, isStore, label) {
   const amtCol=isStore?col:'#0ea5e9';
   const rankCls=r=>r===1?'best-card-rank-1':r===2?'best-card-rank-2':r===3?'best-card-rank-3':'best-card-rank-n';
   const rankTxt=r=>r<=3?['🥇','🥈','🥉'][r-1]:r+'위';
-  wrap.innerHTML=items.slice(0,topN).map((item,idx)=>{
+  const sliced=items.slice(0,topN);
+  const maxAmt=sliced[0]?Number(sliced[0].s)||1:1;
+  let overallRankMap={};
+  if (isStore) {
+    const key=bestState.startDate+'_'+bestState.endDate;
+    const od=bestState.cacheOverall[key];
+    if (od&&od.overall) od.overall.forEach((it,i)=>{overallRankMap[it.n]=i+1;});
+  }
+  wrap.innerHTML=sliced.map((item,idx)=>{
     const r=idx+1;
+    const pct=Math.round(Number(item.s)/maxAmt*100);
     const imgEl=item.i
       ?`<img src="${item.i}" loading="lazy" onerror="this.style.display='none'">`
       :'<div style="color:#e2e8f0;font-size:40px">▪</div>';
+    let overallBadge='';
+    if (isStore) {
+      const oRank=overallRankMap[item.n];
+      overallBadge=oRank
+        ?`<span class="best-overall-badge">전체 ${oRank}위</span>`
+        :`<span class="best-overall-badge best-overall-badge-out">TOP20밖</span>`;
+    }
     return `<div class="best-card">
       <div class="best-card-img-wrap">${imgEl}</div>
       <div class="best-card-rank ${rankCls(r)}">${rankTxt(r)}</div>
+      ${overallBadge}
       <div class="best-card-body">
         <div class="best-card-cat">${item.c||'-'}</div>
         <div class="best-card-name">${item.n||'-'}</div>
         <div class="best-card-qty" style="color:${amtCol}">${fmtP(item.s)}</div>
         <div class="best-card-amt">${fmtQ(item.q)}</div>
+        <div class="best-bar-wrap"><div class="best-bar" style="width:${pct}%;background:${amtCol}"></div></div>
       </div>
     </div>`;
   }).join('');
+  if (!isStore) renderBestCatChart(sliced);
+}
+
+function renderBestCatChart(items) {
+  const wrap=document.getElementById('best-cat-chart-wrap');
+  wrap.style.display='flex';
+  const catMap={};
+  items.forEach(item=>{const c=item.c||'기타'; catMap[c]=(catMap[c]||0)+Number(item.s||0);});
+  const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const labels=sorted.map(([c])=>c);
+  const values=sorted.map(([,v])=>v);
+  const total=values.reduce((a,b)=>a+b,0)||1;
+  const pal=['#0ea5e9','#8b5cf6','#10b981','#f97316','#f59e0b','#ef4444','#ec4899','#06b6d4','#14b8a6','#a855f7'];
+  killChart('canvas-best-cat');
+  charts['canvas-best-cat']=new Chart(document.getElementById('canvas-best-cat').getContext('2d'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:pal.slice(0,labels.length),borderWidth:2,borderColor:'#fff'}]},
+    options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${Math.round(ctx.parsed/total*100)}%`}}}}
+  });
+  document.getElementById('best-cat-legend').innerHTML=sorted.map(([c,v],i)=>
+    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+      <div style="width:9px;height:9px;border-radius:2px;background:${pal[i]||'#94a3b8'};flex-shrink:0"></div>
+      <span style="font-size:12px;color:#475569;font-weight:600">${c}</span>
+      <span style="font-size:11px;color:#94a3b8;margin-left:2px">${Math.round(v/total*100)}%</span>
+    </div>`
+  ).join('');
 }
 
 function bestShowLoading() {
@@ -1517,12 +1573,14 @@ function bestShowLoading() {
   st.style.display='flex'; st.style.flexDirection='row';
   st.innerHTML='<div class="spinner" style="margin-right:12px"></div><span style="color:#64748b">데이터 불러오는 중...</span>';
   document.getElementById('best-cards-wrap').innerHTML='';
+  document.getElementById('best-cat-chart-wrap').style.display='none';
 }
 function bestShowError(msg) {
   const st=document.getElementById('best-status');
   st.style.display='flex'; st.style.flexDirection='column';
   st.innerHTML=`<span style="font-size:36px;margin-bottom:10px">⚠️</span><span style="color:#dc2626;font-size:14px;white-space:pre-line">${msg}</span>`;
   document.getElementById('best-cards-wrap').innerHTML='';
+  document.getElementById('best-cat-chart-wrap').style.display='none';
 }
 function bestRefresh() {
   bestState.cacheOverall={}; bestState.cacheStores={};
