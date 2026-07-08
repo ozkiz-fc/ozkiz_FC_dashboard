@@ -1571,20 +1571,20 @@ function renderBestCatChart(items, totalSales) {
   });
   const legendItems=items.map((item,i)=>{
     const pct=Math.round(Number(item.s||0)/total*100);
-    return `<div style="display:flex;align-items:center;gap:6px">
-      <div style="width:8px;height:8px;border-radius:2px;background:${pal[i]};flex-shrink:0"></div>
-      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px">${i+1}위</span>
-      <span style="font-size:11px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
-      <span style="font-size:11px;color:#64748b;font-weight:700;margin-left:4px;flex-shrink:0">${pct}%</span>
+    return `<div style="display:flex;align-items:center;gap:10px">
+      <div style="width:24px;height:24px;border-radius:4px;background:${pal[i]};flex-shrink:0"></div>
+      <span style="font-size:30px;font-weight:700;color:#94a3b8;min-width:70px">${i+1}위</span>
+      <span style="font-size:33px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
+      <span style="font-size:33px;color:#64748b;font-weight:700;margin-left:8px;flex-shrink:0">${pct}%</span>
     </div>`;
   });
   if (otherAmt>0) {
     const otherPct=Math.round(otherAmt/total*100);
-    legendItems.push(`<div style="display:flex;align-items:center;gap:6px;grid-column:1/-1;padding-top:6px;border-top:1px solid #f1f5f9">
-      <div style="width:8px;height:8px;border-radius:2px;background:#e2e8f0;flex-shrink:0"></div>
-      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px"></span>
-      <span style="font-size:11px;color:#94a3b8;font-weight:600;flex:1">기타</span>
-      <span style="font-size:11px;color:#94a3b8;font-weight:700;margin-left:4px;flex-shrink:0">${otherPct}%</span>
+    legendItems.push(`<div style="display:flex;align-items:center;gap:10px;grid-column:1/-1;padding-top:10px;border-top:1px solid #f1f5f9">
+      <div style="width:24px;height:24px;border-radius:4px;background:#e2e8f0;flex-shrink:0"></div>
+      <span style="font-size:30px;font-weight:700;color:#94a3b8;min-width:70px"></span>
+      <span style="font-size:33px;color:#94a3b8;font-weight:600;flex:1">기타</span>
+      <span style="font-size:33px;color:#94a3b8;font-weight:700;margin-left:8px;flex-shrink:0">${otherPct}%</span>
     </div>`);
   }
   document.getElementById('best-cat-legend').innerHTML=legendItems.join('');
