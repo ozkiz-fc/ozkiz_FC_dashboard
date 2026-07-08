@@ -90,6 +90,10 @@ tr:hover td{background:#f8fafc}
 
 /* ── 판매 베스트 ── */
 .best-controls{padding:14px 28px;background:#fff;border-bottom:1px solid #e2e8f0}
+.best-mode-row{display:flex;gap:8px;margin-bottom:12px}
+.mode-btn{padding:7px 20px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.mode-btn.active.best{background:#0f172a;color:#fff;border-color:#0f172a}
+.mode-btn.active.worst{background:#dc2626;color:#fff;border-color:#dc2626}
 .best-period-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .period-btn{padding:7px 16px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
 .period-btn.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
@@ -488,6 +492,10 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 기간 선택 -->
     <div class="best-controls">
+      <div class="best-mode-row">
+        <button id="btn-mode-best" class="mode-btn active best" onclick="bestSwitchMode('best')">📈 판매베스트</button>
+        <button id="btn-mode-worst" class="mode-btn worst" onclick="bestSwitchMode('worst')">📉 판매부진</button>
+      </div>
       <div class="best-period-row">
         <button id="btn-yesterday" class="period-btn" onclick="bestSetPeriod('yesterday')">어제</button>
         <button id="btn-week"      class="period-btn" onclick="bestSetPeriod('week')">금주</button>
@@ -1368,9 +1376,11 @@ const BEST_STORE_COLORS = {
   'STCO용인':'#388e3c','면세점':'#e65100','평촌':'#7b1fa2'
 };
 
+const BEST_SS_TTL = 60 * 60 * 1000; // 60분
 const bestState = {
   startDate: '', endDate: '',
   tab: 'overall', store: BEST_STORES[0],
+  mode: 'best',
   cacheOverall: {}, cacheStores: {}
 };
 
@@ -1444,6 +1454,21 @@ async function bestLoadData() {
   const cache=isAll?bestState.cacheOverall:bestState.cacheStores;
   if (cache[key]) { bestRenderContent(cache[key]); return; }
 
+  // sessionStorage 캐시 확인 (60분 TTL)
+  const ssKey='ozkiz_best_'+(isAll?'overall':'stores')+'_v2_'+key;
+  try {
+    const ss=sessionStorage.getItem(ssKey);
+    if (ss) {
+      const parsed=JSON.parse(ss);
+      if (Date.now()-parsed.ts < BEST_SS_TTL) {
+        cache[key]=parsed.data;
+        if (parsed.data.updatedAt) document.getElementById('best-updated-at').textContent='⏱ '+parsed.data.updatedAt;
+        bestRenderContent(parsed.data);
+        return;
+      }
+    }
+  } catch(_) {}
+
   bestShowLoading();
   const rb=document.getElementById('best-refresh');
   rb && rb.classList.add('spinning');
@@ -1460,6 +1485,7 @@ async function bestLoadData() {
     if (data.error==='session_expired') { bestShowError('이지어드민 세션 만료\n쿠키를 갱신해 주세요.'); return; }
     if (data.error) throw new Error(data.error);
     cache[key]=data;
+    try { sessionStorage.setItem(ssKey, JSON.stringify({data, ts:Date.now()})); } catch(_) {}
     if (data.updatedAt) document.getElementById('best-updated-at').textContent='⏱ '+data.updatedAt;
     bestRenderContent(data);
   } catch(err) {
@@ -1475,14 +1501,17 @@ function bestRenderContent(data) {
   document.getElementById('best-status').style.display='none';
   document.getElementById('best-cards-wrap').innerHTML='';
   const isStore=bestState.tab==='store';
+  const isWorst=bestState.mode==='worst';
   const lbl=bestState.startDate===bestState.endDate
     ? bestState.startDate
     : bestState.startDate+' ~ '+bestState.endDate;
   if (isStore) {
     const sd=(data.stores||[]).find(s=>s.name===bestState.store);
-    bestRenderTable(sd?sd.products:[], true, lbl, sd?sd.totalSales:null);
+    const products=isWorst?(sd?sd.worst||[]:[]): (sd?sd.products||[]:[]);
+    bestRenderTable(products, true, lbl, sd?sd.totalSales:null);
   } else {
-    bestRenderTable(data.overall||[], false, lbl, data.totalSales||null);
+    const items=isWorst?(data.worst20||[]):(data.overall||[]);
+    bestRenderTable(items, false, lbl, data.totalSales||null);
   }
 }
 
@@ -1491,11 +1520,12 @@ function bestRenderTable(items, isStore, label, totalSales) {
   const titleBar=document.getElementById('section-title-bar');
   const topN=isStore?10:20;
   const col=BEST_STORE_COLORS[bestState.store]||'#1565c0';
-  titleBar.style.background=isStore?col:'#0f172a';
-  document.getElementById('section-icon').textContent=isStore?'🏪':'🥇';
+  const isWorst=bestState.mode==='worst';
+  titleBar.style.background=isStore?col:(isWorst?'#991b1b':'#0f172a');
+  document.getElementById('section-icon').textContent=isStore?'🏪':(isWorst?'📉':'🥇');
   document.getElementById('section-title').textContent=
-    isStore ? bestState.store+'  TOP '+topN+'  ·  '+label
-            : '전체 판매 베스트  TOP '+topN+'  ·  '+label;
+    isStore ? bestState.store+(isWorst?' 판매부진':' 판매베스트')+' TOP '+topN+'  ·  '+label
+            : (isWorst?'전체 판매부진':'전체 판매베스트')+' TOP '+topN+'  ·  '+label;
   document.getElementById('best-cat-chart-wrap').style.display='none';
   if (!items||!items.length) {
     wrap.innerHTML='<div style="text-align:center;padding:48px;color:#94a3b8;font-size:15px;width:100%">해당 기간에 데이터가 없습니다.</div>';
@@ -1572,19 +1602,19 @@ function renderBestCatChart(items, totalSales) {
   const legendItems=items.map((item,i)=>{
     const pct=Math.round(Number(item.s||0)/total*100);
     return `<div style="display:flex;align-items:center;gap:10px">
-      <div style="width:24px;height:24px;border-radius:4px;background:${pal[i]};flex-shrink:0"></div>
-      <span style="font-size:30px;font-weight:700;color:#94a3b8;min-width:70px">${i+1}위</span>
-      <span style="font-size:33px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
-      <span style="font-size:33px;color:#64748b;font-weight:700;margin-left:8px;flex-shrink:0">${pct}%</span>
+      <div style="width:8px;height:8px;border-radius:3px;background:${pal[i]};flex-shrink:0"></div>
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:28px">${i+1}위</span>
+      <span style="font-size:11px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
+      <span style="font-size:11px;color:#64748b;font-weight:700;margin-left:8px;flex-shrink:0">${pct}%</span>
     </div>`;
   });
   if (otherAmt>0) {
     const otherPct=Math.round(otherAmt/total*100);
     legendItems.push(`<div style="display:flex;align-items:center;gap:10px;grid-column:1/-1;padding-top:10px;border-top:1px solid #f1f5f9">
-      <div style="width:24px;height:24px;border-radius:4px;background:#e2e8f0;flex-shrink:0"></div>
-      <span style="font-size:30px;font-weight:700;color:#94a3b8;min-width:70px"></span>
-      <span style="font-size:33px;color:#94a3b8;font-weight:600;flex:1">기타</span>
-      <span style="font-size:33px;color:#94a3b8;font-weight:700;margin-left:8px;flex-shrink:0">${otherPct}%</span>
+      <div style="width:8px;height:8px;border-radius:3px;background:#e2e8f0;flex-shrink:0"></div>
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:28px"></span>
+      <span style="font-size:11px;color:#94a3b8;font-weight:600;flex:1">기타</span>
+      <span style="font-size:11px;color:#94a3b8;font-weight:700;margin-left:8px;flex-shrink:0">${otherPct}%</span>
     </div>`);
   }
   document.getElementById('best-cat-legend').innerHTML=legendItems.join('');
@@ -1605,8 +1635,22 @@ function bestShowError(msg) {
   document.getElementById('best-cat-chart-wrap').style.display='none';
 }
 function bestRefresh() {
+  const key=bestState.startDate+'_'+bestState.endDate;
+  try {
+    sessionStorage.removeItem('ozkiz_best_overall_v2_'+key);
+    sessionStorage.removeItem('ozkiz_best_stores_v2_'+key);
+  } catch(_) {}
   bestState.cacheOverall={}; bestState.cacheStores={};
   bestLoadData();
+}
+function bestSwitchMode(m) {
+  bestState.mode=m;
+  document.getElementById('btn-mode-best').className='mode-btn best'+(m==='best'?' active':'');
+  document.getElementById('btn-mode-worst').className='mode-btn worst'+(m==='worst'?' active':'');
+  const key=bestState.startDate+'_'+bestState.endDate;
+  const isAll=bestState.tab==='overall';
+  const data=(isAll?bestState.cacheOverall:bestState.cacheStores)[key];
+  if (data) bestRenderContent(data);
 }
 
 function initBestStores() {
