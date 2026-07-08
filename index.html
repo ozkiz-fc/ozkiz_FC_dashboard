@@ -514,12 +514,12 @@ tr:hover td{background:#f8fafc}
       <div class="best-table-wrap">
         <div class="best-status" id="best-status"></div>
         <div class="best-cards-wrap home-best-grid" id="best-cards-wrap"></div>
-        <div id="best-cat-chart-wrap" style="display:none;align-items:flex-start;gap:24px;padding:20px 24px 24px;border-top:1px solid #f1f5f9">
-          <div style="flex-shrink:0">
-            <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:10px">판매금액 비중</div>
-            <canvas id="canvas-best-cat" width="140" height="140"></canvas>
+        <div id="best-cat-chart-wrap" style="display:none;align-items:center;gap:40px;padding:28px 32px 32px;border-top:1px solid #f1f5f9">
+          <div style="flex-shrink:0;text-align:center">
+            <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:14px">판매금액 비중</div>
+            <canvas id="canvas-best-cat" width="280" height="280"></canvas>
           </div>
-          <div id="best-cat-legend" style="padding-top:4px;max-height:170px;overflow-y:auto;flex:1"></div>
+          <div id="best-cat-legend" style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;align-content:start"></div>
         </div>
       </div>
     </div>
@@ -1571,7 +1571,7 @@ function renderBestCatChart(items, totalSales) {
   });
   const legendItems=items.map((item,i)=>{
     const pct=Math.round(Number(item.s||0)/total*100);
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+    return `<div style="display:flex;align-items:center;gap:6px">
       <div style="width:8px;height:8px;border-radius:2px;background:${pal[i]};flex-shrink:0"></div>
       <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px">${i+1}위</span>
       <span style="font-size:11px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
@@ -1580,7 +1580,7 @@ function renderBestCatChart(items, totalSales) {
   });
   if (otherAmt>0) {
     const otherPct=Math.round(otherAmt/total*100);
-    legendItems.push(`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9">
+    legendItems.push(`<div style="display:flex;align-items:center;gap:6px;grid-column:1/-1;padding-top:6px;border-top:1px solid #f1f5f9">
       <div style="width:8px;height:8px;border-radius:2px;background:#e2e8f0;flex-shrink:0"></div>
       <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px"></span>
       <span style="font-size:11px;color:#94a3b8;font-weight:600;flex:1">기타</span>
