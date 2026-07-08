@@ -1480,13 +1480,13 @@ function bestRenderContent(data) {
     : bestState.startDate+' ~ '+bestState.endDate;
   if (isStore) {
     const sd=(data.stores||[]).find(s=>s.name===bestState.store);
-    bestRenderTable(sd?sd.products:[], true, lbl);
+    bestRenderTable(sd?sd.products:[], true, lbl, sd?sd.totalSales:null);
   } else {
-    bestRenderTable(data.overall||[], false, lbl);
+    bestRenderTable(data.overall||[], false, lbl, data.totalSales||null);
   }
 }
 
-function bestRenderTable(items, isStore, label) {
+function bestRenderTable(items, isStore, label, totalSales) {
   const wrap=document.getElementById('best-cards-wrap');
   const titleBar=document.getElementById('section-title-bar');
   const topN=isStore?10:20;
@@ -1540,39 +1540,54 @@ function bestRenderTable(items, isStore, label) {
       </div>
     </div>`;
   }).join('');
-  renderBestCatChart(sliced);
+  renderBestCatChart(sliced, totalSales);
 }
 
-function renderBestCatChart(items) {
+function renderBestCatChart(items, totalSales) {
   const wrap=document.getElementById('best-cat-chart-wrap');
   wrap.style.display='flex';
   const labels=items.map((item,i)=>`${i+1}위 ${item.n||'-'}`);
   const values=items.map(item=>Number(item.s||0));
-  const total=values.reduce((a,b)=>a+b,0)||1;
+  const topSum=values.reduce((a,b)=>a+b,0);
+  const total=totalSales||topSum||1;
+  const otherAmt=totalSales?Math.max(0,totalSales-topSum):0;
+  const chartLabels=otherAmt>0?[...labels,'기타']:labels;
+  const chartValues=otherAmt>0?[...values,otherAmt]:values;
   const pal=[
     '#0ea5e9','#8b5cf6','#10b981','#f97316','#f59e0b',
     '#ef4444','#ec4899','#06b6d4','#14b8a6','#a855f7',
     '#6366f1','#84cc16','#f43f5e','#22c55e','#eab308',
     '#3b82f6','#d946ef','#0891b2','#059669','#dc2626'
   ];
+  const chartColors=[...pal.slice(0,labels.length),...(otherAmt>0?['#e2e8f0']:[])];
   killChart('canvas-best-cat');
   charts['canvas-best-cat']=new Chart(document.getElementById('canvas-best-cat').getContext('2d'),{
     type:'doughnut',
-    data:{labels,datasets:[{data:values,backgroundColor:pal.slice(0,labels.length),borderWidth:2,borderColor:'#fff'}]},
+    data:{labels:chartLabels,datasets:[{data:chartValues,backgroundColor:chartColors,borderWidth:2,borderColor:'#fff'}]},
     options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
       const pct=Math.round(ctx.parsed/total*100);
       return ` ${ctx.label}: ${pct}% (${Number(ctx.parsed).toLocaleString('ko-KR')}원)`;
     }}}}}
   });
-  document.getElementById('best-cat-legend').innerHTML=items.map((item,i)=>{
+  const legendItems=items.map((item,i)=>{
     const pct=Math.round(Number(item.s||0)/total*100);
     return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-      <div style="width:8px;height:8px;border-radius:2px;background:${pal[i]||'#94a3b8'};flex-shrink:0"></div>
+      <div style="width:8px;height:8px;border-radius:2px;background:${pal[i]};flex-shrink:0"></div>
       <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px">${i+1}위</span>
       <span style="font-size:11px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
       <span style="font-size:11px;color:#64748b;font-weight:700;margin-left:4px;flex-shrink:0">${pct}%</span>
     </div>`;
-  }).join('');
+  });
+  if (otherAmt>0) {
+    const otherPct=Math.round(otherAmt/total*100);
+    legendItems.push(`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;margin-top:4px;padding-top:4px;border-top:1px solid #f1f5f9">
+      <div style="width:8px;height:8px;border-radius:2px;background:#e2e8f0;flex-shrink:0"></div>
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px"></span>
+      <span style="font-size:11px;color:#94a3b8;font-weight:600;flex:1">기타</span>
+      <span style="font-size:11px;color:#94a3b8;font-weight:700;margin-left:4px;flex-shrink:0">${otherPct}%</span>
+    </div>`);
+  }
+  document.getElementById('best-cat-legend').innerHTML=legendItems.join('');
 }
 
 function bestShowLoading() {
