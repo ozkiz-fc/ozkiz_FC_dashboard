@@ -515,11 +515,11 @@ tr:hover td{background:#f8fafc}
         <div class="best-status" id="best-status"></div>
         <div class="best-cards-wrap home-best-grid" id="best-cards-wrap"></div>
         <div id="best-cat-chart-wrap" style="display:none;align-items:flex-start;gap:24px;padding:20px 24px 24px;border-top:1px solid #f1f5f9">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:10px">카테고리 분포</div>
-            <canvas id="canvas-best-cat" width="130" height="130"></canvas>
+          <div style="flex-shrink:0">
+            <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:10px">판매금액 비중</div>
+            <canvas id="canvas-best-cat" width="140" height="140"></canvas>
           </div>
-          <div id="best-cat-legend" style="padding-top:20px"></div>
+          <div id="best-cat-legend" style="padding-top:4px;max-height:170px;overflow-y:auto;flex:1"></div>
         </div>
       </div>
     </div>
@@ -1540,32 +1540,39 @@ function bestRenderTable(items, isStore, label) {
       </div>
     </div>`;
   }).join('');
-  if (!isStore) renderBestCatChart(sliced);
+  renderBestCatChart(sliced);
 }
 
 function renderBestCatChart(items) {
   const wrap=document.getElementById('best-cat-chart-wrap');
   wrap.style.display='flex';
-  const catMap={};
-  items.forEach(item=>{const c=item.c||'기타'; catMap[c]=(catMap[c]||0)+Number(item.s||0);});
-  const sorted=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-  const labels=sorted.map(([c])=>c);
-  const values=sorted.map(([,v])=>v);
+  const labels=items.map((item,i)=>`${i+1}위 ${item.n||'-'}`);
+  const values=items.map(item=>Number(item.s||0));
   const total=values.reduce((a,b)=>a+b,0)||1;
-  const pal=['#0ea5e9','#8b5cf6','#10b981','#f97316','#f59e0b','#ef4444','#ec4899','#06b6d4','#14b8a6','#a855f7'];
+  const pal=[
+    '#0ea5e9','#8b5cf6','#10b981','#f97316','#f59e0b',
+    '#ef4444','#ec4899','#06b6d4','#14b8a6','#a855f7',
+    '#6366f1','#84cc16','#f43f5e','#22c55e','#eab308',
+    '#3b82f6','#d946ef','#0891b2','#059669','#dc2626'
+  ];
   killChart('canvas-best-cat');
   charts['canvas-best-cat']=new Chart(document.getElementById('canvas-best-cat').getContext('2d'),{
     type:'doughnut',
     data:{labels,datasets:[{data:values,backgroundColor:pal.slice(0,labels.length),borderWidth:2,borderColor:'#fff'}]},
-    options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${Math.round(ctx.parsed/total*100)}%`}}}}
+    options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+      const pct=Math.round(ctx.parsed/total*100);
+      return ` ${ctx.label}: ${pct}% (${Number(ctx.parsed).toLocaleString('ko-KR')}원)`;
+    }}}}}
   });
-  document.getElementById('best-cat-legend').innerHTML=sorted.map(([c,v],i)=>
-    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-      <div style="width:9px;height:9px;border-radius:2px;background:${pal[i]||'#94a3b8'};flex-shrink:0"></div>
-      <span style="font-size:12px;color:#475569;font-weight:600">${c}</span>
-      <span style="font-size:11px;color:#94a3b8;margin-left:2px">${Math.round(v/total*100)}%</span>
-    </div>`
-  ).join('');
+  document.getElementById('best-cat-legend').innerHTML=items.map((item,i)=>{
+    const pct=Math.round(Number(item.s||0)/total*100);
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div style="width:8px;height:8px;border-radius:2px;background:${pal[i]||'#94a3b8'};flex-shrink:0"></div>
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:24px">${i+1}위</span>
+      <span style="font-size:11px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
+      <span style="font-size:11px;color:#64748b;font-weight:700;margin-left:4px;flex-shrink:0">${pct}%</span>
+    </div>`;
+  }).join('');
 }
 
 function bestShowLoading() {
