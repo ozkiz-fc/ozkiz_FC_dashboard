@@ -94,6 +94,10 @@ tr:hover td{background:#f8fafc}
 .mode-btn{padding:7px 20px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
 .mode-btn.active.best{background:#0f172a;color:#fff;border-color:#0f172a}
 .mode-btn.active.worst{background:#dc2626;color:#fff;border-color:#dc2626}
+.sort-btn{padding:5px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.sort-btn.active{background:#e0f2fe;color:#0369a1;border-color:#7dd3fc}
+.sortable-th{cursor:pointer;user-select:none}
+.sortable-th:hover{background:#f1f5f9}
 .best-period-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .period-btn{padding:7px 16px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
 .period-btn.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
@@ -495,6 +499,10 @@ tr:hover td{background:#f8fafc}
       <div class="best-mode-row">
         <button id="btn-mode-best" class="mode-btn active best" onclick="bestSwitchMode('best')">📈 판매베스트</button>
         <button id="btn-mode-worst" class="mode-btn worst" onclick="bestSwitchMode('worst')">📉 판매부진</button>
+        <div style="flex:1"></div>
+        <span style="font-size:12px;color:#94a3b8;font-weight:600;margin-right:6px;align-self:center">정렬</span>
+        <button id="btn-sort-amt" class="sort-btn active" onclick="bestSwitchSort('amount')">금액순</button>
+        <button id="btn-sort-qty" class="sort-btn" onclick="bestSwitchSort('qty')">수량순</button>
       </div>
       <div class="best-period-row">
         <button id="btn-yesterday" class="period-btn" onclick="bestSetPeriod('yesterday')">어제</button>
@@ -789,6 +797,7 @@ function tblCumulative(id) {
       <td class="td-growth">${pct(tot26,tot25)}</td>
       <td class="td-growth">${diffHtml(tot26-tot25)}</td>
     </tr></tbody></table>`;
+  makeSortable(document.getElementById(id).querySelector('table'));
 }
 
 // ── 테이블: 월별 ──
@@ -1382,7 +1391,7 @@ const BEST_SS_TTL = 60 * 60 * 1000; // 60분
 const bestState = {
   startDate: '', endDate: '',
   tab: 'overall', store: BEST_STORES[0],
-  mode: 'best',
+  mode: 'best', sort: 'amount',
   cacheOverall: {}, cacheStores: {}
 };
 
@@ -1538,8 +1547,9 @@ function bestRenderTable(items, isStore, label, totalSales) {
   const amtCol=isStore?col:'#0ea5e9';
   const rankCls=r=>r===1?'best-card-rank-1':r===2?'best-card-rank-2':r===3?'best-card-rank-3':'best-card-rank-n';
   const rankTxt=r=>r<=3?['🥇','🥈','🥉'][r-1]:r+'위';
-  const sliced=items.slice(0,topN);
-  const maxAmt=sliced[0]?Number(sliced[0].s)||1:1;
+  const sorted=bestState.sort==='qty'?[...items].sort((a,b)=>Number(b.q||0)-Number(a.q||0)):items;
+  const sliced=sorted.slice(0,topN);
+  const maxVal=sliced[0]?(bestState.sort==='qty'?Number(sliced[0].q)||1:Number(sliced[0].s)||1):1;
   let overallRankMap={};
   if (isStore) {
     const key=bestState.startDate+'_'+bestState.endDate;
@@ -1548,7 +1558,7 @@ function bestRenderTable(items, isStore, label, totalSales) {
   }
   wrap.innerHTML=sliced.map((item,idx)=>{
     const r=idx+1;
-    const pct=Math.round(Number(item.s)/maxAmt*100);
+    const pct=Math.round(Number(bestState.sort==='qty'?item.q:item.s)/maxVal*100);
     const imgEl=item.i
       ?`<img src="${item.i}" loading="lazy" onerror="this.style.display='none'">`
       :'<div style="color:#e2e8f0;font-size:40px">▪</div>';
@@ -1653,6 +1663,45 @@ function bestSwitchMode(m) {
   const isAll=bestState.tab==='overall';
   const data=(isAll?bestState.cacheOverall:bestState.cacheStores)[key];
   if (data) bestRenderContent(data);
+}
+function bestSwitchSort(s) {
+  bestState.sort=s;
+  document.getElementById('btn-sort-amt').className='sort-btn'+(s==='amount'?' active':'');
+  document.getElementById('btn-sort-qty').className='sort-btn'+(s==='qty'?' active':'');
+  const key=bestState.startDate+'_'+bestState.endDate;
+  const isAll=bestState.tab==='overall';
+  const data=(isAll?bestState.cacheOverall:bestState.cacheStores)[key];
+  if (data) bestRenderContent(data);
+}
+function makeSortable(tableEl) {
+  if (!tableEl) return;
+  const ths=Array.from(tableEl.querySelectorAll('thead th'));
+  let curCol=-1, curAsc=false;
+  ths.forEach((th,ci)=>{
+    th.classList.add('sortable-th');
+    th.addEventListener('click',()=>{
+      curAsc=(curCol===ci)?!curAsc:false;
+      curCol=ci;
+      ths.forEach((t,i)=>{
+        const old=t.querySelector('._si'); if(old) old.remove();
+        if(i===ci){const si=document.createElement('span');si.className='_si';si.textContent=curAsc?' ▲':' ▼';si.style.cssText='font-size:10px;color:#94a3b8';t.appendChild(si);}
+      });
+      const tbody=tableEl.querySelector('tbody');
+      if(!tbody) return;
+      const rows=Array.from(tbody.rows).filter(r=>!r.classList.contains('td-total'));
+      const totRow=tbody.querySelector('.td-total');
+      rows.sort((a,b)=>{
+        const ac=(a.cells[ci]?.dataset.sort||a.cells[ci]?.textContent||'').trim().replace(/,/g,'');
+        const bc=(b.cells[ci]?.dataset.sort||b.cells[ci]?.textContent||'').trim().replace(/,/g,'');
+        if(ac==='-') return 1; if(bc==='-') return -1;
+        const am=ac.match(/^[+-]?\d+(?:\.\d+)?/), bm=bc.match(/^[+-]?\d+(?:\.\d+)?/);
+        if(am&&bm){const d=parseFloat(bm[0])-parseFloat(am[0]); return curAsc?-d:d;}
+        return curAsc?ac.localeCompare(bc,'ko'):bc.localeCompare(ac,'ko');
+      });
+      rows.forEach(r=>tbody.appendChild(r));
+      if(totRow) tbody.appendChild(totRow);
+    });
+  });
 }
 
 function initBestStores() {
@@ -2339,9 +2388,9 @@ function tblInvStores(id, stores) {
       ? ' <span style="font-size:11px;background:#ffedd5;color:#c2410c;border-radius:4px;padding:1px 6px">저재고</span>'
       : '';
     return `<tr style="${bg}">
-      <td>${name}${badge}</td>
-      <td style="text-align:right;${dim}">${s.qty ? s.qty.toLocaleString()+'개' : '-'}</td>
-      <td style="text-align:right;${dim}">${s.cost ? fmtW(s.cost) : '-'}</td>
+      <td data-sort="${name}">${name}${badge}</td>
+      <td style="text-align:right;${dim}" data-sort="${s.qty||0}">${s.qty ? s.qty.toLocaleString()+'개' : '-'}</td>
+      <td style="text-align:right;${dim}" data-sort="${s.cost||0}">${s.cost ? fmtW(s.cost) : '-'}</td>
     </tr>`;
   }).join('');
   const totalQty  = INV_STORE_ORDER.reduce((s,n) => s + ((stores[n]||{}).qty||0), 0);
@@ -2359,6 +2408,7 @@ function tblInvStores(id, stores) {
       <td style="text-align:right">${fmtW(totalCost)}</td>
     </tr>
     </tbody></table>`;
+  makeSortable(document.getElementById(id).querySelector('table'));
 }
 
 function chartInvBars(cid, stores) {
