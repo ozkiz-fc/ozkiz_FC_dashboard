@@ -637,6 +637,8 @@ tr:hover td{background:#f8fafc}
 // ════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfpCkdx5mp3sBkgjA1IMsNdJNl24D4tow7wwhVsAkdrjDz2uyUp7-bZhFv4OG3whFa/exec';
 const CACHE_TTL = 60 * 60 * 1000; // 세션 캐시 60분
+const STORE_ALIASES = {'나주':'평촌'};
+function sname(n){return STORE_ALIASES[n]||n;}
 
 const MLABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 let DATA=null, STORE_LIST=[], MONTHS_26=[], MONTHS_25=[];
@@ -766,7 +768,7 @@ function tblCumulative(id) {
     tot26+=v26; tot25+=v25; totQ26+=q26; totQ25+=q25;
     const ap26=q26>0?Math.round(v26/q26):0;
     const ap25=q25>0?Math.round(v25/q25):0;
-    rows+=`<tr><td>${name}</td>
+    rows+=`<tr><td>${sname(name)}</td>
       <td>${M(v26)}</td><td>${QTY(q26)}</td><td>${AVG(ap26)}</td>
       <td>${M(v25)}</td><td>${QTY(q25)}</td><td>${AVG(ap25)}</td>
       <td class="td-growth">${pct(v26,v25)}</td>
@@ -1602,19 +1604,19 @@ function renderBestCatChart(items, totalSales) {
   const legendItems=items.map((item,i)=>{
     const pct=Math.round(Number(item.s||0)/total*100);
     return `<div style="display:flex;align-items:center;gap:10px">
-      <div style="width:8px;height:8px;border-radius:3px;background:${pal[i]};flex-shrink:0"></div>
-      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:28px">${i+1}위</span>
-      <span style="font-size:11px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
-      <span style="font-size:11px;color:#64748b;font-weight:700;margin-left:8px;flex-shrink:0">${pct}%</span>
+      <div style="width:14px;height:14px;border-radius:3px;background:${pal[i]};flex-shrink:0"></div>
+      <span style="font-size:20px;font-weight:700;color:#94a3b8;min-width:48px">${i+1}위</span>
+      <span style="font-size:22px;color:#475569;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.n||'-'}</span>
+      <span style="font-size:22px;color:#64748b;font-weight:700;margin-left:8px;flex-shrink:0">${pct}%</span>
     </div>`;
   });
   if (otherAmt>0) {
     const otherPct=Math.round(otherAmt/total*100);
     legendItems.push(`<div style="display:flex;align-items:center;gap:10px;grid-column:1/-1;padding-top:10px;border-top:1px solid #f1f5f9">
-      <div style="width:8px;height:8px;border-radius:3px;background:#e2e8f0;flex-shrink:0"></div>
-      <span style="font-size:10px;font-weight:700;color:#94a3b8;min-width:28px"></span>
-      <span style="font-size:11px;color:#94a3b8;font-weight:600;flex:1">기타</span>
-      <span style="font-size:11px;color:#94a3b8;font-weight:700;margin-left:8px;flex-shrink:0">${otherPct}%</span>
+      <div style="width:14px;height:14px;border-radius:3px;background:#e2e8f0;flex-shrink:0"></div>
+      <span style="font-size:20px;font-weight:700;color:#94a3b8;min-width:48px"></span>
+      <span style="font-size:22px;color:#94a3b8;font-weight:600;flex:1">기타</span>
+      <span style="font-size:22px;color:#94a3b8;font-weight:700;margin-left:8px;flex-shrink:0">${otherPct}%</span>
     </div>`);
   }
   document.getElementById('best-cat-legend').innerHTML=legendItems.join('');
@@ -2776,7 +2778,7 @@ async function init() {
     const sel = document.getElementById('store-select');
     STORE_LIST.forEach(name => {
       const o = document.createElement('option');
-      o.value = name; o.textContent = name; sel.appendChild(o);
+      o.value = name; o.textContent = sname(name); sel.appendChild(o);
     });
     state.store.name = STORE_LIST[0] || '';
     document.getElementById('loading').style.display = 'none';
