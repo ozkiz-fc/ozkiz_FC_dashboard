@@ -2802,7 +2802,7 @@ function tblInvTopProducts(container, products, storeName) {
       <td style="text-align:right;color:#64748b;width:90px">${p.org_price.toLocaleString()}원</td>
       <td style="text-align:right;font-weight:700;color:#f97316;width:110px">${p.cost.toLocaleString()}원</td>
       <td style="text-align:right;width:80px;color:#0ea5e9;font-weight:600">${p.cum_qty != null ? p.cum_qty.toLocaleString()+'개' : '-'}</td>
-      <td style="text-align:right;width:100px;color:#7c3aed;font-weight:600">${p.cum_rev != null ? fmtW(p.cum_rev) : '-'}</td>
+      <td style="text-align:right;width:100px;color:#7c3aed;font-weight:600">${p.cum_rev != null ? Math.floor(p.cum_rev/10000).toLocaleString()+'만원' : '-'}</td>
       <td style="text-align:center;width:80px">${statusBadge(p)}</td>
     </tr>`).join('');
   container.innerHTML = `
