@@ -2216,7 +2216,8 @@ const INV_STORE_ORDER = [
   '원주','마리오','창원','평촌','면세점','STCO현풍','STCO용인'
 ];
 
-let INV_DATA = null, invLoaded = false, invStoreSel = INV_STORE_ORDER[0];
+let INV_DATA = null, invLoaded = false;
+let invStoreSel = new Set([INV_STORE_ORDER[0]]);
 const invTopCache = {};
 
 function callInvAPI(inv_type, q) {
@@ -2535,20 +2536,24 @@ function renderInvStore() {
 
 function initInvStorePicker() {
   const picker = document.getElementById('inv-store-picker');
-  if (picker.children.length > 0) return;
+  picker.innerHTML = '';
   INV_STORE_ORDER.forEach(name => {
     const btn = document.createElement('button');
-    btn.className = 'store-pill' + (name === invStoreSel ? ' active' : '');
+    btn.className = 'store-pill' + (invStoreSel.has(name) ? ' active' : '');
     btn.textContent = name;
-    btn.onclick = () => invSelectStore(name);
+    btn.onclick = () => invToggleStore(name);
     picker.appendChild(btn);
   });
 }
 
-function invSelectStore(name) {
-  invStoreSel = name;
+function invToggleStore(name) {
+  if (invStoreSel.has(name)) {
+    if (invStoreSel.size > 1) invStoreSel.delete(name);
+  } else {
+    invStoreSel.add(name);
+  }
   document.querySelectorAll('#inv-store-picker .store-pill').forEach(b => {
-    b.classList.toggle('active', b.textContent === name);
+    b.classList.toggle('active', invStoreSel.has(b.textContent));
   });
   renderInvStoreContent();
 }
@@ -2558,7 +2563,8 @@ function renderInvStoreContent() {
   const d = INV_DATA;
   const lat = d.latest;
   const hist = d.history || [];
-  const name = invStoreSel;
+  const names = Array.from(invStoreSel);
+  const label = names.length === 1 ? names[0] : `선택 ${names.length}개 매장`;
 
   if (!lat) {
     document.getElementById('cards-inv-store').innerHTML =
@@ -2566,42 +2572,44 @@ function renderInvStoreContent() {
     return;
   }
 
-  const s = (lat.stores || {})[name] || {qty: 0, cost: 0};
+  const allStores = lat.stores || {};
+  const totQty  = names.reduce((s, n) => s + ((allStores[n]||{}).qty||0), 0);
+  const totCost = names.reduce((s, n) => s + ((allStores[n]||{}).cost||0), 0);
   const fmtW = v => v ? Math.floor(v/10000).toLocaleString()+'만원' : '-';
-  const prev = hist.length >= 2 ? hist[hist.length - 2] : null;
-  const prevS = prev ? ((prev.stores || {})[name] || {qty: 0, cost: 0}) : null;
+
+  const prev     = hist.length >= 2 ? hist[hist.length - 2] : null;
+  const prevQty  = prev ? names.reduce((s, n) => s + (((prev.stores||{})[n]||{}).qty||0), 0) : null;
+  const prevCost = prev ? names.reduce((s, n) => s + (((prev.stores||{})[n]||{}).cost||0), 0) : null;
+
   const chg = (cur, prv, fmt) => {
-    if (!prevS || prv == null) return '';
+    if (prv == null) return '';
     const diff = cur - prv;
     if (diff === 0) return '';
     const col = diff > 0 ? '#16a34a' : '#dc2626';
     return `<span style="color:${col};font-size:13px;font-weight:600;margin-left:6px">${diff>0?'▲':'▼'}${fmt(Math.abs(diff))}</span>`;
   };
-  const dQty  = chg(s.qty, prevS ? prevS.qty : null, v => v.toLocaleString()+'개');
-  const dCost = chg(
-    Math.floor((s.cost||0)/10000),
-    prevS ? Math.floor((prevS.cost||0)/10000) : null,
-    v => v.toLocaleString()+'만원'
-  );
-  const storeShare = lat.store_qty ? Math.round(s.qty / lat.store_qty * 100) : 0;
-  const costShare  = lat.total_cost ? Math.round(s.cost / lat.total_cost * 100) : 0;
+  const dQty  = chg(totQty, prevQty, v => v.toLocaleString()+'개');
+  const dCost = chg(Math.floor(totCost/10000), prevCost!=null?Math.floor(prevCost/10000):null, v => v.toLocaleString()+'만원');
+
+  const storeShare = lat.store_qty ? Math.round(totQty / lat.store_qty * 100) : 0;
+  const costShare  = lat.total_cost ? Math.round(totCost / lat.total_cost * 100) : 0;
 
   document.getElementById('cards-inv-store').innerHTML = `
     <div class="card card-c1">
-      <div class="card-label">${name} · 재고 수량</div>
-      <div class="card-value" style="font-size:26px">${s.qty ? s.qty.toLocaleString()+'개' : '-'}${dQty}</div>
+      <div class="card-label">${label} · 재고 수량</div>
+      <div class="card-value" style="font-size:26px">${totQty ? totQty.toLocaleString()+'개' : '-'}${dQty}</div>
       <div class="card-sub">전체 매장 합계의 ${storeShare}%</div>
     </div>
     <div class="card card-c2">
-      <div class="card-label">${name} · 재고 원가</div>
-      <div class="card-value" style="font-size:24px">${fmtW(s.cost)}${dCost}</div>
+      <div class="card-label">${label} · 재고 원가</div>
+      <div class="card-value" style="font-size:24px">${fmtW(totCost)}${dCost}</div>
       <div class="card-sub">전체 원가의 ${costShare}%</div>
     </div>`;
 
   if (hist.length > 1) {
-    const storeQtys  = hist.map(h => ((h.stores||{})[name]||{}).qty||0);
-    const storeCosts = hist.map(h => Math.floor(((h.stores||{})[name]||{}).cost||0)/10000);
-    document.getElementById('chart-inv-store-title').textContent = name + ' 재고 추이 (일별)';
+    const storeQtys  = hist.map(h => names.reduce((s, n) => s + (((h.stores||{})[n]||{}).qty||0), 0));
+    const storeCosts = hist.map(h => Math.floor(names.reduce((s, n) => s + (((h.stores||{})[n]||{}).cost||0), 0) / 10000));
+    document.getElementById('chart-inv-store-title').textContent = label + ' 재고 추이 (일별)';
     chartInvStoreTrend('canvas-inv-store', hist.map(h => h.date), storeQtys, storeCosts);
   } else {
     document.getElementById('chart-inv-store-title').textContent = '재고 추이 (데이터 2일 이상부터 표시)';
@@ -2609,11 +2617,17 @@ function renderInvStoreContent() {
   }
 
   const tbl = document.getElementById('table-inv-top');
-  if (invTopCache[name]) {
-    tblInvTopProducts(tbl, invTopCache[name], name);
-    chartInvCategory('canvas-inv-cat', invTopCache[name]);
+  if (names.length === 1) {
+    const name = names[0];
+    if (invTopCache[name]) {
+      tblInvTopProducts(tbl, invTopCache[name], name);
+      chartInvCategory('canvas-inv-cat', invTopCache[name]);
+    } else {
+      invLoadTopProducts(name);
+    }
   } else {
-    invLoadTopProducts(name);
+    tbl.innerHTML = '<div style="padding:32px;color:#94a3b8;text-align:center;font-size:14px">매장을 1개만 선택하면 제품별 재고를 볼 수 있습니다.</div>';
+    killChart('canvas-inv-cat');
   }
 }
 
