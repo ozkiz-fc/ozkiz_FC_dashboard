@@ -654,30 +654,46 @@ let T26=[], T25=[], Q26=[], Q25=[];
 let WEEKS_26=[], WEEKS_25MAP={}, DAILY=null;
 
 function callAPI() {
-  return new Promise((resolve, reject) => {
-    try {
-      const raw = sessionStorage.getItem('ozkiz_sales_v2');
-      if (raw) {
-        const { data, ts } = JSON.parse(raw);
-        if (Date.now() - ts < CACHE_TTL) { resolve(data); return; }
-      }
-    } catch(e) {}
-    const cbName = '_apicb_' + Date.now();
-    const el = document.createElement('script');
-    const tid = setTimeout(() => {
-      delete window[cbName]; el.remove();
-      reject(new Error('응답 시간 초과 (10초)\n세션 만료 또는 캐시 없음'));
-    }, 10000);
-    window[cbName] = d => {
-      clearTimeout(tid); delete window[cbName]; el.remove();
-      if (!d.error) {
-        try { sessionStorage.setItem('ozkiz_sales_v2', JSON.stringify({ data: d, ts: Date.now() })); } catch(e) {}
-      }
-      d.error ? reject(new Error(d.error)) : resolve(d);
-    };
-    el.src = `${SCRIPT_URL}?callback=${cbName}`;
-    el.onerror = () => { clearTimeout(tid); reject(new Error('네트워크 오류')); };
-    document.head.appendChild(el);
+  try {
+    const raw = sessionStorage.getItem('ozkiz_sales_v2');
+    if (raw) {
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts < CACHE_TTL) return Promise.resolve(data);
+    }
+  } catch(e) {}
+
+  function fetchOnce(timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const cbName = '_apicb_' + Date.now();
+      const el = document.createElement('script');
+      const tid = setTimeout(() => {
+        delete window[cbName]; el.remove();
+        reject(new Error('timeout'));
+      }, timeoutMs);
+      window[cbName] = d => {
+        clearTimeout(tid); delete window[cbName]; el.remove();
+        if (!d.error) {
+          try { sessionStorage.setItem('ozkiz_sales_v2', JSON.stringify({ data: d, ts: Date.now() })); } catch(e) {}
+        }
+        d.error ? reject(new Error(d.error)) : resolve(d);
+      };
+      el.src = `${SCRIPT_URL}?callback=${cbName}`;
+      el.onerror = () => { clearTimeout(tid); delete window[cbName]; el.remove(); reject(new Error('네트워크 오류')); };
+      document.head.appendChild(el);
+    });
+  }
+
+  // 1차 시도 40초, 실패 시 로딩 메시지 바꾸고 40초 재시도
+  return fetchOnce(40000).catch(e => {
+    if (e.message === 'timeout') {
+      const msg = document.getElementById('loading-msg');
+      if (msg) msg.textContent = '서버 응답 대기 중... (재시도)';
+      return fetchOnce(40000);
+    }
+    throw e;
+  }).catch(e => {
+    if (e.message === 'timeout') throw new Error('응답 시간 초과\n서버가 응답하지 않습니다. 잠시 후 새로고침해주세요.');
+    throw e;
   });
 }
 
