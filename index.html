@@ -317,19 +317,6 @@ tr:hover td{background:#f8fafc}
         </button>
       </div>
     </div>
-    <!-- 회의록 그룹 -->
-    <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
-        <span class="nav-icon">📝</span>
-        <span>회의록</span>
-        <span class="nav-chevron">▾</span>
-      </button>
-      <div class="nav-sub" id="sub-memo">
-        <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
-          <span class="nav-sub-dot">●</span> 주간 회의록
-        </button>
-      </div>
-    </div>
     <!-- 재고현황 그룹 -->
     <div class="nav-group">
       <button class="nav-group-hd open" id="grp-inv" onclick="toggleGroup('grp-inv','sub-inv')">
@@ -346,6 +333,19 @@ tr:hover td{background:#f8fafc}
         </button>
         <button class="nav-sub-item" id="nav-inv-overview" onclick="switchMain('inv-overview')">
           <span class="nav-sub-dot">●</span> 통합 분석
+        </button>
+      </div>
+    </div>
+    <!-- 회의록 그룹 -->
+    <div class="nav-group">
+      <button class="nav-group-hd open" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
+        <span class="nav-icon">📝</span>
+        <span>회의록</span>
+        <span class="nav-chevron">▾</span>
+      </button>
+      <div class="nav-sub" id="sub-memo">
+        <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
+          <span class="nav-sub-dot">●</span> 주간 회의록
         </button>
       </div>
     </div>
