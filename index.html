@@ -328,6 +328,9 @@ tr:hover td{background:#f8fafc}
         <button class="nav-sub-item" id="nav-inv-store" onclick="switchMain('inv-store')">
           <span class="nav-sub-dot">●</span> 매장별 재고
         </button>
+        <button class="nav-sub-item" id="nav-inv-overview" onclick="switchMain('inv-overview')">
+          <span class="nav-sub-dot">●</span> 통합 분석
+        </button>
       </div>
     </div>
   </nav>
@@ -638,6 +641,18 @@ tr:hover td{background:#f8fafc}
         <div style="height:260px;position:relative"><canvas id="canvas-inv-cat"></canvas></div>
       </div>
       <div id="table-inv-top" class="table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- ■ 재고 통합 분석 -->
+  <div id="sec-inv-overview" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">📊 재고 통합 분석</span>
+      </div>
+    </div>
+    <div id="inv-overview-content" style="padding:20px 24px">
+      <div style="color:#94a3b8;font-size:13px">재고 탭을 먼저 로드해주세요.</div>
     </div>
   </div>
 
@@ -1332,13 +1347,13 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store'].forEach(k =>
+  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store','inv-overview'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
   const isBest = tab === 'best';
   const isProfit = tab==='profit-total'||tab==='profit-store';
-  const isInv = tab==='inv-total'||tab==='inv-store';
+  const isInv = tab==='inv-total'||tab==='inv-store'||tab==='inv-overview';
   const bTab   = subTab || bestState.tab || 'overall';
   document.getElementById('nav-home').classList.toggle('active', tab==='home');
   document.getElementById('nav-total').classList.toggle('active', tab==='total');
@@ -1350,6 +1365,7 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-memo').classList.toggle('active', tab==='memo');
   document.getElementById('nav-inv-total').classList.toggle('active', tab==='inv-total');
   document.getElementById('nav-inv-store').classList.toggle('active', tab==='inv-store');
+  document.getElementById('nav-inv-overview').classList.toggle('active', tab==='inv-overview');
 
   // 그룹 헤더 활성화
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
@@ -1379,6 +1395,9 @@ function switchMain(tab, subTab) {
   else if (tab==='inv-store') {
     if (!invLoaded) invLoadSummary(true);
     else renderInvStore();
+  }
+  else if (tab==='inv-overview') {
+    renderInvOverview();
   }
 }
 function setGran(sec, val) {
@@ -2547,6 +2566,130 @@ async function invLoadProductsAll() {
   } catch(e) {
     status.textContent = `⚠️ 로드 실패: ${e.message}`;
   }
+}
+
+function renderInvOverview() {
+  const content = document.getElementById('inv-overview-content');
+  if (!invLoaded || !INV_DATA || !INV_DATA.latest) {
+    content.innerHTML = '<div style="color:#94a3b8;padding:20px">재고 데이터 로드 중... 잠시 후 다시 시도해주세요.</div>';
+    if (!invLoaded) invLoadSummary(false);
+    return;
+  }
+
+  const latest = INV_DATA.latest;
+  const weekCount = (WEEKS_26 && WEEKS_26.length) ? WEEKS_26.length : 0;
+
+  const rows = INV_STORE_ORDER.map(name => {
+    const inv = latest.stores[name] || {qty: 0, cost: 0};
+    const invQty = inv.qty;
+    const invCost = inv.cost;
+
+    let weeklyAvg = null;
+    if (weekCount > 0) {
+      const totalSold = WEEKS_26.reduce((sum, w) => sum + (w.stores[name]?.qty || 0), 0);
+      weeklyAvg = totalSold / weekCount;
+    }
+
+    let wos = null;
+    if (weeklyAvg !== null) {
+      wos = weeklyAvg > 0 ? invQty / weeklyAvg : (invQty > 0 ? Infinity : 0);
+    }
+
+    let statusText, statusColor, bgColor, action;
+    if (wos === null) {
+      statusText = '데이터 없음'; statusColor = '#94a3b8'; bgColor = ''; action = '-';
+    } else if (invQty === 0) {
+      statusText = '재고 없음'; statusColor = '#94a3b8'; bgColor = ''; action = '-';
+    } else if (wos === Infinity) {
+      statusText = '미판매'; statusColor = '#dc2626'; bgColor = 'rgba(220,38,38,0.06)'; action = '즉시 검토';
+    } else if (wos > 20) {
+      statusText = '심각 과잉'; statusColor = '#dc2626'; bgColor = 'rgba(220,38,38,0.05)'; action = '반품 검토';
+    } else if (wos > 12) {
+      statusText = '과잉'; statusColor = '#ea580c'; bgColor = 'rgba(234,88,12,0.04)'; action = '반품 검토';
+    } else if (wos >= 4) {
+      statusText = '적정'; statusColor = '#16a34a'; bgColor = ''; action = '유지';
+    } else {
+      statusText = '부족'; statusColor = '#2563eb'; bgColor = 'rgba(37,99,235,0.04)'; action = '출고 검토';
+    }
+
+    const actionBg   = action==='반품 검토'||action==='즉시 검토' ? '#ffedd5' : action==='출고 검토' ? '#dbeafe' : '#f1f5f9';
+    const actionColor= action==='반품 검토' ? '#ea580c' : action==='즉시 검토' ? '#dc2626' : action==='출고 검토' ? '#2563eb' : '#94a3b8';
+    const wosText   = wos === null ? '-' : wos === Infinity ? '∞' : wos.toFixed(1)+'주';
+    const daysText  = wos === null ? '-' : wos === Infinity ? '∞' : Math.round(wos * 7)+'일';
+    const weeklyText= weeklyAvg === null ? '-' : weeklyAvg < 1 ? weeklyAvg.toFixed(2)+'개/주' : weeklyAvg.toFixed(1)+'개/주';
+
+    return {name, invQty, invCost, wos, weeklyAvg, statusText, statusColor, bgColor,
+            action, actionBg, actionColor, wosText, daysText, weeklyText};
+  });
+
+  rows.sort((a, b) => {
+    if (a.invQty === 0 && b.invQty !== 0) return 1;
+    if (b.invQty === 0 && a.invQty !== 0) return -1;
+    if (a.wos === null && b.wos !== null) return 1;
+    if (b.wos === null && a.wos !== null) return -1;
+    if (a.wos === Infinity && b.wos !== Infinity) return -1;
+    if (b.wos === Infinity && a.wos !== Infinity) return 1;
+    return (b.wos || 0) - (a.wos || 0);
+  });
+
+  const dangerCount = rows.filter(r => r.invQty > 0 && r.wos !== null && (r.wos === Infinity || r.wos > 12)).length;
+  const shortCount  = rows.filter(r => r.invQty > 0 && r.wos !== null && r.wos !== Infinity && r.wos < 4).length;
+  const storeInvQty = latest.store_qty || 0;
+  const storeInvCost= latest.store_cost|| 0;
+
+  const tableRows = rows.map(r => `
+    <tr style="${r.bgColor ? 'background:'+r.bgColor+';' : ''}">
+      <td style="text-align:center;padding:10px 8px">
+        <span style="color:${r.statusColor};font-size:12px;font-weight:700;white-space:nowrap">${r.statusText}</span>
+      </td>
+      <td style="font-weight:700;padding:10px 8px;white-space:nowrap">${r.name}</td>
+      <td style="text-align:right;font-weight:700">${r.invQty > 0 ? r.invQty.toLocaleString()+'개' : '-'}</td>
+      <td style="text-align:right;color:#f97316;font-weight:700">${r.invCost > 0 ? Math.round(r.invCost/10000).toLocaleString()+'만원' : '-'}</td>
+      <td style="text-align:right;color:#64748b">${r.weeklyText}</td>
+      <td style="text-align:right;font-weight:700;color:${r.statusColor}">${r.wosText}</td>
+      <td style="text-align:right;font-weight:700;color:${r.statusColor}">${r.daysText}</td>
+      <td style="text-align:center">
+        <span style="font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;background:${r.actionBg};color:${r.actionColor};white-space:nowrap">${r.action}</span>
+      </td>
+    </tr>`).join('');
+
+  content.innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="background:#fee2e2;border-radius:10px;padding:12px 20px;min-width:140px">
+        <div style="font-size:11px;color:#dc2626;font-weight:600">⚠️ 반품·즉시 검토</div>
+        <div style="font-size:24px;font-weight:800;color:#dc2626">${dangerCount}개 매장</div>
+      </div>
+      <div style="background:#dbeafe;border-radius:10px;padding:12px 20px;min-width:140px">
+        <div style="font-size:11px;color:#2563eb;font-weight:600">📤 출고 검토</div>
+        <div style="font-size:24px;font-weight:800;color:#2563eb">${shortCount}개 매장</div>
+      </div>
+      <div style="background:#f1f5f9;border-radius:10px;padding:12px 20px;min-width:200px">
+        <div style="font-size:11px;color:#475569;font-weight:600">📦 전체 매장 재고</div>
+        <div style="font-size:20px;font-weight:800;color:#1e293b">${storeInvQty.toLocaleString()}개 · ${Math.round(storeInvCost/100000000*10)/10}억원</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+      ${weekCount > 0 ? '주당 판매량: 최근 '+weekCount+'주 매출 데이터 기반' : '⚠️ 주당 판매량 없음 — 홈·매출 탭을 먼저 열어주세요'}
+      &nbsp;·&nbsp; 본사창고 제외 &nbsp;·&nbsp; 기준일: ${latest.date || '-'}
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;min-width:600px">
+        <thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
+          <th style="text-align:center;padding:10px 8px">상태</th>
+          <th style="padding:10px 8px">매장</th>
+          <th style="text-align:right;padding:10px 8px">재고</th>
+          <th style="text-align:right;padding:10px 8px">재고원가</th>
+          <th style="text-align:right;padding:10px 8px">주당판매</th>
+          <th style="text-align:right;padding:10px 8px">WOS</th>
+          <th style="text-align:right;padding:10px 8px">완판예상</th>
+          <th style="text-align:center;padding:10px 8px">권장</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:#cbd5e1;margin-top:12px">
+      WOS = 재고 ÷ 주당평균판매량 &nbsp;·&nbsp; 과잉: 12주↑ &nbsp;·&nbsp; 심각과잉: 20주↑ &nbsp;·&nbsp; 부족: 4주↓
+    </div>`;
 }
 
 function tblInvStuckProducts(container, products) {
