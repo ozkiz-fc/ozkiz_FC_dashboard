@@ -255,12 +255,12 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 매출 현황 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-sales" onclick="toggleGroup('grp-sales','sub-sales')">
+      <button class="nav-group-hd" id="grp-sales" onclick="toggleGroup('grp-sales','sub-sales')">
         <span class="nav-icon">📈</span>
         <span>매출 현황</span>
         <span class="nav-chevron">▾</span>
       </button>
-      <div class="nav-sub" id="sub-sales">
+      <div class="nav-sub collapsed" id="sub-sales">
         <button class="nav-sub-item" id="nav-total" onclick="switchMain('total')">
           <span class="nav-sub-dot">●</span> 전체 매장
         </button>
@@ -271,12 +271,12 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 영업이익 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-profit" onclick="toggleGroup('grp-profit','sub-profit')">
+      <button class="nav-group-hd" id="grp-profit" onclick="toggleGroup('grp-profit','sub-profit')">
         <span class="nav-icon">💹</span>
         <span>영업이익</span>
         <span class="nav-chevron">▾</span>
       </button>
-      <div class="nav-sub" id="sub-profit">
+      <div class="nav-sub collapsed" id="sub-profit">
         <button class="nav-sub-item" id="nav-profit-total" onclick="switchMain('profit-total')">
           <span class="nav-sub-dot">●</span> 전체 매장
         </button>
@@ -287,12 +287,12 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 재무회계 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-tax" onclick="toggleGroup('grp-tax','sub-tax')">
+      <button class="nav-group-hd" id="grp-tax" onclick="toggleGroup('grp-tax','sub-tax')">
         <span class="nav-icon">🧾</span>
         <span>재무회계 매출</span>
         <span class="nav-chevron">▾</span>
       </button>
-      <div class="nav-sub" id="sub-tax">
+      <div class="nav-sub collapsed" id="sub-tax">
         <button class="nav-sub-item" id="nav-tax-total" onclick="switchMain('tax-total')">
           <span class="nav-sub-dot">●</span> 전체 매장
         </button>
@@ -303,12 +303,12 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 판매 베스트 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-best" onclick="toggleGroup('grp-best','sub-best')">
+      <button class="nav-group-hd" id="grp-best" onclick="toggleGroup('grp-best','sub-best')">
         <span class="nav-icon">🏆</span>
         <span>판매 베스트</span>
         <span class="nav-chevron">▾</span>
       </button>
-      <div class="nav-sub" id="sub-best">
+      <div class="nav-sub collapsed" id="sub-best">
         <button class="nav-sub-item" id="nav-best-overall" onclick="switchMain('best','overall')">
           <span class="nav-sub-dot">●</span> 전체 매장
         </button>
@@ -319,12 +319,12 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 재고현황 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-inv" onclick="toggleGroup('grp-inv','sub-inv')">
+      <button class="nav-group-hd" id="grp-inv" onclick="toggleGroup('grp-inv','sub-inv')">
         <span class="nav-icon">📦</span>
         <span>재고현황</span>
         <span class="nav-chevron">▾</span>
       </button>
-      <div class="nav-sub" id="sub-inv">
+      <div class="nav-sub collapsed" id="sub-inv">
         <button class="nav-sub-item" id="nav-inv-total" onclick="switchMain('inv-total')">
           <span class="nav-sub-dot">●</span> 전체 재고
         </button>
@@ -338,12 +338,12 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 회의록 그룹 -->
     <div class="nav-group">
-      <button class="nav-group-hd open" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
+      <button class="nav-group-hd" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
         <span class="nav-icon">📝</span>
         <span>회의록</span>
         <span class="nav-chevron">▾</span>
       </button>
-      <div class="nav-sub" id="sub-memo">
+      <div class="nav-sub collapsed" id="sub-memo">
         <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
           <span class="nav-sub-dot">●</span> 주간 회의록
         </button>
@@ -1405,12 +1405,25 @@ function renderStore() {
 // ── 상태 & 컨트롤 ──
 const state={main:'total',total:{gran:'cumulative'},store:{gran:'cumulative',name:''},taxTotal:{gran:'cumulative'},taxStore:{gran:'cumulative',name:''}};
 
+const NAV_GROUPS = [
+  ['grp-sales','sub-sales'],['grp-profit','sub-profit'],['grp-tax','sub-tax'],
+  ['grp-best','sub-best'],['grp-inv','sub-inv'],['grp-memo','sub-memo']
+];
+function closeAllGroups() {
+  NAV_GROUPS.forEach(([g,s]) => {
+    document.getElementById(g).classList.remove('open');
+    document.getElementById(s).classList.add('collapsed');
+  });
+}
+function openGroup(grpId, subId) {
+  closeAllGroups();
+  document.getElementById(grpId).classList.add('open');
+  document.getElementById(subId).classList.remove('collapsed');
+}
 function toggleGroup(grpId, subId) {
-  const hd  = document.getElementById(grpId);
   const sub = document.getElementById(subId);
-  const closing = !sub.classList.contains('collapsed');
-  sub.classList.toggle('collapsed', closing);
-  hd.classList.toggle('open', !closing);
+  if (sub.classList.contains('collapsed')) openGroup(grpId, subId);
+  else closeAllGroups();
 }
 
 function switchMain(tab, subTab) {
@@ -1440,13 +1453,23 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-tax-total').classList.toggle('active', tab==='tax-total');
   document.getElementById('nav-tax-store').classList.toggle('active', tab==='tax-store');
 
-  // 그룹 헤더 활성화
+  // 그룹 헤더 활성화 + 아코디언 열기
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
   document.getElementById('grp-profit').classList.toggle('active', isProfit);
   document.getElementById('grp-best').classList.toggle('active', isBest);
   document.getElementById('grp-memo').classList.toggle('active', tab==='memo');
   document.getElementById('grp-inv').classList.toggle('active', isInv);
   document.getElementById('grp-tax').classList.toggle('active', isTax);
+  const _grpMap = {
+    total:['grp-sales','sub-sales'], store:['grp-sales','sub-sales'],
+    'profit-total':['grp-profit','sub-profit'], 'profit-store':['grp-profit','sub-profit'],
+    'tax-total':['grp-tax','sub-tax'], 'tax-store':['grp-tax','sub-tax'],
+    best:['grp-best','sub-best'],
+    'inv-total':['grp-inv','sub-inv'], 'inv-store':['grp-inv','sub-inv'], 'inv-overview':['grp-inv','sub-inv'],
+    memo:['grp-memo','sub-memo']
+  };
+  const _g = _grpMap[tab];
+  if (_g) openGroup(_g[0], _g[1]); else closeAllGroups();
 
   if (tab==='home') renderHome();
   else if (tab==='total') renderTotal();
