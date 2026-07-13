@@ -2093,11 +2093,6 @@ function renderProdTable() {
   const rows = show.map((p, i) => {
     const costRate = p.sp > 0 ? Math.round(p.op / p.sp * 100) : null;
     const mHtml  = costRate !== null ? `<span class="${costRate<50?'marg-pos':'marg-neg'}">${costRate}%</span>` : '-';
-    const inv = _prodInv[p.n];
-    const ib = inv ? inv.b : null, is_ = inv ? inv.s : null;
-    const totalInv = ib !== null ? (ib + (is_||0)) : null;
-    const sr = (totalInv !== null && p.tq > 0) ? Math.round(p.tq/(p.tq+totalInv)*100) : null;
-    const srHtml = sr !== null ? `<span class="${sr>=80?'sr-hi':sr>=50?'sr-mid':'sr-lo'}">${sr}%</span>` : '-';
     const imgHtml = p.img
       ? `<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">`
       : `<div class="prod-img-ph">👟</div>`;
@@ -2112,9 +2107,6 @@ function renderProdTable() {
       <td style="padding:2px 6px">${buildDistBar(p.st, p.tq)}</td>
       <td><strong>${W(p.tq)}</strong></td>
       <td>${W(p.ta)}</td>
-      <td>${ib!==null?W(ib):'-'}</td>
-      <td>${is_!==null?W(is_):'-'}</td>
-      <td>${srHtml}</td>
     </tr>`;
   }).join('');
 
@@ -2124,7 +2116,6 @@ function renderProdTable() {
         oninput="_prodSrch=this.value;renderProdTable()">
       <span class="prod-tbl-cnt">${list.length}개 상품 · 2026년 누적</span>
       ${show.length < list.length ? `<span style="font-size:11px;color:#f59e0b">상위 500개 표시 중</span>` : ''}
-      <span style="margin-left:auto;font-size:11px;color:#cbd5e1">재고는 TOP20 상품만 표시</span>
     </div>
     <div class="prod-tbl-outer">
       <table class="prod-tbl">
@@ -2138,9 +2129,6 @@ function renderProdTable() {
           <th style="text-align:left;cursor:default;min-width:244px">매장별 판매 비중</th>
           ${th('합계수량','tq')}
           ${th('합계금액','ta')}
-          <th style="cursor:default">본사재고</th>
-          <th style="cursor:default">매장재고</th>
-          <th style="cursor:default">판매율</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
