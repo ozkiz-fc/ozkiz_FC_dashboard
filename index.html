@@ -247,6 +247,8 @@ tr:hover td{background:#f8fafc}
 .store-bar-chart{display:flex;align-items:flex-end;gap:1px;height:44px;width:100%;cursor:default;padding:0}
 .store-bar-col{flex:1;min-width:0;border-radius:1px 1px 0 0;transition:opacity .1s}
 .store-bar-chart:hover .store-bar-col{opacity:.75}
+.sbc-hdr{display:flex;gap:1px;width:100%;align-items:flex-end;height:22px}
+.sbc-hdr-itm{flex:1;min-width:0;font-size:7.5px;font-weight:400;color:#94a3b8;writing-mode:vertical-rl;text-align:center;overflow:hidden;white-space:nowrap;line-height:1.2}
 #prod-tip{position:fixed;background:#1e293b;color:#f8fafc;border-radius:10px;padding:10px 14px;font-size:12px;pointer-events:none;display:none;z-index:9999;min-width:180px;max-width:250px;box-shadow:0 8px 24px rgba(0,0,0,.35);line-height:1.8}
 /* ── 상품 트렌드 모달 ── */
 #prod-trend-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:8000;display:none;align-items:center;justify-content:center}
@@ -2021,6 +2023,14 @@ const PROD_STORE_COL = [
   '동수원','송파','제주','괴정','강서','순천','평택','고척',
   '원주','마리오','창원','평촌','면세점','STCO현풍','STCO용인','(롯)평촌'
 ];
+const PROD_STORE_SHORT = {
+  '남악':'남악','부천':'부천','의정부':'의정','인천':'인천',
+  '유성':'유성','여수':'여수','율하':'율하','충장':'충장',
+  '동수원':'동수','송파':'송파','제주':'제주','괴정':'괴정',
+  '강서':'강서','순천':'순천','평택':'평택','고척':'고척',
+  '원주':'원주','마리오':'마리','창원':'창원','평촌':'평촌',
+  '면세점':'면세','STCO현풍':'현풍','STCO용인':'용인','(롯)평촌':'롯평'
+};
 
 // ── 툴팁 ──
 let _tip = null;
@@ -2045,29 +2055,12 @@ function buildDistBar(st, total) {
   const maxQ = Math.max(...entries.map(e => e.q));
   if (!maxQ) return '<span style="color:#cbd5e1;font-size:11px">-</span>';
   const bars = entries.map(({s, q}) => {
-    const hPct = q > 0 ? Math.max(5, Math.round(q / maxQ * 100)) : 0;
+    const hPct = q > 0 ? Math.max(4, Math.round(q / maxQ * 100)) : 0;
     const col = BEST_STORE_COLORS[s] || '#94a3b8';
-    return `<div class="store-bar-col" style="height:${hPct}%;background:${q>0?col:'transparent'}"></div>`;
+    const tip = q > 0 ? ` title="${s}: ${q.toLocaleString()}개"` : '';
+    return `<div class="store-bar-col"${tip} style="height:${hPct}%;background:${q>0?col:'transparent'}"></div>`;
   }).join('');
-  const tipStr = entries.filter(e => e.q > 0).sort((a,b) => b.q-a.q).map(({s,q}) => s+':'+q).join('|');
-  return `<div class="store-bar-chart" data-tip="${tipStr}" data-total="${total}"
-    onmouseenter="showBarTip(event,this)" onmousemove="moveTip(event)" onmouseleave="hideTip()">${bars}</div>`;
-}
-function showBarTip(e, el) {
-  const total = Number(el.dataset.total);
-  const html = (el.dataset.tip||'').split('|').filter(Boolean).map(item => {
-    const ci = item.lastIndexOf(':');
-    const s = item.slice(0, ci), qty = Number(item.slice(ci+1));
-    const pct = total ? Math.round(qty/total*100) : 0;
-    const col = BEST_STORE_COLORS[s] || '#94a3b8';
-    return `<div style="display:flex;align-items:center;gap:7px">
-      <span style="width:8px;height:8px;border-radius:2px;background:${col};flex-shrink:0;display:inline-block"></span>
-      <span style="flex:1;color:#94a3b8">${s}</span>
-      <strong>${qty.toLocaleString()}</strong>
-      <span style="color:#475569;width:28px;text-align:right;font-size:11px">${pct}%</span>
-    </div>`;
-  }).join('');
-  showTip(e, html);
+  return `<div class="store-bar-chart">${bars}</div>`;
 }
 
 function bestSwitchView(mode) {
@@ -2137,6 +2130,11 @@ function renderProdTable() {
   const catOpts = cats.map(c =>
     `<option value="${c}"${c===_prodCatFilter?' selected':''}>${c}</option>`).join('');
 
+  const storeHdrHtml = PROD_STORE_COL.map(s => {
+    const abbr = PROD_STORE_SHORT[s]||s.slice(0,2);
+    return `<div class="sbc-hdr-itm" title="${s}">${abbr}</div>`;
+  }).join('');
+
   const show = list.slice(0, 500);
   const rows = show.map((p, i) => {
     const costRate = p.sp > 0 ? Math.round(p.op / p.sp * 100) : null;
@@ -2190,7 +2188,7 @@ function renderProdTable() {
           ${th('원가','op')}
           ${th('실판매가','sp')}
           <th style="cursor:default">원가율</th>
-          <th style="text-align:left;cursor:default;min-width:244px">매장별 판매 비중</th>
+          <th style="cursor:default;min-width:244px;vertical-align:bottom;padding:4px 4px 0"><div class="sbc-hdr">${storeHdrHtml}</div></th>
           ${th('합계수량','tq')}
           ${th('합계금액','ta')}
           <th style="cursor:default">본사재고</th>
