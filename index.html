@@ -1980,7 +1980,7 @@ function initBestStores() {
 // ════════════════════════════════════════════════
 let _prodData = null;
 let _prodInv  = {};
-let _prodSort = {col:'tq', asc:false};
+let _prodSort = {col:'ta', asc:false};
 let _prodSrch = '';
 let _prodCatFilter = '';
 const PROD_STORE_COL = [
@@ -2092,7 +2092,6 @@ function renderProdTable() {
   });
 
   const W  = n => typeof n === 'number' ? n.toLocaleString('ko-KR') : (n||'-');
-  const M  = n => !n ? '-' : n>=1e8?(n/1e8).toFixed(1)+'억':n>=1e4?Math.round(n/1e4)+'만':W(n);
   const th = (label, sortCol) => {
     const arr = _prodSort.col===sortCol ? (_prodSort.asc?' ▲':' ▼') : '';
     return `<th onclick="prodSortBy('${sortCol}')">${label}${arr}</th>`;
@@ -2105,8 +2104,8 @@ function renderProdTable() {
 
   const show = list.slice(0, 500);
   const rows = show.map((p, i) => {
-    const margin = p.sp > 0 ? Math.round((p.sp - p.op) / p.sp * 100) : null;
-    const mHtml  = margin !== null ? `<span class="${margin>=0?'marg-pos':'marg-neg'}">${margin}%</span>` : '-';
+    const costRate = p.sp > 0 ? Math.round(p.op / p.sp * 100) : null;
+    const mHtml  = costRate !== null ? `<span class="${costRate<50?'marg-pos':'marg-neg'}">${costRate}%</span>` : '-';
     const inv = _prodInv[p.n];
     const ib = inv ? inv.b : null, is_ = inv ? inv.s : null;
     const totalInv = ib !== null ? (ib + (is_||0)) : null;
@@ -2127,7 +2126,7 @@ function renderProdTable() {
       <td>${mHtml}</td>
       <td style="min-width:130px">${buildDistBar(p.st, p.tq)}</td>
       <td><strong>${W(p.tq)}</strong></td>
-      <td>${M(p.ta)}</td>
+      <td>${W(p.ta)}</td>
       <td>${ib!==null?W(ib):'-'}</td>
       <td>${is_!==null?W(is_):'-'}</td>
       <td>${srHtml}</td>
@@ -2154,7 +2153,7 @@ function renderProdTable() {
           <th style="text-align:left;cursor:default">카테고리</th>
           ${th('원가','op')}
           ${th('실판매가','sp')}
-          <th style="cursor:default">마진율</th>
+          <th style="cursor:default">원가율</th>
           <th style="text-align:left;cursor:default;min-width:130px">매장별 판매 비중</th>
           ${th('합계수량','tq')}
           ${th('합계금액','ta')}
