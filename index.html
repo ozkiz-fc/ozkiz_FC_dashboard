@@ -208,6 +208,33 @@ tr:hover td{background:#f8fafc}
 .home-profit-cards{grid-template-columns:repeat(3,1fr)!important}
 .home-best-grid{display:grid!important;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 24px 28px;overflow-x:visible;min-height:unset;align-items:unset}
 .home-best-grid .best-card{flex:unset;width:auto}
+/* ── 전체 상품 테이블 뷰 ── */
+.view-toggle-wrap{display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px}
+.view-toggle-btn{padding:6px 14px;border:none;border-radius:7px;background:transparent;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.view-toggle-btn.active{background:#fff;color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.prod-tbl-outer{overflow-x:auto;padding:0 0 24px}
+.prod-tbl{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+.prod-tbl th{position:sticky;top:0;background:#f8fafc;padding:9px 7px;text-align:right;border-bottom:2px solid #e2e8f0;cursor:pointer;color:#64748b;font-weight:700;font-size:11px;user-select:none;z-index:1}
+.prod-tbl th:nth-child(1),.prod-tbl th:nth-child(2){text-align:left}
+.prod-tbl th:nth-child(1){position:sticky;left:0;z-index:2}
+.prod-tbl th:nth-child(2){position:sticky;left:40px;z-index:2}
+.prod-tbl th:hover{background:#e2e8f0;color:#0f172a}
+.prod-tbl td{padding:8px 7px;border-bottom:1px solid #f1f5f9;text-align:right;vertical-align:middle}
+.prod-tbl td:nth-child(1){text-align:center;color:#94a3b8;font-weight:800;font-size:14px;position:sticky;left:0;background:#fff;z-index:1}
+.prod-tbl td:nth-child(2){text-align:left;position:sticky;left:40px;background:#fff;z-index:1;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.prod-tbl tr:hover td{background:#f8fafc}.prod-tbl tr:hover td:nth-child(1),.prod-tbl tr:hover td:nth-child(2){background:#f0f9ff}
+.prod-name-btn{background:none;border:none;font:inherit;font-size:12.5px;font-weight:600;color:#0f172a;cursor:pointer;text-align:left;padding:0;width:100%}
+.prod-name-btn:hover{color:#0ea5e9;text-decoration:underline}
+.prod-tbl .store-col{min-width:36px;font-size:11px;color:#64748b}
+.prod-tbl .store-col-hi{color:#0f172a;font-weight:700}
+.marg-pos{color:#10b981;font-weight:700}.marg-neg{color:#ef4444;font-weight:700}
+.sr-hi{background:#dcfce7;color:#166534;border-radius:4px;padding:1px 5px;font-weight:700;font-size:11px}
+.sr-mid{background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 5px;font-weight:700;font-size:11px}
+.sr-lo{background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700;font-size:11px}
+.prod-search-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
+.prod-search-input{padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;width:240px;font-family:inherit;outline:none}
+.prod-search-input:focus{border-color:#0ea5e9;box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.prod-tbl-cnt{font-size:12px;color:#94a3b8;font-weight:600}
 /* ── Auth Overlay ── */
 #auth-overlay{position:fixed;inset:0;background:#0f172a;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center}
 .auth-box{text-align:center;padding:48px 40px;background:#1e293b;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:360px}
@@ -566,49 +593,66 @@ tr:hover td{background:#f8fafc}
         <span class="page-title">🏆 판매 베스트</span>
         <span id="best-updated-at" class="updated"></span>
       </div>
-    </div>
-    <!-- 기간 선택 -->
-    <div class="best-controls">
-      <div class="best-mode-row">
-        <button id="btn-mode-best" class="mode-btn active best" onclick="bestSwitchMode('best')">📈 판매베스트</button>
-        <button id="btn-mode-worst" class="mode-btn worst" onclick="bestSwitchMode('worst')">📉 판매부진</button>
-        <div style="flex:1"></div>
-        <span style="font-size:12px;color:#94a3b8;font-weight:600;margin-right:6px;align-self:center">정렬</span>
-        <button id="btn-sort-amt" class="sort-btn active" onclick="bestSwitchSort('amount')">금액순</button>
-        <button id="btn-sort-qty" class="sort-btn" onclick="bestSwitchSort('qty')">수량순</button>
-      </div>
-      <div class="best-period-row">
-        <button id="btn-yesterday" class="period-btn" onclick="bestSetPeriod('yesterday')">어제</button>
-        <button id="btn-week"      class="period-btn" onclick="bestSetPeriod('week')">금주</button>
-        <button id="btn-lastweek" class="period-btn" onclick="bestSetPeriod('lastweek')">전주</button>
-        <button id="btn-month"    class="period-btn" onclick="bestSetPeriod('month')">이번달</button>
-        <button id="btn-lastmonth" class="period-btn" onclick="bestSetPeriod('lastmonth')">전월</button>
-        <button id="btn-cumul"    class="period-btn" onclick="bestSetPeriod('cumul')">누적</button>
-        <div class="date-input-wrap">
-          <input type="date" id="date-start" class="date-input" onchange="bestOnDateChange()">
-          <span style="color:#94a3b8;font-weight:700;padding:0 2px">~</span>
-          <input type="date" id="date-end" class="date-input" onchange="bestOnDateChange()">
+      <div class="topbar-right">
+        <div class="view-toggle-wrap">
+          <button id="btn-view-best" class="view-toggle-btn active" onclick="bestSwitchView('best')">📊 기간별 베스트</button>
+          <button id="btn-view-table" class="view-toggle-btn" onclick="bestSwitchView('table')">📋 전체 상품</button>
         </div>
-        <button id="best-refresh" class="refresh-btn" onclick="bestRefresh()" title="새로고침">🔄</button>
       </div>
     </div>
-    <!-- 매장 선택 알약 -->
-    <div class="store-picker" id="store-picker"></div>
-    <!-- 테이블 영역 -->
-    <div class="best-content">
-      <div class="section-title-bar" id="section-title-bar">
-        <span id="section-icon">🥇</span>
-        <span id="section-title">전체 판매 베스트  TOP 20</span>
-      </div>
-      <div class="best-table-wrap">
-        <div class="best-status" id="best-status"></div>
-        <div class="best-cards-wrap home-best-grid" id="best-cards-wrap"></div>
-        <div id="best-cat-chart-wrap" style="display:none;align-items:center;gap:40px;padding:28px 32px 32px;border-top:1px solid #f1f5f9">
-          <div style="flex-shrink:0;text-align:center">
-            <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:14px">판매금액 비중</div>
-            <canvas id="canvas-best-cat" width="560" height="560"></canvas>
+    <!-- ── 기간별 베스트 뷰 ── -->
+    <div id="best-view-best">
+      <!-- 기간 선택 -->
+      <div class="best-controls">
+        <div class="best-mode-row">
+          <button id="btn-mode-best" class="mode-btn active best" onclick="bestSwitchMode('best')">📈 판매베스트</button>
+          <button id="btn-mode-worst" class="mode-btn worst" onclick="bestSwitchMode('worst')">📉 판매부진</button>
+          <div style="flex:1"></div>
+          <span style="font-size:12px;color:#94a3b8;font-weight:600;margin-right:6px;align-self:center">정렬</span>
+          <button id="btn-sort-amt" class="sort-btn active" onclick="bestSwitchSort('amount')">금액순</button>
+          <button id="btn-sort-qty" class="sort-btn" onclick="bestSwitchSort('qty')">수량순</button>
+        </div>
+        <div class="best-period-row">
+          <button id="btn-yesterday" class="period-btn" onclick="bestSetPeriod('yesterday')">어제</button>
+          <button id="btn-week"      class="period-btn" onclick="bestSetPeriod('week')">금주</button>
+          <button id="btn-lastweek" class="period-btn" onclick="bestSetPeriod('lastweek')">전주</button>
+          <button id="btn-month"    class="period-btn" onclick="bestSetPeriod('month')">이번달</button>
+          <button id="btn-lastmonth" class="period-btn" onclick="bestSetPeriod('lastmonth')">전월</button>
+          <button id="btn-cumul"    class="period-btn" onclick="bestSetPeriod('cumul')">누적</button>
+          <div class="date-input-wrap">
+            <input type="date" id="date-start" class="date-input" onchange="bestOnDateChange()">
+            <span style="color:#94a3b8;font-weight:700;padding:0 2px">~</span>
+            <input type="date" id="date-end" class="date-input" onchange="bestOnDateChange()">
           </div>
-          <div id="best-cat-legend" style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;align-content:start"></div>
+          <button id="best-refresh" class="refresh-btn" onclick="bestRefresh()" title="새로고침">🔄</button>
+        </div>
+      </div>
+      <!-- 매장 선택 알약 -->
+      <div class="store-picker" id="store-picker"></div>
+      <!-- 카드 영역 -->
+      <div class="best-content">
+        <div class="section-title-bar" id="section-title-bar">
+          <span id="section-icon">🥇</span>
+          <span id="section-title">전체 판매 베스트  TOP 20</span>
+        </div>
+        <div class="best-table-wrap">
+          <div class="best-status" id="best-status"></div>
+          <div class="best-cards-wrap home-best-grid" id="best-cards-wrap"></div>
+          <div id="best-cat-chart-wrap" style="display:none;align-items:center;gap:40px;padding:28px 32px 32px;border-top:1px solid #f1f5f9">
+            <div style="flex-shrink:0;text-align:center">
+              <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:14px">판매금액 비중</div>
+              <canvas id="canvas-best-cat" width="560" height="560"></canvas>
+            </div>
+            <div id="best-cat-legend" style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;align-content:start"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ── 전체 상품 뷰 ── -->
+    <div id="best-view-table" style="display:none">
+      <div id="prod-table-wrap">
+        <div style="text-align:center;color:#94a3b8;padding:60px;font-size:14px">
+          상단의 <strong>전체 상품</strong> 탭이 선택되면 데이터를 자동 로드합니다
         </div>
       </div>
     </div>
@@ -1915,6 +1959,146 @@ function initBestStores() {
       ${name}</button>`;
   }).join('');
   picker.style.display='none';
+}
+
+// ════════════════════════════════════════════════
+// ■ 전체 상품 테이블
+// ════════════════════════════════════════════════
+let _prodData = null;
+let _prodInv  = {};
+let _prodSort = {col:'tq', asc:false};
+let _prodSrch = '';
+const PROD_STORE_COL = ['남악','부천','의정부','인천','유성','여수','율하','충장',
+  '동수원','송파','제주','괴정','강서','순천','평택','고척',
+  '원주','마리오','창원','평촌','STCO현풍','STCO용인','면세점'];
+
+function bestSwitchView(mode) {
+  document.getElementById('btn-view-best').classList.toggle('active', mode==='best');
+  document.getElementById('btn-view-table').classList.toggle('active', mode==='table');
+  document.getElementById('best-view-best').style.display  = mode==='best'  ? '' : 'none';
+  document.getElementById('best-view-table').style.display = mode==='table' ? '' : 'none';
+  if (mode==='table' && !_prodData) loadProdTable();
+}
+
+function loadProdTable() {
+  const wrap = document.getElementById('prod-table-wrap');
+  wrap.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b;font-size:14px">📦 상품 데이터 로드 중... (30~60초 소요)</div>';
+
+  const today = new Date().toISOString().slice(0,10);
+  const ssKey = 'ozkiz_prodTbl_' + today;
+  try {
+    const cached = sessionStorage.getItem(ssKey);
+    if (cached) {
+      const d = JSON.parse(cached);
+      _prodData = d.products; _prodInv = d.inv || {};
+      renderProdTable(); return;
+    }
+  } catch(_) {}
+
+  const cb = '_ptCb' + Date.now();
+  const el = document.createElement('script');
+  el.src = INV_API_URL + '?action=getProductTable&callback=' + cb;
+  window[cb] = function(data) {
+    delete window[cb]; el.remove();
+    if (data.error) {
+      wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444">오류: ${data.error}</div>`;
+      return;
+    }
+    _prodData = data.products || [];
+    _prodInv  = data.inv || {};
+    try { sessionStorage.setItem(ssKey, JSON.stringify({products:_prodData, inv:_prodInv})); } catch(_) {}
+    renderProdTable();
+  };
+  document.head.appendChild(el);
+}
+
+function renderProdTable() {
+  if (!_prodData) return;
+  const srch = _prodSrch.toLowerCase();
+  let list = _prodData.filter(p => !srch || p.n.toLowerCase().includes(srch));
+
+  const {col, asc} = _prodSort;
+  list = list.slice().sort((a,b)=>{
+    let va, vb;
+    if (col.startsWith('st_')) {
+      const s = col.slice(3); va = (a.st||{})[s]||0; vb = (b.st||{})[s]||0;
+    } else { va = a[col]||0; vb = b[col]||0; }
+    if (typeof va === 'string') return asc ? va.localeCompare(vb,'ko') : vb.localeCompare(va,'ko');
+    return asc ? va-vb : vb-va;
+  });
+
+  const W  = (n,d=0) => typeof n==='number' ? n.toLocaleString('ko-KR') : (n||'-');
+  const M  = n => !n ? '-' : n>=1e8?(n/1e8).toFixed(1)+'억':n>=1e4?(Math.round(n/1e4))+'만':W(n);
+  const th = (label, sortCol, cls='') => {
+    const active = _prodSort.col===sortCol;
+    const arrow  = active ? (_prodSort.asc?' ▲':' ▼') : '';
+    return `<th class="${cls}" onclick="prodSortBy('${sortCol}')" title="${label}">${label}${arrow}</th>`;
+  };
+
+  const storeHeaders = PROD_STORE_COL.map(s => th(s.slice(0,2), 'st_'+s, 'store-col')).join('');
+  const show = list.slice(0, 500);
+
+  const rows = show.map((p,i)=>{
+    const margin = p.sp>0 ? Math.round((p.sp-p.op)/p.sp*100) : null;
+    const mHtml  = margin!==null ? `<span class="${margin>=0?'marg-pos':'marg-neg'}">${margin}%</span>` : '-';
+    const inv = _prodInv[p.n];
+    const ib = inv ? inv.b : null, is_ = inv ? inv.s : null;
+    const totalInv = ib!==null ? (ib+(is_||0)) : null;
+    const sr = (totalInv!==null && p.tq>0) ? Math.round(p.tq/(p.tq+totalInv)*100) : null;
+    const srHtml = sr!==null ? `<span class="${sr>=80?'sr-hi':sr>=50?'sr-mid':'sr-lo'}">${sr}%</span>` : '-';
+    const storeCells = PROD_STORE_COL.map(s=>{
+      const q=(p.st||{})[s]||0;
+      return `<td class="store-col${q>0?' store-col-hi':''}">${q||''}</td>`;
+    }).join('');
+    const nameEsc = p.n.replace(/'/g,"\\'");
+    return `<tr>
+      <td>${i+1}</td>
+      <td><button class="prod-name-btn" onclick="showProdTrend('${nameEsc}')" title="${p.n}">${p.n}</button></td>
+      <td>${W(p.op)}</td>
+      <td>${W(p.sp)}</td>
+      <td>${mHtml}</td>
+      ${storeCells}
+      <td><strong>${W(p.tq)}</strong></td>
+      <td>${M(p.ta)}</td>
+      <td>${ib!==null?W(ib):'-'}</td>
+      <td>${is_!==null?W(is_):'-'}</td>
+      <td>${srHtml}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('prod-table-wrap').innerHTML = `
+    <div class="prod-search-bar">
+      <input class="prod-search-input" type="text" placeholder="상품명 검색..." value="${_prodSrch}"
+        oninput="_prodSrch=this.value;renderProdTable()">
+      <span class="prod-tbl-cnt">${list.length}개 상품 · 2026년 누적 · 상위 ${Math.min(show.length,500)}개 표시</span>
+      <span style="margin-left:auto;font-size:11px;color:#cbd5e1">재고는 TOP20 상품만 표시</span>
+    </div>
+    <div class="prod-tbl-outer">
+      <table class="prod-tbl">
+        <thead><tr>
+          ${th('순위','tq')}
+          ${th('상품명','n')}
+          ${th('원가','op')}
+          ${th('실판매가','sp')}
+          <th>마진율</th>
+          ${storeHeaders}
+          ${th('합계수량','tq')}
+          ${th('합계금액','ta')}
+          <th>본사재고</th><th>매장재고</th><th>판매율</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function prodSortBy(col) {
+  if (_prodSort.col===col) _prodSort.asc = !_prodSort.asc;
+  else { _prodSort.col=col; _prodSort.asc=false; }
+  renderProdTable();
+}
+
+function showProdTrend(name) {
+  alert('[ ' + name + ' ] 일별 판매 추이\n\n추후 구현 예정입니다.');
 }
 
 // ════════════════════════════════════════════════
