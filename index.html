@@ -214,27 +214,41 @@ tr:hover td{background:#f8fafc}
 .view-toggle-btn.active{background:#fff;color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .prod-tbl-outer{overflow-x:auto;padding:0 0 24px}
 .prod-tbl{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
-.prod-tbl th{position:sticky;top:0;background:#f8fafc;padding:9px 7px;text-align:right;border-bottom:2px solid #e2e8f0;cursor:pointer;color:#64748b;font-weight:700;font-size:11px;user-select:none;z-index:1}
-.prod-tbl th:nth-child(1),.prod-tbl th:nth-child(2){text-align:left}
-.prod-tbl th:nth-child(1){position:sticky;left:0;z-index:2}
-.prod-tbl th:nth-child(2){position:sticky;left:40px;z-index:2}
+.prod-tbl th{background:#f8fafc;padding:9px 7px;text-align:right;border-bottom:2px solid #e2e8f0;cursor:pointer;color:#64748b;font-weight:700;font-size:11px;user-select:none;position:sticky;top:0;z-index:1}
+.prod-tbl th:nth-child(1){text-align:center;cursor:default;position:sticky;left:0;z-index:2}
+.prod-tbl th:nth-child(2){text-align:left;cursor:default;position:sticky;left:40px;z-index:2;padding-left:6px}
+.prod-tbl th:nth-child(3){text-align:left;position:sticky;left:84px;z-index:2}
+.prod-tbl th:nth-child(4){text-align:left;cursor:default}
 .prod-tbl th:hover{background:#e2e8f0;color:#0f172a}
-.prod-tbl td{padding:8px 7px;border-bottom:1px solid #f1f5f9;text-align:right;vertical-align:middle}
-.prod-tbl td:nth-child(1){text-align:center;color:#94a3b8;font-weight:800;font-size:14px;position:sticky;left:0;background:#fff;z-index:1}
-.prod-tbl td:nth-child(2){text-align:left;position:sticky;left:40px;background:#fff;z-index:1;max-width:180px;overflow:hidden;text-overflow:ellipsis}
-.prod-tbl tr:hover td{background:#f8fafc}.prod-tbl tr:hover td:nth-child(1),.prod-tbl tr:hover td:nth-child(2){background:#f0f9ff}
-.prod-name-btn{background:none;border:none;font:inherit;font-size:12.5px;font-weight:600;color:#0f172a;cursor:pointer;text-align:left;padding:0;width:100%}
+.prod-tbl td{padding:6px 7px;border-bottom:1px solid #f1f5f9;text-align:right;vertical-align:middle}
+.prod-tbl td:nth-child(1){text-align:center;color:#94a3b8;font-weight:800;font-size:13px;position:sticky;left:0;background:#fff;z-index:1}
+.prod-tbl td:nth-child(2){padding:3px 6px;position:sticky;left:40px;background:#fff;z-index:1}
+.prod-tbl td:nth-child(3){text-align:left;position:sticky;left:84px;background:#fff;z-index:1;max-width:180px}
+.prod-tbl td:nth-child(4){text-align:left}
+.prod-tbl tr:hover td{background:#f8fafc}
+.prod-tbl tr:hover td:nth-child(1),.prod-tbl tr:hover td:nth-child(2),.prod-tbl tr:hover td:nth-child(3){background:#f0f9ff}
+.prod-name-btn{background:none;border:none;font:inherit;font-size:12.5px;font-weight:600;color:#0f172a;cursor:pointer;text-align:left;padding:0;max-width:178px;overflow:hidden;text-overflow:ellipsis;display:block;white-space:nowrap}
 .prod-name-btn:hover{color:#0ea5e9;text-decoration:underline}
-.prod-tbl .store-col{min-width:36px;font-size:11px;color:#64748b}
-.prod-tbl .store-col-hi{color:#0f172a;font-weight:700}
 .marg-pos{color:#10b981;font-weight:700}.marg-neg{color:#ef4444;font-weight:700}
 .sr-hi{background:#dcfce7;color:#166534;border-radius:4px;padding:1px 5px;font-weight:700;font-size:11px}
 .sr-mid{background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 5px;font-weight:700;font-size:11px}
 .sr-lo{background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700;font-size:11px}
-.prod-search-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
-.prod-search-input{padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;width:240px;font-family:inherit;outline:none}
+.prod-search-bar{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid #f1f5f9;flex-wrap:wrap}
+.prod-search-input{padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;width:200px;font-family:inherit;outline:none}
 .prod-search-input:focus{border-color:#0ea5e9;box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.prod-cat-sel{padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:#0f172a;cursor:pointer;outline:none}
+.prod-cat-sel:focus{border-color:#0ea5e9}
 .prod-tbl-cnt{font-size:12px;color:#94a3b8;font-weight:600}
+/* ── 상품 이미지 ── */
+.prod-img-sm{width:36px;height:36px;border-radius:6px;object-fit:contain;background:#f8fafc;border:1px solid #f1f5f9;display:block}
+.prod-img-ph{width:36px;height:36px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px}
+/* ── 카테고리 뱃지 ── */
+.cat-bdg{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;background:#f1f5f9;color:#475569;white-space:nowrap}
+/* ── 매장 분포 바 + 툴팁 ── */
+.store-dist-bar{display:flex;height:16px;border-radius:4px;overflow:hidden;min-width:120px;cursor:default}
+.store-seg{height:100%;flex-shrink:0;min-width:2px}
+.store-dist-bar:hover .store-seg{opacity:.75}
+#prod-tip{position:fixed;background:#1e293b;color:#f8fafc;border-radius:10px;padding:10px 14px;font-size:12px;pointer-events:none;display:none;z-index:9999;min-width:180px;max-width:250px;box-shadow:0 8px 24px rgba(0,0,0,.35);line-height:1.8}
 /* ── Auth Overlay ── */
 #auth-overlay{position:fixed;inset:0;background:#0f172a;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center}
 .auth-box{text-align:center;padding:48px 40px;background:#1e293b;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:360px}
@@ -1968,11 +1982,62 @@ let _prodData = null;
 let _prodInv  = {};
 let _prodSort = {col:'tq', asc:false};
 let _prodSrch = '';
+let _prodCatFilter = '';
 const PROD_STORE_COL = [
   '남악','부천','의정부','인천','유성','여수','율하','충장',
   '동수원','송파','제주','괴정','강서','순천','평택','고척',
   '원주','마리오','창원','평촌','면세점','STCO현풍','STCO용인','(롯)평촌'
 ];
+
+// ── 툴팁 ──
+let _tip = null;
+function _initTip() {
+  if (_tip) return;
+  _tip = document.createElement('div'); _tip.id = 'prod-tip';
+  document.body.appendChild(_tip);
+}
+function showTip(e, html) { _initTip(); _tip.innerHTML = html; _tip.style.display = 'block'; moveTip(e); }
+function moveTip(e) {
+  if (!_tip || _tip.style.display === 'none') return;
+  const x = e.clientX + 16, y = e.clientY - 10;
+  _tip.style.left = (x + 260 > window.innerWidth ? e.clientX - 265 : x) + 'px';
+  _tip.style.top  = Math.max(4, Math.min(y, window.innerHeight - 250)) + 'px';
+}
+function hideTip() { if (_tip) _tip.style.display = 'none'; }
+
+// ── 매장 분포 바 ──
+function buildDistBar(st, total) {
+  if (!total) return '<span style="color:#cbd5e1;font-size:11px">-</span>';
+  const entries = PROD_STORE_COL
+    .map(s => ({s, q:(st||{})[s]||0}))
+    .filter(x => x.q > 0)
+    .sort((a, b) => b.q - a.q);
+  if (!entries.length) return '<span style="color:#cbd5e1;font-size:11px">-</span>';
+  const segs = entries.map(({s, q}) => {
+    const w = Math.max(0.5, q / total * 100);
+    const col = BEST_STORE_COLORS[s] || '#94a3b8';
+    return `<div class="store-seg" style="width:${w.toFixed(1)}%;background:${col}"></div>`;
+  }).join('');
+  const tipStr = entries.map(({s, q}) => s + ':' + q).join('|');
+  return `<div class="store-dist-bar" data-tip="${tipStr}" data-total="${total}"
+    onmouseenter="showBarTip(event,this)" onmousemove="moveTip(event)" onmouseleave="hideTip()">${segs}</div>`;
+}
+function showBarTip(e, el) {
+  const total = Number(el.dataset.total);
+  const html = (el.dataset.tip||'').split('|').filter(Boolean).map(item => {
+    const ci = item.lastIndexOf(':');
+    const s = item.slice(0, ci), qty = Number(item.slice(ci+1));
+    const pct = total ? Math.round(qty/total*100) : 0;
+    const col = BEST_STORE_COLORS[s] || '#94a3b8';
+    return `<div style="display:flex;align-items:center;gap:7px">
+      <span style="width:8px;height:8px;border-radius:2px;background:${col};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;color:#94a3b8">${s}</span>
+      <strong>${qty.toLocaleString()}</strong>
+      <span style="color:#475569;width:28px;text-align:right;font-size:11px">${pct}%</span>
+    </div>`;
+  }).join('');
+  showTip(e, html);
+}
 
 function bestSwitchView(mode) {
   document.getElementById('btn-view-best').classList.toggle('active', mode==='best');
@@ -1985,7 +2050,6 @@ function bestSwitchView(mode) {
 function loadProdTable() {
   const wrap = document.getElementById('prod-table-wrap');
   wrap.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b;font-size:14px">📦 상품 데이터 로드 중... (30~60초 소요)</div>';
-
   const today = new Date().toISOString().slice(0,10);
   const ssKey = 'ozkiz_prodTbl_' + today;
   try {
@@ -1996,7 +2060,6 @@ function loadProdTable() {
       renderProdTable(); return;
     }
   } catch(_) {}
-
   const cb = '_ptCb' + Date.now();
   const el = document.createElement('script');
   el.src = INV_API_URL + '?action=getProductTable&callback=' + cb;
@@ -2017,49 +2080,52 @@ function loadProdTable() {
 function renderProdTable() {
   if (!_prodData) return;
   const srch = _prodSrch.toLowerCase();
-  let list = _prodData.filter(p => !srch || p.n.toLowerCase().includes(srch));
-
+  let list = _prodData.filter(p =>
+    (!srch || p.n.toLowerCase().includes(srch)) &&
+    (!_prodCatFilter || p.ca === _prodCatFilter)
+  );
   const {col, asc} = _prodSort;
-  list = list.slice().sort((a,b)=>{
-    let va, vb;
-    if (col.startsWith('st_')) {
-      const s = col.slice(3); va = (a.st||{})[s]||0; vb = (b.st||{})[s]||0;
-    } else { va = a[col]||0; vb = b[col]||0; }
+  list = list.slice().sort((a, b) => {
+    let va = a[col]||0, vb = b[col]||0;
     if (typeof va === 'string') return asc ? va.localeCompare(vb,'ko') : vb.localeCompare(va,'ko');
-    return asc ? va-vb : vb-va;
+    return asc ? va - vb : vb - va;
   });
 
-  const W  = (n,d=0) => typeof n==='number' ? n.toLocaleString('ko-KR') : (n||'-');
-  const M  = n => !n ? '-' : n>=1e8?(n/1e8).toFixed(1)+'억':n>=1e4?(Math.round(n/1e4))+'만':W(n);
-  const th = (label, sortCol, cls='') => {
-    const active = _prodSort.col===sortCol;
-    const arrow  = active ? (_prodSort.asc?' ▲':' ▼') : '';
-    return `<th class="${cls}" onclick="prodSortBy('${sortCol}')" title="${label}">${label}${arrow}</th>`;
+  const W  = n => typeof n === 'number' ? n.toLocaleString('ko-KR') : (n||'-');
+  const M  = n => !n ? '-' : n>=1e8?(n/1e8).toFixed(1)+'억':n>=1e4?Math.round(n/1e4)+'만':W(n);
+  const th = (label, sortCol) => {
+    const arr = _prodSort.col===sortCol ? (_prodSort.asc?' ▲':' ▼') : '';
+    return `<th onclick="prodSortBy('${sortCol}')">${label}${arr}</th>`;
   };
 
-  const storeHeaders = PROD_STORE_COL.map(s => th(s.slice(0,2), 'st_'+s, 'store-col')).join('');
-  const show = list.slice(0, 500);
+  // 카테고리 목록 (데이터 전체 기준)
+  const cats = [...new Set(_prodData.map(p => p.ca).filter(Boolean))].sort();
+  const catOpts = cats.map(c =>
+    `<option value="${c}"${c===_prodCatFilter?' selected':''}>${c}</option>`).join('');
 
-  const rows = show.map((p,i)=>{
-    const margin = p.sp>0 ? Math.round((p.sp-p.op)/p.sp*100) : null;
-    const mHtml  = margin!==null ? `<span class="${margin>=0?'marg-pos':'marg-neg'}">${margin}%</span>` : '-';
+  const show = list.slice(0, 500);
+  const rows = show.map((p, i) => {
+    const margin = p.sp > 0 ? Math.round((p.sp - p.op) / p.sp * 100) : null;
+    const mHtml  = margin !== null ? `<span class="${margin>=0?'marg-pos':'marg-neg'}">${margin}%</span>` : '-';
     const inv = _prodInv[p.n];
     const ib = inv ? inv.b : null, is_ = inv ? inv.s : null;
-    const totalInv = ib!==null ? (ib+(is_||0)) : null;
-    const sr = (totalInv!==null && p.tq>0) ? Math.round(p.tq/(p.tq+totalInv)*100) : null;
-    const srHtml = sr!==null ? `<span class="${sr>=80?'sr-hi':sr>=50?'sr-mid':'sr-lo'}">${sr}%</span>` : '-';
-    const storeCells = PROD_STORE_COL.map(s=>{
-      const q=(p.st||{})[s]||0;
-      return `<td class="store-col${q>0?' store-col-hi':''}">${q||''}</td>`;
-    }).join('');
-    const nameEsc = p.n.replace(/'/g,"\\'");
+    const totalInv = ib !== null ? (ib + (is_||0)) : null;
+    const sr = (totalInv !== null && p.tq > 0) ? Math.round(p.tq/(p.tq+totalInv)*100) : null;
+    const srHtml = sr !== null ? `<span class="${sr>=80?'sr-hi':sr>=50?'sr-mid':'sr-lo'}">${sr}%</span>` : '-';
+    const imgHtml = p.img
+      ? `<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">`
+      : `<div class="prod-img-ph">👟</div>`;
+    const catHtml = p.ca ? `<span class="cat-bdg">${p.ca}</span>` : '';
+    const nameEsc = p.n.replace(/'/g, "\\'");
     return `<tr>
       <td>${i+1}</td>
+      <td>${imgHtml}</td>
       <td><button class="prod-name-btn" onclick="showProdTrend('${nameEsc}')" title="${p.n}">${p.n}</button></td>
+      <td>${catHtml}</td>
       <td>${W(p.op)}</td>
       <td>${W(p.sp)}</td>
       <td>${mHtml}</td>
-      ${storeCells}
+      <td style="min-width:130px">${buildDistBar(p.st, p.tq)}</td>
       <td><strong>${W(p.tq)}</strong></td>
       <td>${M(p.ta)}</td>
       <td>${ib!==null?W(ib):'-'}</td>
@@ -2072,21 +2138,29 @@ function renderProdTable() {
     <div class="prod-search-bar">
       <input class="prod-search-input" type="text" placeholder="상품명 검색..." value="${_prodSrch}"
         oninput="_prodSrch=this.value;renderProdTable()">
-      <span class="prod-tbl-cnt">${list.length}개 상품 · 2026년 누적 · 상위 ${Math.min(show.length,500)}개 표시</span>
+      <select class="prod-cat-sel" onchange="_prodCatFilter=this.value;renderProdTable()">
+        <option value="">전체 카테고리</option>${catOpts}
+      </select>
+      <span class="prod-tbl-cnt">${list.length}개 상품 · 2026년 누적</span>
+      ${show.length < list.length ? `<span style="font-size:11px;color:#f59e0b">상위 500개 표시 중</span>` : ''}
       <span style="margin-left:auto;font-size:11px;color:#cbd5e1">재고는 TOP20 상품만 표시</span>
     </div>
     <div class="prod-tbl-outer">
       <table class="prod-tbl">
         <thead><tr>
-          ${th('순위','tq')}
+          <th style="text-align:center;cursor:default">순위</th>
+          <th style="cursor:default"></th>
           ${th('상품명','n')}
+          <th style="text-align:left;cursor:default">카테고리</th>
           ${th('원가','op')}
           ${th('실판매가','sp')}
-          <th>마진율</th>
-          ${storeHeaders}
+          <th style="cursor:default">마진율</th>
+          <th style="text-align:left;cursor:default;min-width:130px">매장별 판매 비중</th>
           ${th('합계수량','tq')}
           ${th('합계금액','ta')}
-          <th>본사재고</th><th>매장재고</th><th>판매율</th>
+          <th style="cursor:default">본사재고</th>
+          <th style="cursor:default">매장재고</th>
+          <th style="cursor:default">판매율</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
