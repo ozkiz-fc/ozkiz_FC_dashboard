@@ -1287,7 +1287,7 @@ function renderHome() {
       ${invCost != null
         ? `<div class="card-value" style="font-size:19px">${M(invCost)}</div>`
         : `<div class="card-value" style="font-size:18px;color:#94a3b8">—</div>
-           <div style="margin-top:10px"><button onclick="invLoadSummary(false)" style="background:#0ea5e9;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600">재고 불러오기</button></div>`
+           <div style="margin-top:6px;font-size:12px;color:#94a3b8">불러오는 중...</div>`
       }
     </div>`;
   if (DATA?.updatedAt) document.getElementById('home-updated-at').textContent = '⏱ ' + DATA.updatedAt;
@@ -1295,6 +1295,7 @@ function renderHome() {
   chartWeekly('canvas-home-trend', null);
   chartHomeStores();
   loadHomeBest();
+  if (!invLoaded) invLoadSummary(false);
 }
 function chartHomeStores() {
   const wCur = WEEKS_26[WEEKS_26.length - 1];
@@ -2099,7 +2100,7 @@ function bestSwitchView(mode) {
 
 function loadProdTable() {
   const wrap = document.getElementById('prod-table-wrap');
-  wrap.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b;font-size:14px">📦 상품 데이터 로드 중... (30~60초 소요)</div>';
+  wrap.innerHTML = '<div style="text-align:center;padding:60px;color:#64748b;font-size:14px">📦 상품 데이터 로드 중... (첫 로드 시 30~60초 소요)</div>';
   const today = new Date().toISOString().slice(0,10);
   const ssKey = 'ozkiz_prodTbl3_' + today;
   try {
@@ -2119,6 +2120,10 @@ function loadProdTable() {
       return;
     }
     _prodData = data.products || [];
+    if (data.cachedAt) {
+      const el2 = document.getElementById('best-updated-at');
+      if (el2) el2.textContent = '재고 기준: ' + data.cachedAt + ' 07:00';
+    }
     try { sessionStorage.setItem(ssKey, JSON.stringify(_prodData)); } catch(_) {}
     renderProdTable();
   };
@@ -2898,7 +2903,8 @@ async function invLoadSummary(goStore) {
     }
   } catch(e) {}
 
-  document.getElementById(loadId).innerHTML = '<div style="padding:24px;color:#64748b;grid-column:1/-1">데이터 불러오는 중...</div>';
+  const loadEl = document.getElementById(loadId);
+  if (loadEl) loadEl.innerHTML = '<div style="padding:24px;color:#64748b;grid-column:1/-1">데이터 불러오는 중...</div>';
   try {
     INV_DATA = await callInvAPI('summary');
     invLoaded = true;
@@ -2906,7 +2912,7 @@ async function invLoadSummary(goStore) {
     if (state.main === 'home') { renderHome(); return; }
     if (goStore) renderInvStore(); else renderInvTotal();
   } catch(e) {
-    document.getElementById(loadId).innerHTML = `<div style="padding:24px;color:#dc2626;grid-column:1/-1">⚠️ 로드 실패: ${e.message}</div>`;
+    if (loadEl) loadEl.innerHTML = `<div style="padding:24px;color:#dc2626;grid-column:1/-1">⚠️ 로드 실패: ${e.message}</div>`;
   }
 }
 
