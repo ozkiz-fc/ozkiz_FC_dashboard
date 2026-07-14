@@ -834,7 +834,7 @@ function sname(n){return STORE_ALIASES[n]||n;}
 const MLABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 let DATA=null, STORE_LIST=[], MONTHS_26=[], MONTHS_25=[];
 let T26=[], T25=[], Q26=[], Q25=[];
-let WEEKS_26=[], WEEKS_25MAP={}, DAILY=null;
+let WEEKS_26=[], WEEKS_25MAP={}, DAILY=null, DAILY25=null;
 
 function callAPI() {
   try {
@@ -897,6 +897,7 @@ function processData(d) {
   WEEKS_25MAP = {};
   d.weekly.filter(w => w.year==='2025').forEach(w => { WEEKS_25MAP[w.label]=w; });
   DAILY = d.daily;
+  DAILY25 = d.daily25 || null;
 }
 
 // ── 포맷 ──
@@ -926,6 +927,70 @@ function ytd25sum(arr, n, fn) {
   const r = prorateRatio();
   return (arr||[]).slice(0,n-1).reduce((s,v)=>s+fn(v),0) + Math.round(fn((arr||[])[n-1]||0) * r);
 }
+// ── 25년 정확 동기간 집계 (DAILY25 기반, null이면 호출처에서 비례로 폴백) ──
+function d25ytdAmt(storeName) {
+  if (!DAILY25?.labels?.length || !DAILY?.labels?.length) return null;
+  const cut = DAILY.labels[DAILY.labels.length - 1];
+  const arr = storeName ? DAILY25.stores[storeName]?.amount : DAILY25.total_amount;
+  if (!arr) return null;
+  return DAILY25.labels.reduce((s, l, i) => l <= cut ? s + (arr[i]||0) : s, 0);
+}
+function d25ytdQty(storeName) {
+  if (!DAILY25?.labels?.length || !DAILY?.labels?.length) return null;
+  const cut = DAILY.labels[DAILY.labels.length - 1];
+  const arr = storeName ? DAILY25.stores[storeName]?.qty : DAILY25.total_qty;
+  if (!arr) return null;
+  return DAILY25.labels.reduce((s, l, i) => l <= cut ? s + (arr[i]||0) : s, 0);
+}
+function d25curAmt(storeName) {
+  if (!DAILY25?.labels?.length || !DAILY?.labels?.length || !T26.length) return null;
+  const cut = DAILY.labels[DAILY.labels.length - 1];
+  const pfx = String(T26.length).padStart(2, '0') + '-';
+  const arr = storeName ? DAILY25.stores[storeName]?.amount : DAILY25.total_amount;
+  if (!arr) return null;
+  return DAILY25.labels.reduce((s, l, i) => (l.startsWith(pfx) && l <= cut) ? s + (arr[i]||0) : s, 0);
+}
+function d25curQty(storeName) {
+  if (!DAILY25?.labels?.length || !DAILY?.labels?.length || !T26.length) return null;
+  const cut = DAILY.labels[DAILY.labels.length - 1];
+  const pfx = String(T26.length).padStart(2, '0') + '-';
+  const arr = storeName ? DAILY25.stores[storeName]?.qty : DAILY25.total_qty;
+  if (!arr) return null;
+  return DAILY25.labels.reduce((s, l, i) => (l.startsWith(pfx) && l <= cut) ? s + (arr[i]||0) : s, 0);
+}
+function pd25cut() {
+  return ((DAILY?.labels?.length ? DAILY.labels : PDAILY_26?.labels) || []).slice(-1)[0];
+}
+function pd25ytdProfit(storeName) {
+  const cut = pd25cut();
+  if (!cut || !PDAILY_25?.labels?.length) return null;
+  const arr = storeName ? PDAILY_25.stores?.[storeName]?.profit : PDAILY_25.total_profit;
+  if (!arr) return null;
+  return PDAILY_25.labels.reduce((s, l, i) => l <= cut ? s + (arr[i]||0) : s, 0);
+}
+function pd25curProfit(storeName) {
+  const cut = pd25cut();
+  if (!cut || !PDAILY_25?.labels?.length || !PM26.length) return null;
+  const pfx = String(PM26[PM26.length-1].month).padStart(2, '0') + '-';
+  const arr = storeName ? PDAILY_25.stores?.[storeName]?.profit : PDAILY_25.total_profit;
+  if (!arr) return null;
+  return PDAILY_25.labels.reduce((s, l, i) => (l.startsWith(pfx) && l <= cut) ? s + (arr[i]||0) : s, 0);
+}
+function pd25ytdSales(storeName) {
+  const cut = pd25cut();
+  if (!cut || !PDAILY_25?.labels?.length) return null;
+  const arr = storeName ? PDAILY_25.stores?.[storeName]?.sales : PDAILY_25.total_sales;
+  if (!arr) return null;
+  return PDAILY_25.labels.reduce((s, l, i) => l <= cut ? s + (arr[i]||0) : s, 0);
+}
+function pd25curSales(storeName) {
+  const cut = pd25cut();
+  if (!cut || !PDAILY_25?.labels?.length || !PM26.length) return null;
+  const pfx = String(PM26[PM26.length-1].month).padStart(2, '0') + '-';
+  const arr = storeName ? PDAILY_25.stores?.[storeName]?.sales : PDAILY_25.total_sales;
+  if (!arr) return null;
+  return PDAILY_25.labels.reduce((s, l, i) => (l.startsWith(pfx) && l <= cut) ? s + (arr[i]||0) : s, 0);
+}
 
 function pct(cur, prev) {
   if (!prev) return '<span class="growth-flat">-</span>';
@@ -948,12 +1013,13 @@ function sd26(name){ return MONTHS_26.map(m=>({a:m.stores[name]?.amount||0,q:m.s
 function sd25(name){ return MONTHS_25.map(m=>({a:m.stores[name]?.amount||0,q:m.stores[name]?.qty||0})); }
 
 // ── 카드 ──
-function renderCards(id, a26, a25, q26, q25) {
+function renderCards(id, a26, a25, q26, q25, ya25ex, yq25ex) {
   const n=a26.length;
   const ya26=a26.reduce((s,v)=>s+v,0);
-  const ya25=ytd25sum(a25,n);
+  const isExact = ya25ex !== undefined && ya25ex !== null;
+  const ya25=isExact ? ya25ex : ytd25sum(a25,n);
   const yq26=q26.reduce((s,v)=>s+v,0);
-  const yq25=ytd25sum(q25,n);
+  const yq25=(yq25ex !== undefined && yq25ex !== null) ? yq25ex : ytd25sum(q25,n);
   const lbl=ytdLbl();
   const ap26=yq26>0?Math.round(ya26/yq26):0;
   const ap25=yq25>0?Math.round(ya25/yq25):0;
@@ -965,7 +1031,7 @@ function renderCards(id, a26, a25, q26, q25) {
       <div class="card-sub">${M(ya26)}</div>
     </div>
     <div class="card card-c2">
-      <div class="card-label">25년 동기간 (${lbl}${prorateRatio()<1?' · 비례':''})</div>
+      <div class="card-label">25년 동기간 (${lbl}${!isExact&&prorateRatio()<1?' · 비례':''})</div>
       <div class="card-value">${Mcard(ya25)}</div>
       <div class="card-qty">${QTY(yq25)}</div>
       <div class="card-sub">${M(ya25)}</div>
@@ -990,9 +1056,9 @@ function tblCumulative(id) {
     const d26=sd26(name), d25=sd25(name);
     const v26=d26.reduce((s,d)=>s+d.a,0);
     const _r=prorateRatio();
-    const v25=d25.slice(0,n-1).reduce((s,d)=>s+d.a,0)+Math.round((d25[n-1]?.a||0)*_r);
+    const v25=d25ytdAmt(name)??d25.slice(0,n-1).reduce((s,d)=>s+d.a,0)+Math.round((d25[n-1]?.a||0)*_r);
     const q26=d26.reduce((s,d)=>s+d.q,0);
-    const q25=d25.slice(0,n-1).reduce((s,d)=>s+d.q,0)+Math.round((d25[n-1]?.q||0)*_r);
+    const q25=d25ytdQty(name)??d25.slice(0,n-1).reduce((s,d)=>s+d.q,0)+Math.round((d25[n-1]?.q||0)*_r);
     if (!v26&&!v25) return;
     tot26+=v26; tot25+=v25; totQ26+=q26; totQ25+=q25;
     const ap26=q26>0?Math.round(v26/q26):0;
@@ -1032,15 +1098,22 @@ function tblMonthly(id, store) {
     const amt26=store?(m26.stores[store]?.amount||0):m26.total_amount;
     const qty26=store?(m26.stores[store]?.qty||0):m26.total_qty;
     const m25=MONTHS_25[i]||{};
-    const pr=isLast?moRatio:1;
-    const amt25=Math.round((store?(m25.stores?.[store]?.amount||0):(m25.total_amount||0))*pr);
-    const qty25=Math.round((store?(m25.stores?.[store]?.qty||0):(m25.total_qty||0))*pr);
+    let amt25, qty25;
+    if (isLast) {
+      const _a25base=store?(m25.stores?.[store]?.amount||0):(m25.total_amount||0);
+      const _q25base=store?(m25.stores?.[store]?.qty||0):(m25.total_qty||0);
+      amt25=d25curAmt(store)??Math.round(_a25base*moRatio);
+      qty25=d25curQty(store)??Math.round(_q25base*moRatio);
+    } else {
+      amt25=store?(m25.stores?.[store]?.amount||0):(m25.total_amount||0);
+      qty25=store?(m25.stores?.[store]?.qty||0):(m25.total_qty||0);
+    }
     sum26a+=amt26; sum25a+=amt25; sum26q+=qty26; sum25q+=qty25;
     const ap26=qty26>0?Math.round(amt26/qty26):0;
     const ap25=qty25>0?Math.round(amt25/qty25):0;
     rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
       <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
-      <td>${M(amt25)}${isLast&&moRatio<1?'<span class="partial-badge">비례</span>':''}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
+      <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
       <td class="td-growth">${pct(amt26,amt25)}</td>
       <td class="td-growth">${diffHtml(amt26-amt25)}</td></tr>`);
   });
@@ -1252,9 +1325,9 @@ function renderHome() {
   const n = T26.length;
   if (!n) return;
   const ytd26 = T26.reduce((s,v)=>s+v, 0);
-  const ytd25 = ytd25sum(T25, n);
+  const ytd25 = d25ytdAmt() ?? ytd25sum(T25, n);
   const curMo26 = T26[n-1] || 0;
-  const curMo25 = Math.round((T25[n-1]||0) * prorateRatio());
+  const curMo25 = d25curAmt() ?? Math.round((T25[n-1]||0) * prorateRatio());
   const moLbl = MLABELS[MONTHS_26[n-1].month - 1];
   const weekLast = WEEKS_26[WEEKS_26.length-1];
   const weekLast25 = weekLast ? WEEKS_25MAP[weekLast.label] : null;
@@ -1267,13 +1340,13 @@ function renderHome() {
     <div class="card card-c1">
       <div class="card-label">26년 누적 매출 (${lbl})</div>
       <div class="card-value" style="font-size:19px">${M(ytd26)}</div>
-      <div class="card-qty">25년 동기 ${M(ytd25)}${prorateRatio()<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
+      <div class="card-qty">25년 동기 ${M(ytd25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytd26,ytd25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 매출</div>
       <div class="card-value" style="font-size:19px">${M(curMo26)}</div>
-      <div class="card-qty">25년 동월 ${M(curMo25)}${prorateRatio()<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
+      <div class="card-qty">25년 동월 ${M(curMo25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMo26,curMo25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
@@ -1386,9 +1459,9 @@ function renderHomeProfitCards() {
   const n = PM26.length;
   const ytdP26 = Math.round(PM26.reduce((s,m)=>s+(m.total_profit||0), 0));
   const _pr=prorateRatio();
-  const ytdP25 = Math.round(PM25.slice(0,n-1).reduce((s,m)=>s+(m.total_profit||0),0)+(PM25[n-1]?.total_profit||0)*_pr);
+  const ytdP25 = Math.round(pd25ytdProfit()??PM25.slice(0,n-1).reduce((s,m)=>s+(m.total_profit||0),0)+(PM25[n-1]?.total_profit||0)*_pr);
   const curMP26 = Math.round(PM26[n-1]?.total_profit || 0);
-  const curMP25 = Math.round((PM25[n-1]?.total_profit||0)*_pr);
+  const curMP25 = Math.round(pd25curProfit()??((PM25[n-1]?.total_profit||0)*_pr));
   const moLbl = MLABELS[(PM26[n-1]?.month||1)-1];
   const lastPW = PW26[PW26.length-1];
   const lastPW25 = lastPW ? PW25MAP[lastPW.label] : null;
@@ -1399,13 +1472,13 @@ function renderHomeProfitCards() {
     <div class="card card-c1">
       <div class="card-label">누적 영업이익 (${ytdLbl()})</div>
       <div class="card-value" style="font-size:19px">${M(ytdP26)}</div>
-      <div class="card-qty">25년 동기 ${M(ytdP25)}${_pr<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
+      <div class="card-qty">25년 동기 ${M(ytdP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytdP26,ytdP25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 영업이익</div>
       <div class="card-value" style="font-size:19px">${M(curMP26)}</div>
-      <div class="card-qty">25년 동월 ${M(curMP25)}${_pr<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
+      <div class="card-qty">25년 동월 ${M(curMP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMP26,curMP25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
@@ -1476,7 +1549,7 @@ function renderHomeBestCards(data) {
 }
 function renderTotal() {
   const {gran}=state.total;
-  renderCards('cards-total',T26,T25,Q26,Q25);
+  renderCards('cards-total',T26,T25,Q26,Q25, d25ytdAmt(), d25ytdQty());
   const t=document.getElementById('chart-total-title');
   if (gran==='cumulative'){
     t.textContent='월별 매출 추이 · 25·26년 비교';
@@ -1500,7 +1573,7 @@ function renderTotal() {
 function renderStore() {
   const {gran,name}=state.store;
   const d26=sd26(name), d25=sd25(name);
-  renderCards('cards-store',d26.map(d=>d.a),d25.map(d=>d.a),d26.map(d=>d.q),d25.map(d=>d.q));
+  renderCards('cards-store',d26.map(d=>d.a),d25.map(d=>d.a),d26.map(d=>d.q),d25.map(d=>d.q), d25ytdAmt(name), d25ytdQty(name));
   const t=document.getElementById('chart-store-title');
   if (gran==='cumulative'){
     t.textContent='월별 매출 추이 · 25·26년 비교';
@@ -1645,7 +1718,7 @@ const TAX_RATIO = {};  // 매장별 세금계산서 발행 비율 (기본 1.0 = 
 
 function renderTaxTotal() {
   const {gran}=state.taxTotal;
-  renderCards('cards-tax-total',T26,T25,Q26,Q25);
+  renderCards('cards-tax-total',T26,T25,Q26,Q25, d25ytdAmt(), d25ytdQty());
   const t=document.getElementById('chart-tax-total-title');
   if (gran==='cumulative'){
     t.textContent='월별 매출 추이 · 25·26년 비교';
@@ -1669,7 +1742,7 @@ function renderTaxTotal() {
 function renderTaxStore() {
   const {gran,name}=state.taxStore;
   const d26=sd26(name),d25=sd25(name);
-  renderCards('cards-tax-store',d26.map(d=>d.a),d25.map(d=>d.a),d26.map(d=>d.q),d25.map(d=>d.q));
+  renderCards('cards-tax-store',d26.map(d=>d.a),d25.map(d=>d.a),d26.map(d=>d.q),d25.map(d=>d.q), d25ytdAmt(name), d25ytdQty(name));
   const t=document.getElementById('chart-tax-store-title');
   if (gran==='cumulative'){
     t.textContent='월별 매출 추이 · 25·26년 비교';
@@ -2519,12 +2592,12 @@ function processProfitData(d){
 }
 const profitYtdLbl=()=>PM26.length>0?`1~${MLABELS[PM26[PM26.length-1].month-1]}`:(ytdLbl()||'');
 
-function renderProfitCards(cardId,mon26,mon25){
+function renderProfitCards(cardId,mon26,mon25,nameOpt){
   const n=mon26.length;
   const ya26p=mon26.reduce((s,m)=>s+m.total_profit,0);
-  const ya25p=Math.round(ytd25sum(mon25,n,m=>m.total_profit||0));
+  const ya25p=Math.round(pd25ytdProfit(nameOpt)??ytd25sum(mon25,n,m=>m.total_profit||0));
   const ya26s=mon26.reduce((s,m)=>s+m.total_sales,0);
-  const ya25s=Math.round(ytd25sum(mon25,n,m=>m.total_sales||0));
+  const ya25s=Math.round(pd25ytdSales(nameOpt)??ytd25sum(mon25,n,m=>m.total_sales||0));
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
   document.getElementById(cardId).innerHTML=`
     <div class="card card-c1">
@@ -2555,9 +2628,9 @@ function tblProfitCumulative(id){
   PSTORES.forEach(name=>{
     const v26p=PM26.reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
     const _rp=prorateRatio();
-    const v25p=PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.profit||0),0)+Math.round((PM25[n-1]?.stores[name]?.profit||0)*_rp);
+    const v25p=pd25ytdProfit(name)??(PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.profit||0),0)+Math.round((PM25[n-1]?.stores[name]?.profit||0)*_rp));
     const v26s=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
-    const v25s=PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.sales||0),0)+Math.round((PM25[n-1]?.stores[name]?.sales||0)*_rp);
+    const v25s=pd25ytdSales(name)??(PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.sales||0),0)+Math.round((PM25[n-1]?.stores[name]?.sales||0)*_rp));
     if(!v26p&&!v25p) return;
     tot26p+=v26p;tot25p+=v25p;tot26s+=v26s;tot25s+=v25s;
     const r26=profitRate(v26p,v26s),r25=profitRate(v25p,v25s);
@@ -2585,17 +2658,24 @@ function tblProfitMonthly(id,store){
   const moRatioP=prorateRatio();
   PM26.forEach((m26,i)=>{
     const isLast=i===PM26.length-1;
-    const pp=isLast?moRatioP:1;
     const p26=store?(m26.stores[store]?.profit||0):m26.total_profit;
     const s26=store?(m26.stores[store]?.sales||0):m26.total_sales;
     const m25=PM25[i]||{};
-    const p25=Math.round((store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0))*pp);
-    const s25=Math.round((store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0))*pp);
+    let p25, s25;
+    if (isLast) {
+      const _p25b=store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0);
+      const _s25b=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
+      p25=Math.round(pd25curProfit(store)??(_p25b*moRatioP));
+      s25=Math.round(pd25curSales(store)??(_s25b*moRatioP));
+    } else {
+      p25=store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0);
+      s25=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
+    }
     sum26p+=p26;sum25p+=p25;sum26s+=s26;sum25s+=s25;
     const r26=profitRate(p26,s26),r25=profitRate(p25,s25);
     rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
       <td style="color:${p26<0?'#dc2626':''}">${Mp(p26)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
-      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}${isLast&&moRatioP<1?'<span class="partial-badge">비례</span>':''}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
+      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${pct(p26,p25)}</td><td class="td-growth">${diffHtml(p26-p25)}</td></tr>`);
   });
   const totR26=profitRate(sum26p,sum26s),totR25=profitRate(sum25p,sum25s);
@@ -2819,7 +2899,7 @@ function renderProfitStore(){
   const {gran,name}=profitState.store;
   const mon26=PM26.map(m=>({total_profit:m.stores[name]?.profit||0,total_sales:m.stores[name]?.sales||0}));
   const mon25=PM25.map(m=>({total_profit:m.stores[name]?.profit||0,total_sales:m.stores[name]?.sales||0}));
-  renderProfitCards('cards-profit-store',mon26,mon25);
+  renderProfitCards('cards-profit-store',mon26,mon25,name);
   const t=document.getElementById('chart-profit-store-title');
   if(gran==='cumulative'){
     t.textContent='월별 영업이익 추이 · 25·26년 비교';
