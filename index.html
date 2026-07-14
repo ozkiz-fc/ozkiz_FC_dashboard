@@ -905,6 +905,27 @@ const M     = v => v ? v.toLocaleString('ko-KR') + '원' : '-';
 const QTY   = v => (v != null && v > 0) ? v.toLocaleString('ko-KR') + '개' : '-개';
 const AVG   = v => v ? v.toLocaleString('ko-KR') + '원' : '-';
 const ytdLbl = () => MONTHS_26.length > 0 ? `1~${MLABELS[MONTHS_26.length-1]}` : '';
+// 현재 달에서 데이터가 있는 날 수 (DAILY 기준, 이지어드민은 전날까지만 집계)
+function curMoElapsed() {
+  if (!DAILY || !MONTHS_26.length) return 0;
+  const mo = String(MONTHS_26[MONTHS_26.length-1].month).padStart(2,'0') + '-';
+  return (DAILY.labels || []).filter(l => l.startsWith(mo)).length;
+}
+function curMoDaysTotal() {
+  if (!MONTHS_26.length) return 31;
+  return new Date(2026, MONTHS_26[MONTHS_26.length-1].month, 0).getDate();
+}
+// 비율: 당월 경과일 / 당월 전체일. 월이 완료됐으면 1 반환
+function prorateRatio() {
+  const e = curMoElapsed(), t = curMoDaysTotal();
+  return (e > 0 && e < t) ? e / t : 1;
+}
+// 2025 월별 배열의 YTD 합산 — 마지막 달(진행 중)은 일수 비례로 환산
+function ytd25sum(arr, n, fn) {
+  fn = fn || (v => +(v||0));
+  const r = prorateRatio();
+  return (arr||[]).slice(0,n-1).reduce((s,v)=>s+fn(v),0) + Math.round(fn((arr||[])[n-1]||0) * r);
+}
 
 function pct(cur, prev) {
   if (!prev) return '<span class="growth-flat">-</span>';
@@ -930,9 +951,9 @@ function sd25(name){ return MONTHS_25.map(m=>({a:m.stores[name]?.amount||0,q:m.s
 function renderCards(id, a26, a25, q26, q25) {
   const n=a26.length;
   const ya26=a26.reduce((s,v)=>s+v,0);
-  const ya25=a25.slice(0,n).reduce((s,v)=>s+v,0);
+  const ya25=ytd25sum(a25,n);
   const yq26=q26.reduce((s,v)=>s+v,0);
-  const yq25=q25.slice(0,n).reduce((s,v)=>s+v,0);
+  const yq25=ytd25sum(q25,n);
   const lbl=ytdLbl();
   const ap26=yq26>0?Math.round(ya26/yq26):0;
   const ap25=yq25>0?Math.round(ya25/yq25):0;
@@ -944,7 +965,7 @@ function renderCards(id, a26, a25, q26, q25) {
       <div class="card-sub">${M(ya26)}</div>
     </div>
     <div class="card card-c2">
-      <div class="card-label">25년 동기간 (${lbl})</div>
+      <div class="card-label">25년 동기간 (${lbl}${prorateRatio()<1?' · 비례':''})</div>
       <div class="card-value">${Mcard(ya25)}</div>
       <div class="card-qty">${QTY(yq25)}</div>
       <div class="card-sub">${M(ya25)}</div>
@@ -968,9 +989,10 @@ function tblCumulative(id) {
   STORE_LIST.forEach(name => {
     const d26=sd26(name), d25=sd25(name);
     const v26=d26.reduce((s,d)=>s+d.a,0);
-    const v25=d25.slice(0,n).reduce((s,d)=>s+d.a,0);
+    const _r=prorateRatio();
+    const v25=d25.slice(0,n-1).reduce((s,d)=>s+d.a,0)+Math.round((d25[n-1]?.a||0)*_r);
     const q26=d26.reduce((s,d)=>s+d.q,0);
-    const q25=d25.slice(0,n).reduce((s,d)=>s+d.q,0);
+    const q25=d25.slice(0,n-1).reduce((s,d)=>s+d.q,0)+Math.round((d25[n-1]?.q||0)*_r);
     if (!v26&&!v25) return;
     tot26+=v26; tot25+=v25; totQ26+=q26; totQ25+=q25;
     const ap26=q26>0?Math.round(v26/q26):0;
@@ -1004,19 +1026,21 @@ function tblMonthly(id, store) {
   const n=MONTHS_26.length, lbl=ytdLbl();
   let sum26a=0,sum25a=0,sum26q=0,sum25q=0;
   const rowsArr=[];
+  const moRatio=prorateRatio();
   MONTHS_26.forEach((m26,i) => {
+    const isLast=i===n-1;
     const amt26=store?(m26.stores[store]?.amount||0):m26.total_amount;
     const qty26=store?(m26.stores[store]?.qty||0):m26.total_qty;
     const m25=MONTHS_25[i]||{};
-    const amt25=store?(m25.stores?.[store]?.amount||0):(m25.total_amount||0);
-    const qty25=store?(m25.stores?.[store]?.qty||0):(m25.total_qty||0);
+    const pr=isLast?moRatio:1;
+    const amt25=Math.round((store?(m25.stores?.[store]?.amount||0):(m25.total_amount||0))*pr);
+    const qty25=Math.round((store?(m25.stores?.[store]?.qty||0):(m25.total_qty||0))*pr);
     sum26a+=amt26; sum25a+=amt25; sum26q+=qty26; sum25q+=qty25;
-    const isLast=i===n-1;
     const ap26=qty26>0?Math.round(amt26/qty26):0;
     const ap25=qty25>0?Math.round(amt25/qty25):0;
     rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
       <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
-      <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
+      <td>${M(amt25)}${isLast&&moRatio<1?'<span class="partial-badge">비례</span>':''}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
       <td class="td-growth">${pct(amt26,amt25)}</td>
       <td class="td-growth">${diffHtml(amt26-amt25)}</td></tr>`);
   });
@@ -1228,9 +1252,9 @@ function renderHome() {
   const n = T26.length;
   if (!n) return;
   const ytd26 = T26.reduce((s,v)=>s+v, 0);
-  const ytd25 = T25.slice(0,n).reduce((s,v)=>s+v, 0);
+  const ytd25 = ytd25sum(T25, n);
   const curMo26 = T26[n-1] || 0;
-  const curMo25 = T25[n-1] || 0;
+  const curMo25 = Math.round((T25[n-1]||0) * prorateRatio());
   const moLbl = MLABELS[MONTHS_26[n-1].month - 1];
   const weekLast = WEEKS_26[WEEKS_26.length-1];
   const weekLast25 = weekLast ? WEEKS_25MAP[weekLast.label] : null;
@@ -1243,13 +1267,13 @@ function renderHome() {
     <div class="card card-c1">
       <div class="card-label">26년 누적 매출 (${lbl})</div>
       <div class="card-value" style="font-size:19px">${M(ytd26)}</div>
-      <div class="card-qty">25년 동기 ${M(ytd25)}</div>
+      <div class="card-qty">25년 동기 ${M(ytd25)}${prorateRatio()<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytd26,ytd25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 매출</div>
       <div class="card-value" style="font-size:19px">${M(curMo26)}</div>
-      <div class="card-qty">25년 동월 ${M(curMo25)}</div>
+      <div class="card-qty">25년 동월 ${M(curMo25)}${prorateRatio()<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMo26,curMo25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
@@ -1360,9 +1384,10 @@ function renderHomeProfitCards() {
   }
   const n = PM26.length;
   const ytdP26 = Math.round(PM26.reduce((s,m)=>s+(m.total_profit||0), 0));
-  const ytdP25 = Math.round(PM25.slice(0,n).reduce((s,m)=>s+(m.total_profit||0), 0));
+  const _pr=prorateRatio();
+  const ytdP25 = Math.round(PM25.slice(0,n-1).reduce((s,m)=>s+(m.total_profit||0),0)+(PM25[n-1]?.total_profit||0)*_pr);
   const curMP26 = Math.round(PM26[n-1]?.total_profit || 0);
-  const curMP25 = Math.round(PM25[n-1]?.total_profit || 0);
+  const curMP25 = Math.round((PM25[n-1]?.total_profit||0)*_pr);
   const moLbl = MLABELS[(PM26[n-1]?.month||1)-1];
   const lastPW = PW26[PW26.length-1];
   const lastPW25 = lastPW ? PW25MAP[lastPW.label] : null;
@@ -1373,13 +1398,13 @@ function renderHomeProfitCards() {
     <div class="card card-c1">
       <div class="card-label">누적 영업이익 (${ytdLbl()})</div>
       <div class="card-value" style="font-size:19px">${M(ytdP26)}</div>
-      <div class="card-qty">25년 동기 ${M(ytdP25)}</div>
+      <div class="card-qty">25년 동기 ${M(ytdP25)}${_pr<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytdP26,ytdP25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">${moLbl} 영업이익</div>
       <div class="card-value" style="font-size:19px">${M(curMP26)}</div>
-      <div class="card-qty">25년 동월 ${M(curMP25)}</div>
+      <div class="card-qty">25년 동월 ${M(curMP25)}${_pr<1?' <span style="font-size:10px;opacity:.7">(비례)</span>':''}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMP26,curMP25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
@@ -2492,9 +2517,9 @@ const profitYtdLbl=()=>PM26.length>0?`1~${MLABELS[PM26[PM26.length-1].month-1]}`
 function renderProfitCards(cardId,mon26,mon25){
   const n=mon26.length;
   const ya26p=mon26.reduce((s,m)=>s+m.total_profit,0);
-  const ya25p=mon25.slice(0,n).reduce((s,m)=>s+m.total_profit,0);
+  const ya25p=Math.round(ytd25sum(mon25,n,m=>m.total_profit||0));
   const ya26s=mon26.reduce((s,m)=>s+m.total_sales,0);
-  const ya25s=mon25.slice(0,n).reduce((s,m)=>s+m.total_sales,0);
+  const ya25s=Math.round(ytd25sum(mon25,n,m=>m.total_sales||0));
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
   document.getElementById(cardId).innerHTML=`
     <div class="card card-c1">
@@ -2524,9 +2549,10 @@ function tblProfitCumulative(id){
   let rows='',tot26p=0,tot25p=0,tot26s=0,tot25s=0;
   PSTORES.forEach(name=>{
     const v26p=PM26.reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
-    const v25p=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
+    const _rp=prorateRatio();
+    const v25p=PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.profit||0),0)+Math.round((PM25[n-1]?.stores[name]?.profit||0)*_rp);
     const v26s=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
-    const v25s=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+    const v25s=PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.sales||0),0)+Math.round((PM25[n-1]?.stores[name]?.sales||0)*_rp);
     if(!v26p&&!v25p) return;
     tot26p+=v26p;tot25p+=v25p;tot26s+=v26s;tot25s+=v25s;
     const r26=profitRate(v26p,v26s),r25=profitRate(v25p,v25s);
@@ -2551,18 +2577,20 @@ function tblProfitCumulative(id){
 function tblProfitMonthly(id,store){
   let sum26p=0,sum25p=0,sum26s=0,sum25s=0;
   const rowsArr=[];
+  const moRatioP=prorateRatio();
   PM26.forEach((m26,i)=>{
+    const isLast=i===PM26.length-1;
+    const pp=isLast?moRatioP:1;
     const p26=store?(m26.stores[store]?.profit||0):m26.total_profit;
     const s26=store?(m26.stores[store]?.sales||0):m26.total_sales;
     const m25=PM25[i]||{};
-    const p25=store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0);
-    const s25=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
+    const p25=Math.round((store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0))*pp);
+    const s25=Math.round((store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0))*pp);
     sum26p+=p26;sum25p+=p25;sum26s+=s26;sum25s+=s25;
     const r26=profitRate(p26,s26),r25=profitRate(p25,s25);
-    const isLast=i===PM26.length-1;
     rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
       <td style="color:${p26<0?'#dc2626':''}">${Mp(p26)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
-      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
+      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}${isLast&&moRatioP<1?'<span class="partial-badge">비례</span>':''}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${pct(p26,p25)}</td><td class="td-growth">${diffHtml(p26-p25)}</td></tr>`);
   });
   const totR26=profitRate(sum26p,sum26s),totR25=profitRate(sum25p,sum25s);
