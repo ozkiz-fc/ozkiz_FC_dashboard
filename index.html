@@ -2018,6 +2018,7 @@ let _prodInv  = {};
 let _prodSort = {col:'ta', asc:false};
 let _prodSrch = '';
 let _prodCatFilter = '';
+let _prodPageSize = 50;
 const PROD_STORE_COL = [
   '남악','부천','의정부','인천','유성','여수','율하','충장',
   '동수원','송파','제주','괴정','강서','순천','평택','고척',
@@ -2135,7 +2136,7 @@ function renderProdTable() {
     return `<div class="sbc-hdr-itm" title="${s}">${abbr}</div>`;
   }).join('');
 
-  const show = list.slice(0, 500);
+  const show = list.slice(0, _prodPageSize);
   const rows = show.map((p, i) => {
     const costRate = p.sp > 0 ? Math.round(p.op / p.sp * 100) : null;
     const mHtml   = costRate !== null ? `<span class="${costRate<50?'marg-pos':'marg-neg'}">${costRate}%</span>` : '-';
@@ -2170,8 +2171,8 @@ function renderProdTable() {
   document.getElementById('prod-table-wrap').innerHTML = `
     <div class="prod-search-bar">
       <input class="prod-search-input" type="text" placeholder="상품명 검색..." value="${_prodSrch}"
-        oninput="_prodSrch=this.value;renderProdTable()">
-      <select class="prod-cat-sel" onchange="_prodCatFilter=this.value;renderProdTable()">
+        oninput="_prodSrch=this.value;_prodPageSize=50;renderProdTable()">
+      <select class="prod-cat-sel" onchange="_prodCatFilter=this.value;_prodPageSize=50;renderProdTable()">
         <option value="">전체 카테고리</option>${catOpts}
       </select>
       <span class="prod-tbl-cnt">${list.length}개 상품 · 2026년 누적</span>
@@ -2197,7 +2198,8 @@ function renderProdTable() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`;
+    </div>
+    ${show.length < list.length ? `<div style="text-align:center;padding:14px 0 4px"><button onclick="_prodPageSize+=50;renderProdTable()" style="padding:8px 28px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">더 보기 (+${Math.min(50,list.length-show.length)}개)</button><span style="font-size:11px;color:#94a3b8;margin-left:10px">${show.length} / ${list.length}개 표시</span></div>` : ''}`;
 }
 
 function prodSortBy(col) {
@@ -2254,9 +2256,14 @@ function renderTrend() {
   const unit = _trendMode === 'qty' ? '개' : '원';
 
   const prod = (_prodData||[]).find(p => p.n === _trendName);
-  const metaHtml = prod
-    ? `<span>원가 ${prod.op.toLocaleString()}원</span><span>실판매가 ${prod.sp.toLocaleString()}원</span><span>원가율 ${prod.sp>0?Math.round(prod.op/prod.sp*100):'-'}%</span><span>누적 ${prod.tq.toLocaleString()}개 · ${prod.ta.toLocaleString()}원</span>`
-    : '';
+  let metaHtml = '';
+  if (prod) {
+    const _ib = prod.ib != null ? prod.ib : null;
+    const _is = prod.is != null ? prod.is : null;
+    const _totalInv = (_ib !== null && _is !== null) ? _ib + _is : null;
+    const _sr = (_totalInv !== null && prod.tq > 0) ? Math.round(prod.tq / (prod.tq + _totalInv) * 100) : null;
+    metaHtml = `<span>원가 ${prod.op.toLocaleString()}원</span><span>실판매가 ${prod.sp.toLocaleString()}원</span><span>판매율 ${_sr !== null ? _sr + '%' : '-'}</span><span>누적 ${prod.tq.toLocaleString()}개 · ${prod.ta.toLocaleString()}원</span>`;
+  }
 
   const fmt = v => _trendMode === 'qty'
     ? v.toLocaleString()+'개'
