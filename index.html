@@ -2252,7 +2252,7 @@ function renderProdTable() {
     const ib = (p.ib != null) ? p.ib : null;
     const is_ = (p.is != null) ? p.is : null;
     const totalInv = (ib !== null && is_ !== null) ? ib + is_ : null;
-    const sr = (totalInv !== null && p.tq > 0) ? Math.round(p.tq / (p.tq + totalInv) * 100) : null;
+    const sr = (is_ !== null && p.tq > 0) ? Math.round(p.tq / (p.tq + is_) * 100) : null;
     const srHtml = sr !== null ? `<span class="${sr>=80?'sr-hi':sr>=50?'sr-mid':'sr-lo'}">${sr}%</span>` : '-';
     return `<tr>
       <td>${i+1}</td>
@@ -2265,9 +2265,9 @@ function renderProdTable() {
       <td style="padding:1px 4px">${buildDistBar(p.st, p.tq)}</td>
       <td><strong>${W(p.tq)}</strong></td>
       <td>${W(p.ta)}</td>
+      <td>${srHtml}</td>
       <td>${ib!==null?W(ib):'-'}</td>
       <td>${is_!==null?W(is_):'-'}</td>
-      <td>${srHtml}</td>
     </tr>`;
   }).join('');
 
@@ -2295,9 +2295,9 @@ function renderProdTable() {
           <th style="cursor:default;min-width:244px;vertical-align:bottom;padding:4px 4px 0"><div class="sbc-hdr">${storeHdrHtml}</div></th>
           ${th('합계수량','tq')}
           ${th('합계금액','ta')}
+          <th style="cursor:default">매장 판매율</th>
           <th style="cursor:default">본사재고</th>
           <th style="cursor:default">매장재고</th>
-          <th style="cursor:default">판매율</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -2363,9 +2363,8 @@ function renderTrend() {
   if (prod) {
     const _ib = prod.ib != null ? prod.ib : null;
     const _is = prod.is != null ? prod.is : null;
-    const _totalInv = (_ib !== null && _is !== null) ? _ib + _is : null;
-    const _sr = (_totalInv !== null && prod.tq > 0) ? Math.round(prod.tq / (prod.tq + _totalInv) * 100) : null;
-    metaHtml = `<span>원가 ${prod.op.toLocaleString()}원</span><span>실판매가 ${prod.sp.toLocaleString()}원</span><span>판매율 ${_sr !== null ? _sr + '%' : '-'}</span><span>누적 ${prod.tq.toLocaleString()}개 · ${prod.ta.toLocaleString()}원</span>`;
+    const _sr = (_is !== null && prod.tq > 0) ? Math.round(prod.tq / (prod.tq + _is) * 100) : null;
+    metaHtml = `<span>원가 ${prod.op.toLocaleString()}원</span><span>실판매가 ${prod.sp.toLocaleString()}원</span><span>매장 판매율 ${_sr !== null ? _sr + '%' : '-'}</span><span>누적 ${prod.tq.toLocaleString()}개 · ${prod.ta.toLocaleString()}원</span>`;
   }
 
   const fmt = v => _trendMode === 'qty'
