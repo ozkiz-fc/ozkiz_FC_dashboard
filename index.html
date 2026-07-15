@@ -3942,15 +3942,25 @@ function getStoreSettings() {
   try { return JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); } catch(e) { return {}; }
 }
 
+function fmtSettingNum(v) {
+  return (parseInt(String(v).replace(/,/g,'')) || 0).toLocaleString('ko-KR');
+}
+
 function saveSettingField(store, field, value) {
   const all = getStoreSettings();
   if (!all[store]) all[store] = Object.assign({}, SETTING_DEF);
-  all[store][field] = parseFloat(value) || 0;
+  all[store][field] = parseFloat(String(value).replace(/,/g,'')) || 0;
   localStorage.setItem(SETTING_KEY, JSON.stringify(all));
   const badge = document.getElementById('setting-saved');
   badge.classList.add('show');
   clearTimeout(badge._hideT);
   badge._hideT = setTimeout(() => badge.classList.remove('show'), 2000);
+}
+
+function onSettingNumInput(el, store, field) {
+  const raw = el.value.replace(/[^0-9]/g, '');
+  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+  saveSettingField(store, field, raw);
 }
 
 function renderSetting() {
@@ -3961,12 +3971,12 @@ function renderSetting() {
       <td style="font-weight:600">${name}</td>
       <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.mgr}"
           onchange="saveSettingField('${name}','mgr',this.value)"></td>
-      <td><input class="setting-input" style="width:110px" type="number" min="0" step="1000" value="${s.supp}"
-          onchange="saveSettingField('${name}','supp',this.value)"></td>
+      <td><input class="setting-input" style="width:110px" type="text" inputmode="numeric" value="${fmtSettingNum(s.supp)}"
+          oninput="onSettingNumInput(this,'${name}','supp')"></td>
       <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.shop}"
           onchange="saveSettingField('${name}','shop',this.value)"></td>
-      <td><input class="setting-input" style="width:110px" type="number" min="0" step="1000" value="${s.mgmt}"
-          onchange="saveSettingField('${name}','mgmt',this.value)"></td>
+      <td><input class="setting-input" style="width:110px" type="text" inputmode="numeric" value="${fmtSettingNum(s.mgmt)}"
+          oninput="onSettingNumInput(this,'${name}','mgmt')"></td>
     </tr>`;
   }).join('');
 }
