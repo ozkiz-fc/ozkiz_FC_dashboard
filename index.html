@@ -877,6 +877,7 @@ tr:hover td{background:#f8fafc}
               <th>점포수수료 (%)</th>
               <th>관리비 (원/월)</th>
               <th>운반비 (%)</th>
+              <th>재무회계비율 (%)</th>
             </tr>
           </thead>
           <tbody id="setting-tbody"></tbody>
@@ -1786,52 +1787,330 @@ function onTaxStoreChange() {
 }
 
 // ── 재무회계 매출 ──
-const TAX_RATIO = {};  // 매장별 세금계산서 발행 비율 (기본 1.0 = 100%)
-
-function renderTaxTotal() {
-  const {gran}=state.taxTotal;
-  renderCards('cards-tax-total',T26,T25,Q26,Q25, d25ytdAmt(), d25ytdQty());
-  const t=document.getElementById('chart-tax-total-title');
-  if (gran==='cumulative'){
-    t.textContent='월별 매출 추이 · 25·26년 비교';
-    chartCumulativeLine('canvas-tax-total',null);
-    tblCumulative('table-tax-total');
-  } else if (gran==='monthly'){
-    t.textContent='월별 매출 · 25·26년 바차트';
-    chartMonthly('canvas-tax-total',null);
-    tblMonthly('table-tax-total',null);
-  } else if (gran==='weekly'){
-    t.textContent='주차별 매출 · 25·26년 바차트';
-    chartWeekly('canvas-tax-total',null);
-    tblWeekly('table-tax-total',null);
-  } else {
-    t.textContent='일별 매출 추이 (2026년)';
-    chartDaily('canvas-tax-total',null);
-    tblDaily('table-tax-total',null);
-  }
+function storeTaxRatio(name){
+  return ((getStoreSettings()[name]||SETTING_DEF).tax??100)/100;
+}
+function taxTotAmts26(){
+  return MONTHS_26.map(m=>STORE_LIST.reduce((s,n)=>s+Math.round((m.stores[n]?.amount||0)*storeTaxRatio(n)),0));
+}
+function taxTotAmts25(){
+  return MONTHS_25.map(m=>STORE_LIST.reduce((s,n)=>s+Math.round((m.stores[n]?.amount||0)*storeTaxRatio(n)),0));
 }
 
-function renderTaxStore() {
-  const {gran,name}=state.taxStore;
-  const d26=sd26(name),d25=sd25(name);
-  renderCards('cards-tax-store',d26.map(d=>d.a),d25.map(d=>d.a),d26.map(d=>d.q),d25.map(d=>d.q), d25ytdAmt(name), d25ytdQty(name));
-  const t=document.getElementById('chart-tax-store-title');
-  if (gran==='cumulative'){
+// ── 재무회계 차트 ──
+function chartTaxCumLine(cid,store){
+  killChart(cid);
+  let d25,d26;
+  if(store){
+    const r=storeTaxRatio(store);
+    d25=MLABELS.map((_,i)=>+((MONTHS_25[i]?.stores[store]?.amount||0)/1e6*r).toFixed(2));
+    d26=MLABELS.map((_,i)=>i<MONTHS_26.length?+((MONTHS_26[i]?.stores[store]?.amount||0)/1e6*r).toFixed(2):null);
+  }else{
+    const tt25=taxTotAmts25(),tt26=taxTotAmts26();
+    d25=MLABELS.map((_,i)=>+((tt25[i]||0)/1e6).toFixed(2));
+    d26=MLABELS.map((_,i)=>i<MONTHS_26.length?+((tt26[i]||0)/1e6).toFixed(2):null);
+  }
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'line',
+    data:{labels:MLABELS,datasets:[
+      {label:'2025년',data:d25,borderColor:CHART_COLORS.line25,borderDash:[6,3],borderWidth:2,pointRadius:4,pointBackgroundColor:CHART_COLORS.line25,backgroundColor:'transparent',tension:.3,order:2},
+      {label:'2026년',data:d26,borderColor:CHART_COLORS.line26,borderWidth:2.5,pointRadius:5,pointBackgroundColor:CHART_COLORS.line26,backgroundColor:CHART_COLORS.line26+'18',fill:true,tension:.3,order:1}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return ` ${c.dataset.label}: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
+      scales:{x:{ticks:{color:CHART_COLORS.tick,font:{size:13}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}}}}
+  });
+}
+function chartTaxMonthly(cid,store){
+  const labels=MONTHS_26.map(m=>MLABELS[m.month-1]);
+  let d26,d25;
+  if(store){
+    const r=storeTaxRatio(store);
+    d26=MONTHS_26.map(m=>+((m.stores[store]?.amount||0)/1e6*r).toFixed(2));
+    d25=MONTHS_26.map((_,i)=>+((MONTHS_25[i]?.stores[store]?.amount||0)/1e6*r).toFixed(2));
+  }else{
+    const tt26=taxTotAmts26(),tt25=taxTotAmts25();
+    d26=tt26.map(v=>+(v/1e6).toFixed(2));
+    d25=MONTHS_26.map((_,i)=>+((tt25[i]||0)/1e6).toFixed(2));
+  }
+  chartBarLine(cid,labels,d25,d26);
+}
+function chartTaxWeekly(cid,store){
+  if(!WEEKS_26.length)return;
+  const labels=WEEKS_26.map(w=>w.label);
+  let d26,d25;
+  if(store){
+    const r=storeTaxRatio(store);
+    d26=WEEKS_26.map(w=>+((w.stores[store]?.amount||0)/1e6*r).toFixed(2));
+    d25=WEEKS_26.map(w=>{const w5=WEEKS_25MAP[w.label];return+((w5?.stores[store]?.amount||0)/1e6*r).toFixed(2);});
+  }else{
+    d26=WEEKS_26.map(w=>+(STORE_LIST.reduce((s,n)=>s+Math.round((w.stores[n]?.amount||0)*storeTaxRatio(n)),0)/1e6).toFixed(2));
+    d25=WEEKS_26.map(w=>{const w5=WEEKS_25MAP[w.label];return+(STORE_LIST.reduce((s,n)=>s+Math.round((w5?.stores[n]?.amount||0)*storeTaxRatio(n)),0)/1e6).toFixed(2);});
+  }
+  chartBarLine(cid,labels,d25,d26);
+}
+function chartTaxDaily(cid,store){
+  if(!DAILY||!DAILY.labels.length)return;
+  killChart(cid);
+  let amts,qtys;
+  if(store){
+    const r=storeTaxRatio(store);
+    const raw=DAILY.stores[store]?.amount;
+    if(!raw)return;
+    amts=raw.map(v=>Math.round(v*r));
+    qtys=DAILY.stores[store]?.qty;
+  }else{
+    if(!DAILY.total_amount)return;
+    amts=DAILY.total_amount.map((_,i)=>STORE_LIST.reduce((s,n)=>s+Math.round((DAILY.stores[n]?.amount?.[i]||0)*storeTaxRatio(n)),0));
+    qtys=DAILY.total_qty;
+  }
+  charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'line',
+    data:{labels:DAILY.labels,datasets:[
+      {label:'매출',data:amts.map(v=>+(v/1e6).toFixed(2)),borderColor:CHART_COLORS.line26,backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3,order:1},
+      {label:'수량(개)',data:qtys,type:'bar',backgroundColor:'#8b5cf640',borderRadius:2,yAxisID:'y2',order:2}
+    ]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
+        tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,bodyColor:CHART_COLORS.tooltip.body,
+          callbacks:{label(c){return c.dataset.yAxisID==='y2'?` 수량: ${c.parsed.y?.toLocaleString()}개`:` 매출: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
+      scales:{x:{ticks:{color:CHART_COLORS.tick,maxRotation:45,maxTicksLimit:15,font:{size:12}},grid:{color:CHART_COLORS.gridX}},
+        y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}},
+        y2:{position:'right',ticks:{color:'#8b5cf6',font:{size:13},callback:v=>v},grid:{drawOnChartArea:false}}}}
+  });
+}
+
+// ── 재무회계 테이블 ──
+function tblTaxCumulative(id){
+  const n=MONTHS_26.length,lbl=ytdLbl();
+  let tot26=0,tot25=0,totQ26=0,totQ25=0,rows='';
+  const moRatio=prorateRatio();
+  STORE_LIST.forEach(name=>{
+    const r=storeTaxRatio(name);
+    const d26=sd26(name),d25=sd25(name);
+    const v26=Math.round(d26.reduce((s,d)=>s+d.a,0)*r);
+    const v25r=d25ytdAmt(name);
+    const v25=v25r!==null?Math.round(v25r*r):Math.round((d25.slice(0,n-1).reduce((s,d)=>s+d.a,0)+Math.round((d25[n-1]?.a||0)*moRatio))*r);
+    const q26=d26.reduce((s,d)=>s+d.q,0);
+    const q25=d25ytdQty(name)??d25.slice(0,n-1).reduce((s,d)=>s+d.q,0)+Math.round((d25[n-1]?.q||0)*moRatio);
+    if(!v26&&!v25)return;
+    tot26+=v26;tot25+=v25;totQ26+=q26;totQ25+=q25;
+    const ap26=q26>0?Math.round(v26/q26):0;
+    const ap25=q25>0?Math.round(v25/q25):0;
+    rows+=`<tr><td>${sname(name)}</td>
+      <td>${M(v26)}</td><td>${QTY(q26)}</td><td>${AVG(ap26)}</td>
+      <td>${M(v25)}</td><td>${QTY(q25)}</td><td>${AVG(ap25)}</td>
+      <td class="td-growth">${pct(v26,v25)}</td>
+      <td class="td-growth">${diffHtml(v26-v25)}</td></tr>`;
+  });
+  const totAp26=totQ26>0?Math.round(tot26/totQ26):0;
+  const totAp25=totQ25>0?Math.round(tot25/totQ25):0;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>매장명</th>
+      <th>26년 매출 (${lbl})</th><th>판매수량</th><th>객단가</th>
+      <th>25년 매출 (${lbl})</th><th>판매수량</th><th>객단가</th>
+      <th>전년비</th><th>증감액</th>
+    </tr></thead><tbody>${rows}
+    <tr class="td-total"><td>전체 합계</td>
+      <td>${M(tot26)}</td><td>${QTY(totQ26)}</td><td>${AVG(totAp26)}</td>
+      <td>${M(tot25)}</td><td>${QTY(totQ25)}</td><td>${AVG(totAp25)}</td>
+      <td class="td-growth">${pct(tot26,tot25)}</td>
+      <td class="td-growth">${diffHtml(tot26-tot25)}</td>
+    </tr></tbody></table>`;
+  makeSortable(document.getElementById(id).querySelector('table'));
+}
+function tblTaxStoreCumulative(id,store){
+  const r=storeTaxRatio(store);
+  const d26=sd26(store).map(d=>({a:Math.round(d.a*r),q:d.q}));
+  const d25=sd25(store).map(d=>({a:Math.round(d.a*r),q:d.q}));
+  const n=d26.length;
+  const mon=Array.from({length:Math.max(n,4)},(_,i)=>i);
+  const tot26={a:d26.reduce((s,d)=>s+d.a,0),q:d26.reduce((s,d)=>s+d.q,0)};
+  const tot25={a:d25.slice(0,n).reduce((s,d)=>s+d.a,0),q:d25.slice(0,n).reduce((s,d)=>s+d.q,0)};
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>연도</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
+    </tr></thead><tbody>
+    <tr><td>2025년</td>${mon.map(i=>`<td>${cv(d25[i]?.a||0,d25[i]?.q||0)}</td>`).join('')}<td>${cv(tot25.a,tot25.q)}</td></tr>
+    <tr><td>2026년</td>${d26.map((d,i)=>`<td>${cv(d.a,d.q)}${i===n-1?'<span class="partial-badge">집계중</span>':''}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td style="color:#e2e8f0">-</td>').join('')}<td>${cv(tot26.a,tot26.q)}</td></tr>
+    </tbody></table>`;
+}
+function tblTaxMonthly(id,store){
+  const n=MONTHS_26.length,lbl=ytdLbl();
+  let sum26a=0,sum25a=0,sum26q=0,sum25q=0;
+  const rowsArr=[];
+  const moRatio=prorateRatio();
+  const tt26=store?null:taxTotAmts26();
+  const tt25=store?null:taxTotAmts25();
+  MONTHS_26.forEach((m26,i)=>{
+    const isLast=i===n-1;
+    let amt26,qty26,amt25,qty25;
+    if(store){
+      const r=storeTaxRatio(store);
+      amt26=Math.round((m26.stores[store]?.amount||0)*r);
+      qty26=m26.stores[store]?.qty||0;
+      const m25=MONTHS_25[i]||{};
+      const _a25=m25.stores?.[store]?.amount||0,_q25=m25.stores?.[store]?.qty||0;
+      amt25=isLast?Math.round((d25curAmt(store)??Math.round(_a25*moRatio))*r):Math.round(_a25*r);
+      qty25=isLast?(d25curQty(store)??Math.round(_q25*moRatio)):_q25;
+    }else{
+      amt26=tt26[i]||0;
+      qty26=m26.total_qty||0;
+      amt25=isLast?Math.round((tt25[i]||0)*moRatio):(tt25[i]||0);
+      qty25=isLast?Math.round((MONTHS_25[i]?.total_qty||0)*moRatio):(MONTHS_25[i]?.total_qty||0);
+    }
+    sum26a+=amt26;sum25a+=amt25;sum26q+=qty26;sum25q+=qty25;
+    const ap26=qty26>0?Math.round(amt26/qty26):0;
+    const ap25=qty25>0?Math.round(amt25/qty25):0;
+    rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
+      <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
+      <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
+      <td class="td-growth">${pct(amt26,amt25)}</td>
+      <td class="td-growth">${diffHtml(amt26-amt25)}</td></tr>`);
+  });
+  const sumAp26=sum26q>0?Math.round(sum26a/sum26q):0;
+  const sumAp25=sum25q>0?Math.round(sum25a/sum25q):0;
+  const totalRow=`<tr class="td-total"><td>누적 (${lbl})</td>
+    <td>${M(sum26a)}</td><td>${QTY(sum26q)}</td><td>${AVG(sumAp26)}</td>
+    <td>${M(sum25a)}</td><td>${QTY(sum25q)}</td><td>${AVG(sumAp25)}</td>
+    <td class="td-growth">${pct(sum26a,sum25a)}</td>
+    <td class="td-growth">${diffHtml(sum26a-sum25a)}</td></tr>`;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>월</th><th>26년 매출</th><th>수량</th><th>객단가</th>
+      <th>25년 매출</th><th>수량</th><th>객단가</th><th>전년비</th><th>증감액</th>
+    </tr></thead><tbody>${rowsArr.reverse().join('')}${totalRow}</tbody></table>`;
+}
+function tblTaxWeekly(id,store){
+  if(!WEEKS_26.length){document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center;font-size:15px">주차별 데이터 없음</div>';return;}
+  let sum26a=0,sum25a=0,sum26q=0,sum25q=0;
+  const rowsArr=[];
+  WEEKS_26.forEach(w26=>{
+    const w25=WEEKS_25MAP[w26.label];
+    let amt26,qty26,amt25,qty25;
+    if(store){
+      const r=storeTaxRatio(store);
+      amt26=Math.round((w26.stores[store]?.amount||0)*r);
+      qty26=w26.stores[store]?.qty||0;
+      amt25=Math.round((w25?.stores[store]?.amount||0)*r);
+      qty25=w25?.stores[store]?.qty||0;
+    }else{
+      amt26=STORE_LIST.reduce((s,n)=>s+Math.round((w26.stores[n]?.amount||0)*storeTaxRatio(n)),0);
+      qty26=w26.total_qty||0;
+      amt25=STORE_LIST.reduce((s,n)=>s+Math.round((w25?.stores[n]?.amount||0)*storeTaxRatio(n)),0);
+      qty25=w25?.total_qty||0;
+    }
+    sum26a+=amt26;sum25a+=amt25;sum26q+=qty26;sum25q+=qty25;
+    const ap26=qty26>0?Math.round(amt26/qty26):0;
+    const ap25=qty25>0?Math.round(amt25/qty25):0;
+    rowsArr.push(`<tr><td>${w26.label}</td>
+      <td>${M(amt26)}</td><td>${QTY(qty26)}</td><td>${AVG(ap26)}</td>
+      <td>${M(amt25)}</td><td>${QTY(qty25)}</td><td>${AVG(ap25)}</td>
+      <td class="td-growth">${pct(amt26,amt25)}</td>
+      <td class="td-growth">${(amt26&&amt25)?diffHtml(amt26-amt25):'-'}</td></tr>`);
+  });
+  const sumAp26=sum26q>0?Math.round(sum26a/sum26q):0;
+  const sumAp25=sum25q>0?Math.round(sum25a/sum25q):0;
+  const totalRow=`<tr class="td-total"><td>누적 합계</td>
+    <td>${M(sum26a)}</td><td>${QTY(sum26q)}</td><td>${AVG(sumAp26)}</td>
+    <td>${M(sum25a)}</td><td>${QTY(sum25q)}</td><td>${AVG(sumAp25)}</td>
+    <td class="td-growth">${pct(sum26a,sum25a)}</td>
+    <td class="td-growth">${diffHtml(sum26a-sum25a)}</td></tr>`;
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>주차</th><th>26년 매출</th><th>수량</th><th>객단가</th>
+      <th>25년 매출</th><th>수량</th><th>객단가</th><th>전년비</th><th>증감액</th>
+    </tr></thead><tbody>${rowsArr.reverse().join('')}${totalRow}</tbody></table>`;
+}
+function tblTaxDaily(id,store){
+  if(!DAILY||!DAILY.labels.length){document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center;font-size:15px">일별 데이터 없음</div>';return;}
+  const len=DAILY.labels.length,START=Math.max(0,len-30);
+  let rows='';
+  for(let i=len-1;i>=START;i--){
+    let amt,qty,pAmt;
+    if(store){
+      const r=storeTaxRatio(store);
+      amt=Math.round((DAILY.stores[store]?.amount[i]||0)*r);
+      qty=DAILY.stores[store]?.qty[i]||0;
+      pAmt=Math.round((DAILY.stores[store]?.amount[i-1]||0)*r);
+    }else{
+      amt=STORE_LIST.reduce((s,n)=>s+Math.round((DAILY.stores[n]?.amount?.[i]||0)*storeTaxRatio(n)),0);
+      qty=DAILY.total_qty[i]||0;
+      pAmt=STORE_LIST.reduce((s,n)=>s+Math.round((DAILY.stores[n]?.amount?.[i-1]||0)*storeTaxRatio(n)),0);
+    }
+    const avgP=qty>0?Math.round(amt/qty):0;
+    const dow=['일','월','화','수','목','금','토'];
+    const d=new Date('2026-'+DAILY.labels[i]);
+    const dayLabel=isNaN(d.getTime())?DAILY.labels[i]:`${DAILY.labels[i]} (${dow[d.getDay()]})`;
+    rows+=`<tr><td>${dayLabel}</td>
+      <td>${M(amt)}</td><td>${QTY(qty)}</td><td>${AVG(avgP)}</td>
+      <td class="td-growth">${i>0?pct(amt,pAmt):'<span class="growth-flat">-</span>'}</td></tr>`;
+  }
+  document.getElementById(id).innerHTML=`
+    <table><thead><tr>
+      <th>날짜</th><th>매출</th><th>수량</th><th>객단가</th><th>전일 대비</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── 재무회계 렌더 ──
+function renderTaxTotal(){
+  const {gran}=state.taxTotal;
+  const tt26=taxTotAmts26(),tt25=taxTotAmts25();
+  const taxYtd25=(()=>{
+    if(!DAILY25?.labels?.length||!DAILY?.labels?.length)return null;
+    return STORE_LIST.reduce((s,n)=>{const v=d25ytdAmt(n);return v!==null?s+Math.round(v*storeTaxRatio(n)):s;},0);
+  })();
+  renderCards('cards-tax-total',tt26,tt25,Q26,Q25,taxYtd25,d25ytdQty());
+  const t=document.getElementById('chart-tax-total-title');
+  if(gran==='cumulative'){
     t.textContent='월별 매출 추이 · 25·26년 비교';
-    chartCumulativeLine('canvas-tax-store',name);
-    tblStoreCumulative('table-tax-store',name);
-  } else if (gran==='monthly'){
+    chartTaxCumLine('canvas-tax-total',null);
+    tblTaxCumulative('table-tax-total');
+  }else if(gran==='monthly'){
     t.textContent='월별 매출 · 25·26년 바차트';
-    chartMonthly('canvas-tax-store',name);
-    tblMonthly('table-tax-store',name);
-  } else if (gran==='weekly'){
+    chartTaxMonthly('canvas-tax-total',null);
+    tblTaxMonthly('table-tax-total',null);
+  }else if(gran==='weekly'){
     t.textContent='주차별 매출 · 25·26년 바차트';
-    chartWeekly('canvas-tax-store',name);
-    tblWeekly('table-tax-store',name);
-  } else {
+    chartTaxWeekly('canvas-tax-total',null);
+    tblTaxWeekly('table-tax-total',null);
+  }else{
     t.textContent='일별 매출 추이 (2026년)';
-    chartDaily('canvas-tax-store',name);
-    tblDaily('table-tax-store',name);
+    chartTaxDaily('canvas-tax-total',null);
+    tblTaxDaily('table-tax-total',null);
+  }
+}
+function renderTaxStore(){
+  const {gran,name}=state.taxStore;
+  const r=storeTaxRatio(name);
+  const d26=sd26(name),d25=sd25(name);
+  const ytd25v=d25ytdAmt(name);
+  renderCards('cards-tax-store',
+    d26.map(d=>Math.round(d.a*r)),d25.map(d=>Math.round(d.a*r)),
+    d26.map(d=>d.q),d25.map(d=>d.q),
+    ytd25v!==null?Math.round(ytd25v*r):null,d25ytdQty(name)
+  );
+  const t=document.getElementById('chart-tax-store-title');
+  if(gran==='cumulative'){
+    t.textContent='월별 매출 추이 · 25·26년 비교';
+    chartTaxCumLine('canvas-tax-store',name);
+    tblTaxStoreCumulative('table-tax-store',name);
+  }else if(gran==='monthly'){
+    t.textContent='월별 매출 · 25·26년 바차트';
+    chartTaxMonthly('canvas-tax-store',name);
+    tblTaxMonthly('table-tax-store',name);
+  }else if(gran==='weekly'){
+    t.textContent='주차별 매출 · 25·26년 바차트';
+    chartTaxWeekly('canvas-tax-store',name);
+    tblTaxWeekly('table-tax-store',name);
+  }else{
+    t.textContent='일별 매출 추이 (2026년)';
+    chartTaxDaily('canvas-tax-store',name);
+    tblTaxDaily('table-tax-store',name);
   }
 }
 
@@ -3962,7 +4241,7 @@ function authStart() {
 
 // ── 세팅 ──────────────────────────────────────────────────────────────────
 const SETTING_KEY = 'ozkiz_store_settings';
-const SETTING_DEF = { cost: 0, mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0 };
+const SETTING_DEF = { cost: 0, mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0, tax: 100 };
 
 function getStoreSettings() {
   try { return JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); } catch(e) { return {}; }
@@ -4011,6 +4290,8 @@ function renderSetting() {
           onfocus="settingNumFocus(this)" onblur="settingNumBlur(this,'${name}','mgmt')"></td>
       <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.dlvy}"
           onchange="saveSettingField('${name}','dlvy',this.value)"></td>
+      <td><input class="setting-input" type="number" min="0" max="100" step="0.01" value="${s.tax??100}"
+          onchange="saveSettingField('${name}','tax',this.value)"></td>
     </tr>`;
   }).join('');
 }
