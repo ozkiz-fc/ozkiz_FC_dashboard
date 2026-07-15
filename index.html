@@ -446,7 +446,7 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- 세팅 -->
     <div class="nav-group">
-      <button class="nav-group-hd" id="nav-setting" onclick="switchMain('setting')">
+      <button class="nav-group-hd" id="nav-setting" onclick="switchMain('setting')" style="display:none">
         <span class="nav-icon">⚙️</span>
         <span>세팅</span>
       </button>
@@ -3889,6 +3889,8 @@ function authSignOut() {
 function showAuthUser(email) {
   const el = document.getElementById('auth-user-email');
   if (el) el.textContent = email;
+  const navSetting = document.getElementById('nav-setting');
+  if (navSetting) navSetting.style.display = email === 'henry@openhan.kr' ? '' : 'none';
 }
 
 function handleCredential(response) {
