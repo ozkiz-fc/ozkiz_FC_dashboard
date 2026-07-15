@@ -284,6 +284,25 @@ tr:hover td{background:#f8fafc}
 .trend-sum-item{display:flex;flex-direction:column;gap:2px}
 .trend-sum-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase}
 .trend-sum-val{font-size:14px;font-weight:800;color:#0f172a}
+/* ── 세팅 탭 ── */
+.setting-section-title{font-size:13px;font-weight:700;color:#0f172a;margin:24px 0 8px}
+.setting-desc{font-size:12px;color:#94a3b8;margin-bottom:16px}
+.setting-table{width:100%;border-collapse:collapse;font-size:13px}
+.setting-table th{padding:9px 14px;background:#f8fafc;font-weight:700;color:#64748b;text-align:left;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+.setting-table td{padding:7px 14px;border-bottom:1px solid #f1f5f9;color:#0f172a;vertical-align:middle}
+.setting-table tr:hover td{background:#f8fafc}
+.setting-input{width:90px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:right;color:#0f172a;background:#fff}
+.setting-input:focus{outline:none;border-color:#0ea5e9}
+.setting-save-bar{display:flex;align-items:center;gap:10px;padding:12px 0}
+.setting-saved-badge{font-size:11px;color:#22c55e;font-weight:600;opacity:0;transition:opacity .3s}
+.setting-saved-badge.show{opacity:1}
+/* ── 전략란 ── */
+.strategy-wrap{padding:0 24px 24px}
+.strategy-ta{width:100%;min-height:130px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;line-height:1.7;resize:vertical;color:#0f172a;background:#fff;transition:border-color .15s}
+.strategy-ta:focus{outline:none;border-color:#0ea5e9}
+.strategy-footer{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:11px;color:#94a3b8}
+.strategy-saved{color:#22c55e;font-weight:600;opacity:0;transition:opacity .3s}
+.strategy-saved.show{opacity:1}
 /* ── Auth Overlay ── */
 #auth-overlay{position:fixed;inset:0;background:#0f172a;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center}
 .auth-box{text-align:center;padding:48px 40px;background:#1e293b;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:360px}
@@ -424,6 +443,13 @@ tr:hover td{background:#f8fafc}
           <span class="nav-sub-dot">●</span> 주간 회의록
         </button>
       </div>
+    </div>
+    <!-- 세팅 -->
+    <div class="nav-group">
+      <button class="nav-group-hd" id="nav-setting" onclick="switchMain('setting')">
+        <span class="nav-icon">⚙️</span>
+        <span>세팅</span>
+      </button>
     </div>
   </nav>
   <div class="sidebar-footer">
@@ -817,8 +843,47 @@ tr:hover td{background:#f8fafc}
     <div id="inv-overview-content" style="padding:20px 24px">
       <div style="color:#94a3b8;font-size:13px">재고 탭을 먼저 로드해주세요.</div>
     </div>
+    <hr class="home-section-divider">
+    <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
+      📌 재고 전략 메모
+    </div>
+    <div class="strategy-wrap">
+      <textarea id="strategy-ta" class="strategy-ta" placeholder="재고 전략, 처분 계획, 발주 메모 등을 자유롭게 입력하세요..."></textarea>
+      <div class="strategy-footer">
+        <span>자동 저장</span>
+        <span id="strategy-saved" class="strategy-saved">✓ 저장됨</span>
+      </div>
+    </div>
   </div>
 
+  <!-- ■ 세팅 -->
+  <div id="sec-setting" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">⚙️ 세팅</span>
+      </div>
+    </div>
+    <div style="padding:4px 24px 32px">
+      <p class="setting-section-title">매장별 비용 설정</p>
+      <p class="setting-desc">영업이익 계산에 사용됩니다. 값 변경 시 자동 저장됩니다.</p>
+      <div class="table-wrap" style="overflow-x:auto">
+        <table class="setting-table">
+          <thead>
+            <tr>
+              <th>매장</th>
+              <th>매니저수수료 (%)</th>
+              <th>점포수수료 (%)</th>
+              <th>관리비 (원/월)</th>
+            </tr>
+          </thead>
+          <tbody id="setting-tbody"></tbody>
+        </table>
+      </div>
+      <div class="setting-save-bar">
+        <span id="setting-saved" class="setting-saved-badge">✓ 저장됨</span>
+      </div>
+    </div>
+  </div>
 
 </div><!-- /main-wrapper -->
 
@@ -1622,7 +1687,7 @@ function switchMain(tab, subTab) {
   state.main = tab;
 
   // 섹션 표시
-  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store','inv-overview','tax-total','tax-store'].forEach(k =>
+  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store','inv-overview','tax-total','tax-store','setting'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k===tab));
 
   // 서브아이템 활성화
@@ -1644,6 +1709,7 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-inv-overview').classList.toggle('active', tab==='inv-overview');
   document.getElementById('nav-tax-total').classList.toggle('active', tab==='tax-total');
   document.getElementById('nav-tax-store').classList.toggle('active', tab==='tax-store');
+  document.getElementById('nav-setting').classList.toggle('active', tab==='setting');
 
   // 그룹 헤더 활성화 + 아코디언 열기
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
@@ -1687,9 +1753,11 @@ function switchMain(tab, subTab) {
   }
   else if (tab==='inv-overview') {
     renderInvOverview();
+    initStrategy();
   }
   else if (tab==='tax-total') renderTaxTotal();
   else if (tab==='tax-store') renderTaxStore();
+  else if (tab==='setting') renderSetting();
 }
 function setGran(sec, val) {
   state[sec].gran=val;
@@ -3861,6 +3929,62 @@ function authStart() {
     { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ko', width: 280 }
   );
   google.accounts.id.prompt();
+}
+
+// ── 세팅 ──────────────────────────────────────────────────────────────────
+const SETTING_KEY = 'ozkiz_store_settings';
+const SETTING_DEF = { mgr: 0, shop: 0, mgmt: 0 };
+
+function getStoreSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); } catch(e) { return {}; }
+}
+
+function saveSettingField(store, field, value) {
+  const all = getStoreSettings();
+  if (!all[store]) all[store] = Object.assign({}, SETTING_DEF);
+  all[store][field] = parseFloat(value) || 0;
+  localStorage.setItem(SETTING_KEY, JSON.stringify(all));
+  const badge = document.getElementById('setting-saved');
+  badge.classList.add('show');
+  clearTimeout(badge._hideT);
+  badge._hideT = setTimeout(() => badge.classList.remove('show'), 2000);
+}
+
+function renderSetting() {
+  const all = getStoreSettings();
+  document.getElementById('setting-tbody').innerHTML = INV_STORE_ORDER.map(name => {
+    const s = all[name] || SETTING_DEF;
+    return `<tr>
+      <td style="font-weight:600">${name}</td>
+      <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.mgr}"
+          onchange="saveSettingField('${name}','mgr',this.value)"></td>
+      <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.shop}"
+          onchange="saveSettingField('${name}','shop',this.value)"></td>
+      <td><input class="setting-input" style="width:110px" type="number" min="0" step="1000" value="${s.mgmt}"
+          onchange="saveSettingField('${name}','mgmt',this.value)"></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 전략 메모 ──────────────────────────────────────────────────────────────
+const STRATEGY_KEY = 'ozkiz_inv_strategy';
+let _stratTimer = null;
+
+function initStrategy() {
+  const ta = document.getElementById('strategy-ta');
+  if (!ta || ta._ready) return;
+  ta._ready = true;
+  ta.value = localStorage.getItem(STRATEGY_KEY) || '';
+  ta.addEventListener('input', () => {
+    clearTimeout(_stratTimer);
+    _stratTimer = setTimeout(() => {
+      localStorage.setItem(STRATEGY_KEY, ta.value);
+      const badge = document.getElementById('strategy-saved');
+      badge.classList.add('show');
+      clearTimeout(badge._hideT);
+      badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500);
+    }, 600);
+  });
 }
 
 window.addEventListener('load', authStart);
