@@ -364,11 +364,11 @@ tr:hover td{background:#f8fafc}
         </button>
       </div>
     </div>
-    <!-- 영업이익 그룹 -->
+    <!-- 공헌이익 그룹 -->
     <div class="nav-group">
       <button class="nav-group-hd" id="grp-profit" onclick="toggleGroup('grp-profit','sub-profit')">
         <span class="nav-icon">💹</span>
-        <span>영업이익</span>
+        <span>공헌이익</span>
         <span class="nav-chevron">▾</span>
       </button>
       <div class="nav-sub collapsed" id="sub-profit">
@@ -477,7 +477,7 @@ tr:hover td{background:#f8fafc}
     <div class="summary-cards" id="cards-home"></div>
     <!-- 영업이익 KPI 3개 -->
     <hr class="home-section-divider">
-    <div class="home-sub-title">📊 영업이익</div>
+    <div class="home-sub-title">📊 공헌이익</div>
     <div class="summary-cards home-profit-cards" id="cards-home-profit"></div>
     <!-- 차트 2행 -->
     <div class="content-area" style="gap:20px">
@@ -608,11 +608,11 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
-  <!-- ■ 영업이익 · 전체 매장 -->
+  <!-- ■ 공헌이익 · 전체 매장 -->
   <div id="sec-profit-total" class="section-wrap">
     <div class="topbar">
       <div class="topbar-left">
-        <span class="page-title">영업이익 · 전체 매장</span>
+        <span class="page-title">공헌이익 · 전체 매장</span>
         <span id="profit-updated-at" class="updated"></span>
       </div>
       <div class="topbar-right">
@@ -634,11 +634,11 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
-  <!-- ■ 영업이익 · 매장별 -->
+  <!-- ■ 공헌이익 · 매장별 -->
   <div id="sec-profit-store" class="section-wrap">
     <div class="topbar">
       <div class="topbar-left">
-        <span class="page-title">영업이익 · 매장별</span>
+        <span class="page-title">공헌이익 · 매장별</span>
         <select class="store-select" id="profit-store-select" onchange="onProfitStoreChange()"></select>
       </div>
       <div class="topbar-right">
@@ -1521,36 +1521,37 @@ function chartHomeStores() {
 function renderHomeProfitCards() {
   const el = document.getElementById('cards-home-profit');
   if (!PROFIT_DATA || !PM26.length) {
-    el.innerHTML = '<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">영업이익 불러오는 중...</div>';
+    el.innerHTML = '<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">공헌이익 불러오는 중...</div>';
     return;
   }
   const n = PM26.length;
-  const ytdP26 = Math.round(PM26.reduce((s,m)=>s+(m.total_profit||0), 0));
   const _pr=prorateRatio();
-  const ytdP25 = Math.round(pd25ytdProfit()??PM25.slice(0,n-1).reduce((s,m)=>s+(m.total_profit||0),0)+(PM25[n-1]?.total_profit||0)*_pr);
-  const curMP26 = Math.round(PM26[n-1]?.total_profit || 0);
-  const curMP25 = Math.round(pd25curProfit()??((PM25[n-1]?.total_profit||0)*_pr));
+  const ytdP26 = Math.round(PM26.reduce((s,m,i)=>s+totalContrib(m.stores,i===n-1?_pr:1),0));
+  const ytdP25 = Math.round(PM25.slice(0,n).reduce((s,m,i)=>s+totalContrib(m.stores,i===n-1?_pr:1),0));
+  const curMP26 = Math.round(totalContrib(PM26[n-1]?.stores,_pr));
+  const curMP25 = Math.round(totalContrib(PM25[n-1]?.stores,_pr));
   const moLbl = MLABELS[(PM26[n-1]?.month||1)-1];
   const lastPW = PW26[PW26.length-1];
   const lastPW25 = lastPW ? PW25MAP[lastPW.label] : null;
-  const wP26 = Math.round(lastPW?.total_profit || 0);
-  const wP25 = Math.round(lastPW25?.total_profit || 0);
+  const WMF=7/30;
+  const wP26 = Math.round(totalContrib(lastPW?.stores,WMF));
+  const wP25 = Math.round(totalContrib(lastPW25?.stores,WMF));
   const wLbl = lastPW?.label ? lastPW.label+' 주간' : '이번주';
   el.innerHTML = `
     <div class="card card-c1">
-      <div class="card-label">누적 영업이익 (${ytdLbl()})</div>
+      <div class="card-label">누적 공헌이익 (${ytdLbl()})</div>
       <div class="card-value" style="font-size:19px">${M(ytdP26)}</div>
       <div class="card-qty">25년 동기 ${M(ytdP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(ytdP26,ytdP25)}&nbsp;전년 대비</div>
     </div>
     <div class="card card-c2">
-      <div class="card-label">${moLbl} 영업이익</div>
+      <div class="card-label">${moLbl} 공헌이익</div>
       <div class="card-value" style="font-size:19px">${M(curMP26)}</div>
       <div class="card-qty">25년 동월 ${M(curMP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(curMP26,curMP25)}&nbsp;전년 동월</div>
     </div>
     <div class="card card-c3">
-      <div class="card-label">${wLbl} 영업이익</div>
+      <div class="card-label">${wLbl} 공헌이익</div>
       <div class="card-value" style="font-size:19px">${M(wP26)}</div>
       <div class="card-qty">25년 동주 ${M(wP25)}</div>
       <div class="card-sub" style="margin-top:4px">${pct(wP26,wP25)}&nbsp;전년 동주</div>
@@ -2662,21 +2663,43 @@ function processProfitData(d){
 }
 const profitYtdLbl=()=>PM26.length>0?`1~${MLABELS[PM26[PM26.length-1].month-1]}`:(ytdLbl()||'');
 
+function storeVarRate(name){
+  const s=getStoreSettings()[name]||SETTING_DEF;
+  return (s.cost+s.mgr+s.shop+s.dlvy)/100;
+}
+function storeFixed(name){
+  const s=getStoreSettings()[name]||SETTING_DEF;
+  return s.supp+s.mgmt;
+}
+function calcContrib(name,sales,monthFrac){
+  return sales*(1-storeVarRate(name))-storeFixed(name)*(monthFrac||0);
+}
+function totalContrib(storesMap,monthFrac){
+  return PSTORES.reduce((sum,n)=>sum+calcContrib(n,((storesMap||{})[n]||{}).sales||0,monthFrac),0);
+}
+
 function renderProfitCards(cardId,mon26,mon25,nameOpt){
   const n=mon26.length;
-  const ya26p=mon26.reduce((s,m)=>s+m.total_profit,0);
-  const ya25p=Math.round(pd25ytdProfit(nameOpt)??ytd25sum(mon25,n,m=>m.total_profit||0));
-  const ya26s=mon26.reduce((s,m)=>s+m.total_sales,0);
-  const ya25s=Math.round(pd25ytdSales(nameOpt)??ytd25sum(mon25,n,m=>m.total_sales||0));
+  const _rp=prorateRatio();
+  const ya26p=Math.round(mon26.reduce((s,m,i)=>{
+    const mf=i===n-1?_rp:1;
+    return s+(nameOpt?calcContrib(nameOpt,m.total_sales||0,mf):totalContrib(m.stores,mf));
+  },0));
+  const ya25p=Math.round(mon25.slice(0,n).reduce((s,m,i)=>{
+    const mf=i===n-1?_rp:1;
+    return s+(nameOpt?calcContrib(nameOpt,m.total_sales||0,mf):totalContrib(m.stores,mf));
+  },0));
+  const ya26s=mon26.reduce((s,m)=>s+(m.total_sales||0),0);
+  const ya25s=mon25.slice(0,n).reduce((s,m)=>s+(m.total_sales||0),0);
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
   document.getElementById(cardId).innerHTML=`
     <div class="card card-c1">
-      <div class="card-label">26년 누적 영업이익 (${profitYtdLbl()})</div>
+      <div class="card-label">26년 누적 공헌이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya26p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya26p)}</div>
       <div class="card-sub">${Mp(ya26p)}</div>
     </div>
     <div class="card card-c2">
-      <div class="card-label">25년 동기 영업이익 (${profitYtdLbl()})</div>
+      <div class="card-label">25년 동기 공헌이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya25p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya25p)}</div>
       <div class="card-sub">${Mp(ya25p)}</div>
     </div>
@@ -2686,22 +2709,21 @@ function renderProfitCards(cardId,mon26,mon25,nameOpt){
       <div class="card-sub">${diffHtml(ya26p-ya25p)}</div>
     </div>
     <div class="card card-c4">
-      <div class="card-label">이익률 (26년 / 25년)</div>
+      <div class="card-label">공헌이익률 (26년 / 25년)</div>
       <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
       <div class="card-sub">25년 동기: ${r25!==null?r25.toFixed(1)+'%':'-'}</div>
     </div>`;
 }
 
 function tblProfitCumulative(id){
-  const n=PM26.length,lbl=profitYtdLbl();
+  const n=PM26.length,lbl=profitYtdLbl(),_rp=prorateRatio();
   let rows='',tot26p=0,tot25p=0,tot26s=0,tot25s=0;
   PSTORES.forEach(name=>{
-    const v26p=PM26.reduce((s,m)=>s+(m.stores[name]?.profit||0),0);
-    const _rp=prorateRatio();
-    const v25p=pd25ytdProfit(name)??(PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.profit||0),0)+Math.round((PM25[n-1]?.stores[name]?.profit||0)*_rp));
+    const v26p=Math.round(PM26.reduce((s,m,i)=>s+calcContrib(name,m.stores[name]?.sales||0,i===n-1?_rp:1),0));
+    const v25p=Math.round(PM25.slice(0,n).reduce((s,m,i)=>s+calcContrib(name,m.stores[name]?.sales||0,i===n-1?_rp:1),0));
     const v26s=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
-    const v25s=pd25ytdSales(name)??(PM25.slice(0,n-1).reduce((s,m)=>s+(m.stores[name]?.sales||0),0)+Math.round((PM25[n-1]?.stores[name]?.sales||0)*_rp));
-    if(!v26p&&!v25p) return;
+    const v25s=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+    if(!v26s&&!v25s) return;
     tot26p+=v26p;tot25p+=v25p;tot26s+=v26s;tot25s+=v25s;
     const r26=profitRate(v26p,v26s),r25=profitRate(v25p,v25s);
     rows+=`<tr><td>${name}</td>
@@ -2712,8 +2734,8 @@ function tblProfitCumulative(id){
   const tr26=profitRate(tot26p,tot26s),tr25=profitRate(tot25p,tot25s);
   document.getElementById(id).innerHTML=`
     <table><thead><tr><th>매장명</th>
-      <th>26년 영업이익 (${lbl})</th><th>이익률</th>
-      <th>25년 영업이익 (${lbl})</th><th>이익률</th>
+      <th>26년 공헌이익 (${lbl})</th><th>공헌이익률</th>
+      <th>25년 공헌이익 (${lbl})</th><th>공헌이익률</th>
       <th>전년비</th><th>증감액</th></tr></thead><tbody>${rows}
     <tr class="td-total"><td>전체 합계</td>
       <td style="color:${tot26p<0?'#dc2626':''}">${Mp(tot26p)}</td><td>${tr26!==null?tr26.toFixed(1)+'%':'-'}</td>
@@ -2728,19 +2750,12 @@ function tblProfitMonthly(id,store){
   const moRatioP=prorateRatio();
   PM26.forEach((m26,i)=>{
     const isLast=i===PM26.length-1;
-    const p26=store?(m26.stores[store]?.profit||0):m26.total_profit;
-    const s26=store?(m26.stores[store]?.sales||0):m26.total_sales;
+    const mf=isLast?moRatioP:1;
+    const p26=Math.round(store?calcContrib(store,m26.stores?.[store]?.sales||0,mf):totalContrib(m26.stores,mf));
+    const s26=store?(m26.stores?.[store]?.sales||0):m26.total_sales;
     const m25=PM25[i]||{};
-    let p25, s25;
-    if (isLast) {
-      const _p25b=store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0);
-      const _s25b=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
-      p25=Math.round(pd25curProfit(store)??(_p25b*moRatioP));
-      s25=Math.round(pd25curSales(store)??(_s25b*moRatioP));
-    } else {
-      p25=store?(m25.stores?.[store]?.profit||0):(m25.total_profit||0);
-      s25=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
-    }
+    const p25=Math.round(store?calcContrib(store,m25.stores?.[store]?.sales||0,mf):totalContrib(m25.stores,mf));
+    const s25=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
     sum26p+=p26;sum25p+=p25;sum26s+=s26;sum25s+=s25;
     const r26=profitRate(p26,s26),r25=profitRate(p25,s25);
     rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
@@ -2751,8 +2766,8 @@ function tblProfitMonthly(id,store){
   const totR26=profitRate(sum26p,sum26s),totR25=profitRate(sum25p,sum25s);
   document.getElementById(id).innerHTML=`
     <table><thead><tr><th>월</th>
-      <th>26년 영업이익</th><th>이익률</th>
-      <th>25년 영업이익</th><th>이익률</th>
+      <th>26년 공헌이익</th><th>공헌이익률</th>
+      <th>25년 공헌이익</th><th>공헌이익률</th>
       <th>전년비</th><th>증감액</th></tr></thead><tbody>
     ${rowsArr.reverse().join('')}
     <tr class="td-total"><td>누적 (${ytdLbl()})</td>
@@ -2767,13 +2782,14 @@ function tblProfitWeekly(id,store){
     document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">주차별 데이터 없음</div>';
     return;
   }
+  const WMF=7/30;
   let sum26p=0,sum25p=0,sum26s=0;
   const rowsArr=[];
   PW26.forEach(w26=>{
     const w25=PW25MAP[w26.label];
-    const p26=store?(w26.stores[store]?.profit||0):w26.total_profit;
-    const s26=store?(w26.stores[store]?.sales||0):w26.total_sales;
-    const p25=store?(w25?.stores[store]?.profit||0):(w25?.total_profit||0);
+    const p26=Math.round(store?calcContrib(store,w26.stores?.[store]?.sales||0,WMF):totalContrib(w26.stores,WMF));
+    const s26=store?(w26.stores?.[store]?.sales||0):w26.total_sales;
+    const p25=Math.round(store?calcContrib(store,w25?.stores?.[store]?.sales||0,WMF):totalContrib(w25?.stores,WMF));
     sum26p+=p26;sum25p+=p25;sum26s+=s26;
     const r26=profitRate(p26,s26);
     rowsArr.push(`<tr><td>${w26.label}</td>
@@ -2784,8 +2800,8 @@ function tblProfitWeekly(id,store){
   const totR26=profitRate(sum26p,sum26s);
   document.getElementById(id).innerHTML=`
     <table><thead><tr><th>주차</th>
-      <th>26년 영업이익</th><th>이익률</th>
-      <th>25년 영업이익</th><th>이익률</th>
+      <th>26년 공헌이익</th><th>공헌이익률</th>
+      <th>25년 공헌이익</th><th>공헌이익률</th>
       <th>전년비</th><th>증감액</th></tr></thead><tbody>
     ${rowsArr.reverse().join('')}
     <tr class="td-total"><td>누적 합계</td>
@@ -2801,17 +2817,20 @@ function tblProfitDaily(id,store){
     document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">일별 데이터 없음</div>';
     return;
   }
-  const profits=store?daily.stores[store]?.profit:daily.total_profit;
-  const sales=store?daily.stores[store]?.sales:daily.total_sales;
-  if(!profits){
+  const DMF=1/30;
+  const salesArr=store?daily.stores?.[store]?.sales:daily.total_sales;
+  if(!salesArr){
     document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">해당 매장 데이터 없음</div>';
     return;
   }
+  const profits=store
+    ?salesArr.map(s=>Math.round(calcContrib(store,s,DMF)))
+    :daily.labels.map((_,i)=>Math.round(PSTORES.reduce((sum,n)=>sum+calcContrib(n,daily.stores?.[n]?.sales?.[i]||0,DMF),0)));
   const len=daily.labels.length,START=Math.max(0,len-30);
   const dow=['일','월','화','수','목','금','토'];
   let rows='';
   for(let i=len-1;i>=START;i--){
-    const p=profits[i]||0,s=sales?sales[i]||0:0,prevP=i>0?profits[i-1]||0:null;
+    const p=profits[i]||0,s=salesArr[i]||0,prevP=i>0?profits[i-1]||0:null;
     const r=profitRate(p,s);
     const d=new Date('2026-'+daily.labels[i]);
     const dayLabel=isNaN(d.getTime())?daily.labels[i]:`${daily.labels[i]} (${dow[d.getDay()]})`;
@@ -2822,15 +2841,15 @@ function tblProfitDaily(id,store){
   }
   document.getElementById(id).innerHTML=`
     <table><thead><tr>
-      <th>날짜</th><th>영업이익</th><th>이익률</th><th>전일 대비</th>
+      <th>날짜</th><th>공헌이익</th><th>공헌이익률</th><th>전일 대비</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function tblProfitStoreCumulative(id,store){
   const n=PM26.length;
   const mon=Array.from({length:Math.max(n,4)},(_,i)=>i);
-  const d26=PM26.map(m=>({p:m.stores[store]?.profit||0,s:m.stores[store]?.sales||0}));
-  const d25=PM25.map(m=>({p:m.stores[store]?.profit||0,s:m.stores[store]?.sales||0}));
+  const d26=PM26.map(m=>({p:Math.round(calcContrib(store,m.stores?.[store]?.sales||0,1)),s:m.stores?.[store]?.sales||0}));
+  const d25=PM25.map(m=>({p:Math.round(calcContrib(store,m.stores?.[store]?.sales||0,1)),s:m.stores?.[store]?.sales||0}));
   const tot26p=d26.reduce((s,d)=>s+d.p,0),tot26s=d26.reduce((s,d)=>s+d.s,0);
   const tot25p=d25.slice(0,n).reduce((s,d)=>s+d.p,0),tot25s=d25.slice(0,n).reduce((s,d)=>s+d.s,0);
   const cv=(p,s)=>`<div style="color:${p<0?'#dc2626':'#334155'}">${p?Math.round(p).toLocaleString('ko-KR')+'원':'-'}</div><div style="font-size:12px;color:#94a3b8">${profitRate(p,s)!==null?profitRate(p,s).toFixed(1)+'%':''}</div>`;
@@ -2875,23 +2894,24 @@ function chartProfitBarLine(cid,labels,d25,d26){
 
 function chartProfitMonthly(cid,store){
   const labels=PM26.map(m=>MLABELS[m.month-1]);
-  const d26=PM26.map(m=>store?(m.stores[store]?.profit||0):m.total_profit);
-  const d25=PM26.map((_,i)=>store?(PM25[i]?.stores[store]?.profit||0):(PM25[i]?.total_profit||0));
+  const d26=PM26.map(m=>Math.round(store?calcContrib(store,m.stores?.[store]?.sales||0,1):totalContrib(m.stores,1)));
+  const d25=PM26.map((_,i)=>Math.round(store?calcContrib(store,PM25[i]?.stores?.[store]?.sales||0,1):totalContrib(PM25[i]?.stores,1)));
   chartProfitBarLine(cid,labels,d25,d26);
 }
 
 function chartProfitWeekly(cid,store){
   if(!PW26.length) return;
+  const WMF=7/30;
   const labels=PW26.map(w=>w.label);
-  const d26=PW26.map(w=>store?(w.stores[store]?.profit||0):w.total_profit);
-  const d25=PW26.map(w=>{const w5=PW25MAP[w.label];return store?(w5?.stores[store]?.profit||0):(w5?.total_profit||0);});
+  const d26=PW26.map(w=>Math.round(store?calcContrib(store,w.stores?.[store]?.sales||0,WMF):totalContrib(w.stores,WMF)));
+  const d25=PW26.map(w=>{const w5=PW25MAP[w.label];return Math.round(store?calcContrib(store,w5?.stores?.[store]?.sales||0,WMF):totalContrib(w5?.stores,WMF));});
   chartProfitBarLine(cid,labels,d25,d26);
 }
 
 function chartProfitCumulativeLine(cid,store){
   killChart(cid);
-  const d25=MLABELS.map((_,i)=>store?(PM25[i]?.stores[store]?.profit||0):(PM25[i]?.total_profit||0));
-  const d26=MLABELS.map((_,i)=>i<PM26.length?(store?(PM26[i]?.stores[store]?.profit||0):(PM26[i]?.total_profit||0)):null);
+  const d25=MLABELS.map((_,i)=>Math.round(store?calcContrib(store,PM25[i]?.stores?.[store]?.sales||0,1):totalContrib(PM25[i]?.stores,1)));
+  const d26=MLABELS.map((_,i)=>i<PM26.length?Math.round(store?calcContrib(store,PM26[i]?.stores?.[store]?.sales||0,1):totalContrib(PM26[i]?.stores,1)):null);
   charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
     type:'line',
     data:{labels:MLABELS,datasets:[
@@ -2918,12 +2938,16 @@ function chartProfitDaily(cid,store){
   const daily=PDAILY_26;
   if(!daily||!daily.labels.length) return;
   killChart(cid);
-  const profits=store?daily.stores[store]?.profit:daily.total_profit;
-  if(!profits) return;
+  const DMF=1/30;
+  const salesArr=store?daily.stores?.[store]?.sales:daily.total_sales;
+  if(!salesArr) return;
+  const profits=store
+    ?salesArr.map(s=>Math.round(calcContrib(store,s,DMF)))
+    :daily.labels.map((_,i)=>Math.round(PSTORES.reduce((sum,n)=>sum+calcContrib(n,daily.stores?.[n]?.sales?.[i]||0,DMF),0)));
   charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
     type:'line',
     data:{labels:daily.labels,datasets:[
-      {label:'영업이익',data:profits,borderColor:CHART_COLORS.line26,
+      {label:'공헌이익',data:profits,borderColor:CHART_COLORS.line26,
        backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3}
     ]},
     options:{responsive:true,interaction:{mode:'index',intersect:false},
@@ -2931,7 +2955,7 @@ function chartProfitDaily(cid,store){
         legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
         tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
           bodyColor:CHART_COLORS.tooltip.body,
-          callbacks:{label(c){return ` 영업이익: ${c.parsed.y?.toLocaleString('ko-KR')}원`;}}}},
+          callbacks:{label(c){return ` 공헌이익: ${c.parsed.y?.toLocaleString('ko-KR')}원`;}}}},
       scales:{
         x:{ticks:{color:CHART_COLORS.tick,maxRotation:45,maxTicksLimit:15,font:{size:12}},grid:{color:CHART_COLORS.gridX}},
         y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:profitAxisFmt},grid:{color:CHART_COLORS.gridY}}
@@ -2946,19 +2970,19 @@ function renderProfitTotal(){
   renderProfitCards('cards-profit-total',PM26,PM25);
   const t=document.getElementById('chart-profit-total-title');
   if(gran==='cumulative'){
-    t.textContent='월별 영업이익 추이 · 25·26년 비교';
+    t.textContent='월별 공헌이익 추이 · 25·26년 비교';
     chartProfitCumulativeLine('canvas-profit-total',null);
     tblProfitCumulative('table-profit-total');
   } else if(gran==='monthly'){
-    t.textContent='월별 영업이익 · 25·26년 비교';
+    t.textContent='월별 공헌이익 · 25·26년 비교';
     chartProfitMonthly('canvas-profit-total',null);
     tblProfitMonthly('table-profit-total',null);
   } else if(gran==='weekly'){
-    t.textContent='주차별 영업이익 · 25·26년 비교';
+    t.textContent='주차별 공헌이익 · 25·26년 비교';
     chartProfitWeekly('canvas-profit-total',null);
     tblProfitWeekly('table-profit-total',null);
   } else {
-    t.textContent='일별 영업이익 추이 (2026년)';
+    t.textContent='일별 공헌이익 추이 (2026년)';
     chartProfitDaily('canvas-profit-total',null);
     tblProfitDaily('table-profit-total',null);
   }
@@ -2972,19 +2996,19 @@ function renderProfitStore(){
   renderProfitCards('cards-profit-store',mon26,mon25,name);
   const t=document.getElementById('chart-profit-store-title');
   if(gran==='cumulative'){
-    t.textContent='월별 영업이익 추이 · 25·26년 비교';
+    t.textContent='월별 공헌이익 추이 · 25·26년 비교';
     chartProfitCumulativeLine('canvas-profit-store',name);
     tblProfitStoreCumulative('table-profit-store',name);
   } else if(gran==='monthly'){
-    t.textContent='월별 영업이익 · 25·26년 비교';
+    t.textContent='월별 공헌이익 · 25·26년 비교';
     chartProfitMonthly('canvas-profit-store',name);
     tblProfitMonthly('table-profit-store',name);
   } else if(gran==='weekly'){
-    t.textContent='주차별 영업이익 · 25·26년 비교';
+    t.textContent='주차별 공헌이익 · 25·26년 비교';
     chartProfitWeekly('canvas-profit-store',name);
     tblProfitWeekly('table-profit-store',name);
   } else {
-    t.textContent='일별 영업이익 추이 (2026년)';
+    t.textContent='일별 공헌이익 추이 (2026년)';
     chartProfitDaily('canvas-profit-store',name);
     tblProfitDaily('table-profit-store',name);
   }
