@@ -875,6 +875,7 @@ tr:hover td{background:#f8fafc}
               <th>지원금 (원/월)</th>
               <th>점포수수료 (%)</th>
               <th>관리비 (원/월)</th>
+              <th>택배비 (원/월)</th>
             </tr>
           </thead>
           <tbody id="setting-tbody"></tbody>
@@ -3936,7 +3937,7 @@ function authStart() {
 
 // ── 세팅 ──────────────────────────────────────────────────────────────────
 const SETTING_KEY = 'ozkiz_store_settings';
-const SETTING_DEF = { mgr: 0, supp: 0, shop: 0, mgmt: 0 };
+const SETTING_DEF = { mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0 };
 
 function getStoreSettings() {
   try { return JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); } catch(e) { return {}; }
@@ -3957,10 +3958,14 @@ function saveSettingField(store, field, value) {
   badge._hideT = setTimeout(() => badge.classList.remove('show'), 2000);
 }
 
-function onSettingNumInput(el, store, field) {
-  const raw = el.value.replace(/[^0-9]/g, '');
-  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
-  saveSettingField(store, field, raw);
+function settingNumFocus(el) {
+  el.value = el.value.replace(/,/g, '') || '0';
+  el.select();
+}
+function settingNumBlur(el, store, field) {
+  const n = parseInt(el.value.replace(/[^0-9]/g, '')) || 0;
+  el.value = n.toLocaleString('ko-KR');
+  saveSettingField(store, field, n);
 }
 
 function renderSetting() {
@@ -3972,11 +3977,13 @@ function renderSetting() {
       <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.mgr}"
           onchange="saveSettingField('${name}','mgr',this.value)"></td>
       <td><input class="setting-input" style="width:110px" type="text" inputmode="numeric" value="${fmtSettingNum(s.supp)}"
-          oninput="onSettingNumInput(this,'${name}','supp')"></td>
+          onfocus="settingNumFocus(this)" onblur="settingNumBlur(this,'${name}','supp')"></td>
       <td><input class="setting-input" type="number" min="0" max="100" step="0.1" value="${s.shop}"
           onchange="saveSettingField('${name}','shop',this.value)"></td>
       <td><input class="setting-input" style="width:110px" type="text" inputmode="numeric" value="${fmtSettingNum(s.mgmt)}"
-          oninput="onSettingNumInput(this,'${name}','mgmt')"></td>
+          onfocus="settingNumFocus(this)" onblur="settingNumBlur(this,'${name}','mgmt')"></td>
+      <td><input class="setting-input" style="width:110px" type="text" inputmode="numeric" value="${fmtSettingNum(s.dlvy)}"
+          onfocus="settingNumFocus(this)" onblur="settingNumBlur(this,'${name}','dlvy')"></td>
     </tr>`;
   }).join('');
 }
