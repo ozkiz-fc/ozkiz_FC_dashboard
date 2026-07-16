@@ -841,6 +841,21 @@ tr:hover td{background:#f8fafc}
       📋 전체 상품 재고 리스트 <span style="font-size:11px;color:#94a3b8;font-weight:400">본사+매장 합산 · 재고 높은 순</span>
     </div>
     <div id="inv-prod-list-store" style="padding:0 24px 32px"></div>
+
+    <!-- 전략란 (단일 매장 선택 시) -->
+    <div id="inv-store-strategy" style="display:none">
+      <hr class="home-section-divider">
+      <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
+        📌 <span id="inv-strategy-label">매장명</span> 전략 메모
+      </div>
+      <div class="strategy-wrap">
+        <textarea id="inv-strategy-ta" class="strategy-ta" placeholder="재고 전략, 처분 계획, 발주 메모 등을 자유롭게 입력하세요..."></textarea>
+        <div class="strategy-footer">
+          <span>자동 저장</span>
+          <span id="inv-strategy-saved" class="strategy-saved">✓ 저장됨</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ■ 재고 통합 분석 -->
@@ -1771,7 +1786,7 @@ function switchMain(tab, subTab) {
   }
   else if (tab==='inv-store') {
     if (!invLoaded) invLoadSummary(true);
-    else renderInvStore();
+    else { renderInvStore(); renderInvStoreStrategy(); }
   }
   else if (tab==='inv-overview') {
     renderInvOverview();
@@ -4060,6 +4075,7 @@ function renderInvStore() {
   if (!INV_DATA) return;
   initInvStorePicker();
   renderInvStoreContent();
+  renderInvStoreStrategy();
 }
 
 function initInvStorePicker() {
@@ -4084,6 +4100,7 @@ function invToggleStore(name) {
     b.classList.toggle('active', invStoreSel.has(b.textContent));
   });
   renderInvStoreContent();
+  renderInvStoreStrategy();
 }
 
 function renderInvStoreContent() {
@@ -4567,6 +4584,40 @@ function initStrategy() {
     _stratTimer = setTimeout(() => {
       localStorage.setItem(STRATEGY_KEY, ta.value);
       const badge = document.getElementById('strategy-saved');
+      badge.classList.add('show');
+      clearTimeout(badge._hideT);
+      badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500);
+    }, 600);
+  });
+}
+
+// ── 매장별 재고 전략 메모 ──────────────────────────────────────────────────
+let _invStratTimer = null;
+
+function renderInvStoreStrategy() {
+  const wrap = document.getElementById('inv-store-strategy');
+  if (!wrap) return;
+  const names = Array.from(invStoreSel);
+  if (names.length !== 1) { wrap.style.display = 'none'; return; }
+
+  const storeName = names[0];
+  const key = 'ozkiz_inv_strategy_store_' + storeName;
+  const ta = document.getElementById('inv-strategy-ta');
+  const label = document.getElementById('inv-strategy-label');
+
+  label.textContent = storeName;
+  ta.value = localStorage.getItem(key) || '';
+  wrap.style.display = '';
+
+  // 새 매장으로 전환 시 이전 리스너 제거 후 재등록
+  const newTa = ta.cloneNode(true);
+  ta.parentNode.replaceChild(newTa, ta);
+  newTa.value = localStorage.getItem(key) || '';
+  newTa.addEventListener('input', () => {
+    clearTimeout(_invStratTimer);
+    _invStratTimer = setTimeout(() => {
+      localStorage.setItem(key, newTa.value);
+      const badge = document.getElementById('inv-strategy-saved');
       badge.classList.add('show');
       clearTimeout(badge._hideT);
       badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500);
