@@ -303,6 +303,23 @@ tr:hover td{background:#f8fafc}
 .strategy-footer{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:11px;color:#94a3b8}
 .strategy-saved{color:#22c55e;font-weight:600;opacity:0;transition:opacity .3s}
 .strategy-saved.show{opacity:1}
+/* ── 재고 위험 전략 ── */
+.risk-section{padding:0 24px 16px}
+.risk-section-title{font-size:13px;font-weight:700;color:#334155;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.risk-criteria{font-size:11px;color:#94a3b8;font-weight:400}
+.risk-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.risk-card.risk-done{opacity:.4}
+.risk-card-info{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.risk-card-action{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.risk-prod-name{font-size:12px;font-weight:600;color:#0ea5e9;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.risk-prod-name:hover{text-decoration:underline}
+.risk-pill-sr{font-size:11px;padding:2px 7px;border-radius:99px;background:#fee2e2;color:#dc2626;white-space:nowrap}
+.risk-pill-inv{font-size:11px;padding:2px 7px;border-radius:99px;background:#fef3c7;color:#d97706;white-space:nowrap}
+.risk-act-sel{font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;color:#334155;background:#fff;cursor:pointer}
+.risk-act-memo{flex:1;min-width:120px;font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;color:#334155;background:#fff}
+.risk-act-memo:focus,.risk-act-sel:focus{outline:none;border-color:#0ea5e9}
+.risk-badge-warn{font-size:11px;padding:2px 8px;background:#fee2e2;color:#dc2626;border-radius:99px;font-weight:700}
+.risk-badge-caution{font-size:11px;padding:2px 8px;background:#fef3c7;color:#d97706;border-radius:99px;font-weight:700}
 /* ── Auth Overlay ── */
 #auth-overlay{position:fixed;inset:0;background:#0f172a;z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center}
 .auth-box{text-align:center;padding:48px 40px;background:#1e293b;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);width:360px}
@@ -880,16 +897,7 @@ tr:hover td{background:#f8fafc}
       <div style="color:#94a3b8;font-size:13px">재고 탭을 먼저 로드해주세요.</div>
     </div>
     <hr class="home-section-divider">
-    <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
-      📌 재고 전략 메모
-    </div>
-    <div class="strategy-wrap">
-      <textarea id="strategy-ta" class="strategy-ta" placeholder="재고 전략, 처분 계획, 발주 메모 등을 자유롭게 입력하세요..."></textarea>
-      <div class="strategy-footer">
-        <span>자동 저장</span>
-        <span id="strategy-saved" class="strategy-saved">✓ 저장됨</span>
-      </div>
-    </div>
+    <div id="inv-strategy-section"></div>
   </div>
 
   <!-- ■ 세팅 -->
@@ -1865,7 +1873,7 @@ function switchMain(tab, subTab) {
   }
   else if (tab==='inv-overview') {
     renderInvOverview();
-    initStrategy();
+    renderInvStrategy();
   }
   else if (tab==='tax-total') renderTaxTotal();
   else if (tab==='tax-store') renderTaxStore();
@@ -4890,25 +4898,113 @@ function renderCostStoreContent() {
     </table>`;
 }
 
-// ── 전략 메모 ──────────────────────────────────────────────────────────────
-const STRATEGY_KEY = 'ozkiz_inv_strategy';
+// ── 재고 전략 수립 ─────────────────────────────────────────────────────────
+const STRATEGY_KEY   = 'ozkiz_inv_strategy';
+const INV_ACTION_KEY = 'ozkiz_inv_actions';
 let _stratTimer = null;
 
-function initStrategy() {
-  const ta = document.getElementById('strategy-ta');
-  if (!ta || ta._ready) return;
-  ta._ready = true;
-  ta.value = localStorage.getItem(STRATEGY_KEY) || '';
-  ta.addEventListener('input', () => {
+const RISK_WARN_SR = 25, RISK_WARN_IS = 15;
+const RISK_CAU_SR  = 40, RISK_CAU_IS  = 8;
+const INV_ACTION_TYPES = [
+  {v:'discount',l:'🏷️ 할인판매'},
+  {v:'return',  l:'📦 본사반납'},
+  {v:'event',   l:'🎪 행사투입'},
+  {v:'reorder', l:'🔄 추가발주'},
+  {v:'dispose', l:'🗑️ 폐기'},
+];
+
+function getInvActions(){try{return JSON.parse(localStorage.getItem(INV_ACTION_KEY)||'{}');}catch{return {};}}
+function saveInvActions(o){localStorage.setItem(INV_ACTION_KEY,JSON.stringify(o));}
+function setInvAction(name,type){const a=getInvActions();if(!a[name])a[name]={};a[name].type=type;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);}
+function setInvMemo(name,memo){const a=getInvActions();if(!a[name])a[name]={};a[name].memo=memo;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);}
+function toggleInvDone(name){const a=getInvActions();if(!a[name])a[name]={};a[name].done=!a[name].done;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);renderInvStrategy();}
+
+function classifyInvRisks(){
+  if(!_prodData)return{warn:[],caution:[]};
+  const warn=[],caution=[];
+  for(const p of _prodData){
+    if(p.is==null)continue;
+    const is_=p.is, sr=(p.tq+is_)>0?p.tq/(p.tq+is_)*100:0;
+    if(sr<RISK_WARN_SR&&is_>=RISK_WARN_IS)warn.push({...p,sr,is_});
+    else if(sr<RISK_CAU_SR&&is_>=RISK_CAU_IS)caution.push({...p,sr,is_});
+  }
+  warn.sort((a,b)=>b.is_-a.is_);
+  caution.sort((a,b)=>b.is_-a.is_);
+  return{warn,caution};
+}
+
+function renderInvStrategy(){
+  const el=document.getElementById('inv-strategy-section');
+  if(!el)return;
+  const actions=getInvActions();
+  const {warn,caution}=classifyInvRisks();
+
+  const ne=n=>n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const ve=v=>(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+  const actSel=name=>{
+    const cur=actions[name]?.type||'';
+    return `<select class="risk-act-sel" onchange="setInvAction('${ne(name)}',this.value)">
+      <option value="">액션 선택</option>
+      ${INV_ACTION_TYPES.map(t=>`<option value="${t.v}"${t.v===cur?' selected':''}>${t.l}</option>`).join('')}
+    </select>`;
+  };
+
+  const card=p=>{
+    const done=!!actions[p.n]?.done;
+    return `<div class="risk-card${done?' risk-done':''}">
+      <div class="risk-card-info">
+        <input type="checkbox"${done?' checked':''} onchange="toggleInvDone('${ne(p.n)}')" style="width:16px;height:16px;cursor:pointer;accent-color:#0ea5e9;flex-shrink:0">
+        ${p.img?`<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">`:''}
+        <span class="risk-prod-name" onclick="showProdTrend('${ne(p.n)}')" title="${ve(p.n)}">${p.n}</span>
+        <span class="risk-pill-sr">판매율 ${Math.round(p.sr)}%</span>
+        <span class="risk-pill-inv">매장재고 ${p.is_}개</span>
+      </div>
+      <div class="risk-card-action">
+        ${actSel(p.n)}
+        <input class="risk-act-memo" type="text" placeholder="메모..." value="${ve(actions[p.n]?.memo||'')}" oninput="setInvMemo('${ne(p.n)}',this.value)">
+      </div>
+    </div>`;
+  };
+
+  const aw=warn.filter(p=>!actions[p.n]?.done);
+  const ac=caution.filter(p=>!actions[p.n]?.done);
+  const done=[...warn,...caution].filter(p=>actions[p.n]?.done);
+
+  el.innerHTML=`
+    <div class="home-sub-title" style="display:flex;align-items:center;gap:8px;padding:0 24px;flex-wrap:wrap">
+      📌 재고 전략 수립
+      ${aw.length?`<span class="risk-badge-warn">🔴 위험 ${aw.length}건</span>`:''}
+      ${ac.length?`<span class="risk-badge-caution">🟡 주의 ${ac.length}건</span>`:''}
+      ${done.length?`<span style="font-size:11px;color:#64748b;font-weight:600">✅ 완료 ${done.length}건</span>`:''}
+    </div>
+    ${!_prodData?`<div style="color:#94a3b8;padding:8px 24px 12px;font-size:13px">⚠️ 상품 데이터를 먼저 로드해주세요 (전체 재고 또는 제품관리 탭 방문)</div>`:''}
+    ${aw.length?`<div class="risk-section">
+      <div class="risk-section-title">🔴 위험 상품 <span class="risk-criteria">판매율 &lt;${RISK_WARN_SR}% &amp; 매장재고 ≥${RISK_WARN_IS}개</span></div>
+      ${aw.map(card).join('')}
+    </div>`:''}
+    ${ac.length?`<div class="risk-section">
+      <div class="risk-section-title">🟡 주의 상품 <span class="risk-criteria">판매율 &lt;${RISK_CAU_SR}% &amp; 매장재고 ≥${RISK_CAU_IS}개</span></div>
+      ${ac.map(card).join('')}
+    </div>`:''}
+    ${_prodData&&!aw.length&&!ac.length?`<div style="color:#64748b;padding:8px 24px 12px;font-size:13px">✅ 현재 위험·주의 상품이 없습니다.</div>`:''}
+    ${done.length?`<details style="padding:0 24px 8px"><summary style="cursor:pointer;color:#94a3b8;font-size:12px;padding:4px 0;user-select:none">✅ 완료된 액션 ${done.length}건 ▸</summary><div style="margin-top:8px">${done.map(card).join('')}</div></details>`:''}
+    <hr class="home-section-divider" style="margin:8px 0">
+    <div class="home-sub-title" style="padding:0 24px">📝 전체 전략 메모</div>
+    <div class="strategy-wrap">
+      <textarea id="strategy-ta" class="strategy-ta" placeholder="재고 전략, 처분 계획, 발주 메모 등을 자유롭게 입력하세요...">${ve(localStorage.getItem(STRATEGY_KEY)||'')}</textarea>
+      <div class="strategy-footer"><span>자동 저장</span><span id="strategy-saved" class="strategy-saved">✓ 저장됨</span></div>
+    </div>`;
+
+  const ta=el.querySelector('#strategy-ta');
+  if(ta){ta.addEventListener('input',()=>{
     clearTimeout(_stratTimer);
-    _stratTimer = setTimeout(() => {
-      localStorage.setItem(STRATEGY_KEY, ta.value);
-      const badge = document.getElementById('strategy-saved');
-      badge.classList.add('show');
-      clearTimeout(badge._hideT);
-      badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500);
-    }, 600);
-  });
+    _stratTimer=setTimeout(()=>{
+      localStorage.setItem(STRATEGY_KEY,ta.value);
+      const b=document.getElementById('strategy-saved');
+      if(b){b.classList.add('show');clearTimeout(b._hideT);b._hideT=setTimeout(()=>b.classList.remove('show'),1500);}
+    },600);
+  });}
 }
 
 // ── 매장별 재고 전략 메모 ──────────────────────────────────────────────────
