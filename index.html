@@ -2538,7 +2538,10 @@ function bestSwitchView(mode) {
   document.getElementById('btn-view-table').classList.toggle('active', mode==='table');
   document.getElementById('best-view-best').style.display  = mode==='best'  ? '' : 'none';
   document.getElementById('best-view-table').style.display = mode==='table' ? '' : 'none';
-  if (mode==='table' && !_prodData) loadProdTable();
+  if (mode==='table') {
+    if (!_prodData) loadProdTable();
+    else renderProdTable();
+  }
 }
 
 function loadProdTable() {
