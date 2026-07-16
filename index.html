@@ -725,17 +725,11 @@ tr:hover td{background:#f8fafc}
     </div>
     <!-- ── 전체 상품 뷰 ── -->
     <div id="best-view-table" style="display:none">
-      <div style="display:flex;gap:8px;padding:10px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0">
-        <button id="btn-prod-sub-total" class="view-toggle-btn active" onclick="prodSwitchSub('total')">전체</button>
-        <button id="btn-prod-sub-store" class="view-toggle-btn" onclick="prodSwitchSub('store')">매장별</button>
-      </div>
-      <div id="prod-store-picker" style="display:none;flex-wrap:wrap;gap:8px;padding:14px 28px;background:#f8fafc;border-bottom:1px solid #e2e8f0"></div>
       <div id="prod-table-wrap">
         <div style="text-align:center;color:#94a3b8;padding:60px;font-size:14px">
           상단의 <strong>전체 상품</strong> 탭이 선택되면 데이터를 자동 로드합니다
         </div>
       </div>
-      <div id="prod-store-wrap" style="display:none"></div>
     </div>
   </div>
 
@@ -2494,11 +2488,6 @@ let _invProdSrch = '';
 let _invProdCat  = '';
 let _invProdPage = 50;
 
-// 제품관리 매장별 서브뷰 상태
-let _prodSubMode    = 'total';
-let _prodStoreSel   = '';
-let _prodStoreSort  = {col:'storeQty', asc:false};
-let _prodStorePage  = 50;
 const PROD_STORE_COL = [
   '남악','부천','의정부','인천','유성','여수','율하','충장',
   '동수원','송파','제주','괴정','강서','순천','평택','고척',
@@ -2580,7 +2569,6 @@ function loadProdTable() {
     }
     try { sessionStorage.setItem(ssKey, JSON.stringify(_prodData)); } catch(_) {}
     renderProdTable();
-    if (_prodSubMode === 'store') { initProdStorePicker(); if (!_prodStoreSel) _prodStoreSel = PROD_STORE_COL[0]; renderProdStoreTable(); }
   };
   document.head.appendChild(el);
 }
@@ -2590,132 +2578,6 @@ function prodForceRefresh() {
   sessionStorage.removeItem('ozkiz_prodTbl3_' + today);
   _prodData = null;
   loadProdTable();
-}
-
-// ── 제품관리 매장별 서브뷰 ─────────────────────────────────────────────────
-function prodSwitchSub(mode) {
-  _prodSubMode = mode;
-  _prodStorePage = 50;
-  document.getElementById('btn-prod-sub-total').classList.toggle('active', mode==='total');
-  document.getElementById('btn-prod-sub-store').classList.toggle('active', mode==='store');
-  document.getElementById('prod-table-wrap').style.display = mode==='total' ? '' : 'none';
-  document.getElementById('prod-store-wrap').style.display = mode==='store' ? '' : 'none';
-  document.getElementById('prod-store-picker').style.display = mode==='store' ? 'flex' : 'none';
-  if (mode === 'store') {
-    if (!_prodData) { loadProdTable(); return; }
-    initProdStorePicker();
-    if (!_prodStoreSel) _prodStoreSel = PROD_STORE_COL[0];
-    renderProdStoreTable();
-  }
-}
-
-function initProdStorePicker() {
-  const picker = document.getElementById('prod-store-picker');
-  if (picker.children.length > 0) return;
-  PROD_STORE_COL.forEach(name => {
-    const btn = document.createElement('button');
-    btn.className = 'store-pill' + (name === _prodStoreSel ? ' active' : '');
-    btn.textContent = name;
-    btn.onclick = () => {
-      _prodStoreSel = name;
-      _prodStorePage = 50;
-      document.querySelectorAll('#prod-store-picker .store-pill').forEach(b =>
-        b.classList.toggle('active', b.textContent === name));
-      renderProdStoreTable();
-    };
-    picker.appendChild(btn);
-  });
-}
-
-function prodStoreSortBy(col) {
-  if (_prodStoreSort.col === col) _prodStoreSort.asc = !_prodStoreSort.asc;
-  else { _prodStoreSort.col = col; _prodStoreSort.asc = false; }
-  renderProdStoreTable();
-}
-
-function renderProdStoreTable() {
-  const wrap = document.getElementById('prod-store-wrap');
-  if (!wrap || !_prodData) return;
-  const store = _prodStoreSel;
-  if (!store) { wrap.innerHTML = '<div style="padding:20px;color:#94a3b8">매장을 선택해주세요.</div>'; return; }
-
-  let list = _prodData.map(p => {
-    const storeQty = (p.st||{})[store] || 0;
-    const storeAmt = storeQty * (p.sp || 0);
-    const storeShare = p.tq > 0 ? Math.round(storeQty / p.tq * 100) : 0;
-    const sr = (p.is != null && p.tq > 0) ? Math.round(p.tq / (p.tq + p.is) * 100) : null;
-    return Object.assign({}, p, {storeQty, storeAmt, storeShare, sr});
-  }).filter(p => p.storeQty > 0);
-
-  const col = _prodStoreSort.col, asc = _prodStoreSort.asc;
-  list.sort((a, b) => {
-    const va = a[col]||0, vb = b[col]||0;
-    return asc ? va-vb : vb-va;
-  });
-
-  const W = n => (typeof n==='number') ? n.toLocaleString('ko-KR') : '-';
-  const sth = (label, sortCol) => {
-    const arr = _prodStoreSort.col===sortCol ? (_prodStoreSort.asc?' ▲':' ▼') : '';
-    return `<th onclick="prodStoreSortBy('${sortCol}')">${label}${arr}</th>`;
-  };
-
-  const show = list.slice(0, _prodStorePage);
-  const rows = show.map((p, i) => {
-    const costRate = p.sp > 0 ? Math.round(p.op / p.sp * 100) : null;
-    const mHtml = costRate !== null ? `<span class="${costRate<50?'marg-pos':'marg-neg'}">${costRate}%</span>` : '-';
-    const imgHtml = p.img
-      ? `<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">`
-      : `<div class="prod-img-ph">👟</div>`;
-    const catHtml = p.ca ? `<span class="cat-bdg">${p.ca}</span>` : '';
-    const nameEsc = p.n.replace(/'/g,"\\'");
-    const shareHtml = `<span style="color:${p.storeShare>=30?'#16a34a':p.storeShare>=10?'#0ea5e9':'#94a3b8'}">${p.storeShare}%</span>`;
-    const srHtml = p.sr !== null ? `<span class="${p.sr>=80?'sr-hi':p.sr>=50?'sr-mid':'sr-lo'}">${p.sr}%</span>` : '-';
-    return `<tr>
-      <td>${i+1}</td>
-      <td>${imgHtml}</td>
-      <td><button class="prod-name-btn" onclick="showProdTrend('${nameEsc}')" title="${p.n}">${p.n}</button></td>
-      <td>${catHtml}</td>
-      <td>${W(p.op)}</td>
-      <td>${W(p.sp)}</td>
-      <td>${mHtml}</td>
-      <td><strong>${W(p.storeQty)}</strong></td>
-      <td>${W(p.storeAmt)}</td>
-      <td>${shareHtml}</td>
-      <td>${srHtml}</td>
-      <td>${p.ib!=null?W(p.ib):'-'}</td>
-      <td>${p.is!=null?W(p.is):'-'}</td>
-    </tr>`;
-  }).join('');
-
-  wrap.innerHTML = `
-    <div class="prod-search-bar">
-      <span class="prod-tbl-cnt">${store} · ${list.length}개 상품 판매됨</span>
-      <span style="font-size:11px;color:#94a3b8;margin-left:8px">판매금액 = 수량 × 실판매가 추정</span>
-    </div>
-    <div class="prod-tbl-outer">
-      <table class="prod-tbl">
-        <thead><tr>
-          <th style="text-align:center;cursor:default">순위</th>
-          <th style="cursor:default"></th>
-          <th style="text-align:left;cursor:default">상품명</th>
-          <th style="text-align:left;cursor:default">카테고리</th>
-          ${sth('원가','op')}
-          ${sth('실판매가','sp')}
-          <th style="cursor:default">원가율</th>
-          ${sth('매장 판매수량','storeQty')}
-          ${sth('매장 판매금액','storeAmt')}
-          <th style="cursor:default">전체 비중</th>
-          <th style="cursor:default">판매율</th>
-          <th style="cursor:default">본사재고</th>
-          <th style="cursor:default">총 매장재고</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    ${show.length < list.length ? `<div style="text-align:center;padding:14px 0 4px">
-      <button onclick="_prodStorePage+=50;renderProdStoreTable()" style="padding:8px 28px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">더 보기 (+${Math.min(50,list.length-show.length)}개)</button>
-      <span style="font-size:11px;color:#94a3b8;margin-left:10px">${show.length} / ${list.length}개 표시</span>
-    </div>` : ''}`;
 }
 
 // ── 재고현황 전체 상품 리스트 ──────────────────────────────────────────────
