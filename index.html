@@ -2543,6 +2543,7 @@ function bestSwitchView(mode) {
   document.getElementById('btn-view-table').classList.toggle('active', mode==='table');
   document.getElementById('best-view-best').style.display  = mode==='best'  ? '' : 'none';
   document.getElementById('best-view-table').style.display = mode==='table' ? '' : 'none';
+  document.getElementById('store-picker').style.display    = bestState.tab==='store' ? 'flex' : 'none';
   if (mode==='table') {
     if (!_prodData) loadProdTable();
     else if (bestState.tab==='store') renderProdStoreView();
