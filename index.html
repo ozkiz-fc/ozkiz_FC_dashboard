@@ -1880,7 +1880,16 @@ function onTaxStoreChange() {
 
 // ── 재무회계 매출 ──
 function storeTaxRatio(name){
-  return ((getStoreSettings()[name]||SETTING_DEF).tax??100)/100;
+  const s=getStoreSettings();
+  // 1) 정확히 일치
+  if(s[name]!==undefined) return ((s[name].tax??100))/100;
+  // 2) STORE_ALIASES 별칭 (예: '나주' → '평촌')
+  const alias=STORE_ALIASES[name];
+  if(alias&&s[alias]!==undefined) return ((s[alias].tax??100))/100;
+  // 3) 접두어 일치: EZAdmin 이름이 세팅 키보다 긴 경우 (예: '부천 뉴코아_O' → '부천')
+  const shortKey=INV_STORE_ORDER.find(n=>name.startsWith(n)&&name!==n);
+  if(shortKey&&s[shortKey]!==undefined) return ((s[shortKey].tax??100))/100;
+  return (SETTING_DEF.tax??100)/100;
 }
 function taxTotAmts26(){
   return MONTHS_26.map(m=>STORE_LIST.reduce((s,n)=>s+Math.round((m.stores[n]?.amount||0)*storeTaxRatio(n)),0));
