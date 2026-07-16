@@ -939,9 +939,9 @@ tr:hover td{background:#f8fafc}
     <div class="content-area">
       <div class="chart-wrap">
         <div class="chart-title">비용 항목별 비중 (YTD 전체 매장 합산)</div>
-        <div style="display:flex;align-items:center;gap:36px;flex-wrap:wrap">
-          <div style="flex:0 0 460px;max-width:460px"><canvas id="canvas-cost-total-donut"></canvas></div>
-          <div id="cost-total-legend" style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:220px"></div>
+        <div style="display:flex;align-items:center;gap:40px;flex-wrap:wrap">
+          <div style="flex:0 0 400px;width:400px;height:400px;position:relative"><canvas id="canvas-cost-total-donut"></canvas></div>
+          <div id="cost-total-legend" style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:220px"></div>
         </div>
       </div>
       <div id="table-cost-total" class="table-wrap" style="overflow-x:auto"></div>
@@ -960,9 +960,9 @@ tr:hover td{background:#f8fafc}
     <div class="content-area">
       <div class="chart-wrap">
         <div class="chart-title" id="chart-cost-store-title">비용 항목별 비중</div>
-        <div style="display:flex;align-items:center;gap:36px;flex-wrap:wrap">
-          <div style="flex:0 0 460px;max-width:460px"><canvas id="canvas-cost-store-donut"></canvas></div>
-          <div id="cost-store-legend" style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:220px"></div>
+        <div style="display:flex;align-items:center;gap:40px;flex-wrap:wrap">
+          <div style="flex:0 0 400px;width:400px;height:400px;position:relative"><canvas id="canvas-cost-store-donut"></canvas></div>
+          <div id="cost-store-legend" style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:220px"></div>
         </div>
       </div>
       <div id="table-cost-store" class="table-wrap" style="overflow-x:auto"></div>
@@ -4690,7 +4690,7 @@ function renderCostDonut(canvasId, legendId, ytd, revenue) {
   charts[canvasId] = new Chart(document.getElementById(canvasId).getContext('2d'), {
     type: 'doughnut',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-    options: { cutout: '62%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => {
+    options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => {
       const pct = revenue ? (ctx.parsed / revenue * 100).toFixed(1) : (ctx.parsed / (values.reduce((a,b)=>a+b,1)) * 100).toFixed(1);
       return ` ${ctx.label}: ${pct}% (${Number(ctx.parsed).toLocaleString('ko-KR')}원)`;
     }}}}},
