@@ -3350,9 +3350,9 @@ function tblProfitCumulative(id){
   let rows='',tot26p=0,tot25p=0,tot26s=0,tot25s=0;
   PSTORES.forEach(name=>{
     const v26p=Math.round(PM26.reduce((s,m,i)=>s+calcContrib(name,m.stores[name]?.sales||0,i===n-1?_rp:1),0));
-    const v25p=Math.round(PM25.slice(0,n).reduce((s,m,i)=>s+calcContrib(name,m.stores[name]?.sales||0,i===n-1?_rp:1),0));
+    const v25p=Math.round(PM25.slice(0,n).reduce((s,m,i)=>{const s25=i===n-1?Math.round((m.stores[name]?.sales||0)*_rp):(m.stores[name]?.sales||0);return s+calcContrib(name,s25,i===n-1?_rp:1);},0));
     const v26s=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
-    const v25s=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+    const v25s=PM25.slice(0,n).reduce((s,m,i)=>s+(i===n-1?Math.round((m.stores[name]?.sales||0)*_rp):(m.stores[name]?.sales||0)),0);
     if(!v26s&&!v25s) return;
     tot26p+=v26p;tot25p+=v25p;tot26s+=v26s;tot25s+=v25s;
     const r26=profitRate(v26p,v26s),r25=profitRate(v25p,v25s);
@@ -3477,11 +3477,13 @@ function tblProfitDaily(id,store){
 
 function tblProfitStoreCumulative(id,store){
   const n=PM26.length;
+  const _rp=prorateRatio();
   const mon=Array.from({length:Math.max(n,4)},(_,i)=>i);
-  const d26=PM26.map(m=>({p:Math.round(calcContrib(store,m.stores?.[store]?.sales||0,1)),s:m.stores?.[store]?.sales||0}));
+  const d26=PM26.map((m,i)=>({p:Math.round(calcContrib(store,m.stores?.[store]?.sales||0,i===n-1?_rp:1)),s:m.stores?.[store]?.sales||0}));
   const d25=PM25.map(m=>({p:Math.round(calcContrib(store,m.stores?.[store]?.sales||0,1)),s:m.stores?.[store]?.sales||0}));
   const tot26p=d26.reduce((s,d)=>s+d.p,0),tot26s=d26.reduce((s,d)=>s+d.s,0);
-  const tot25p=d25.slice(0,n).reduce((s,d)=>s+d.p,0),tot25s=d25.slice(0,n).reduce((s,d)=>s+d.s,0);
+  const tot25p=PM25.slice(0,n).reduce((s,m,i)=>{const s25=i===n-1?Math.round((m.stores?.[store]?.sales||0)*_rp):(m.stores?.[store]?.sales||0);return s+Math.round(calcContrib(store,s25,i===n-1?_rp:1));},0);
+  const tot25s=PM25.slice(0,n).reduce((s,m,i)=>s+(i===n-1?Math.round((m.stores?.[store]?.sales||0)*_rp):(m.stores?.[store]?.sales||0)),0);
   const cv=(p,s)=>`<div style="color:${p<0?'#dc2626':'#334155'}">${p?Math.round(p).toLocaleString('ko-KR')+'원':'-'}</div><div style="font-size:12px;color:#94a3b8">${profitRate(p,s)!==null?profitRate(p,s).toFixed(1)+'%':''}</div>`;
   document.getElementById(id).innerHTML=`
     <table><thead><tr>
@@ -3540,8 +3542,15 @@ function chartProfitWeekly(cid,store){
 
 function chartProfitCumulativeLine(cid,store){
   killChart(cid);
-  const d25=MLABELS.map((_,i)=>Math.round(store?calcContrib(store,PM25[i]?.stores?.[store]?.sales||0,1):totalContrib(PM25[i]?.stores,1)));
-  const d26=MLABELS.map((_,i)=>i<PM26.length?Math.round(store?calcContrib(store,PM26[i]?.stores?.[store]?.sales||0,1):totalContrib(PM26[i]?.stores,1)):null);
+  const _rp=prorateRatio(),nP26=PM26.length;
+  let cum25=0,cum26=0;
+  const d25=MLABELS.map((_,i)=>{cum25+=Math.round(store?calcContrib(store,PM25[i]?.stores?.[store]?.sales||0,1):totalContrib(PM25[i]?.stores,1));return cum25;});
+  const d26=MLABELS.map((_,i)=>{
+    if(i>=nP26)return null;
+    const mf=i===nP26-1?_rp:1;
+    cum26+=Math.round(store?calcContrib(store,PM26[i]?.stores?.[store]?.sales||0,mf):totalContrib(PM26[i]?.stores,mf));
+    return cum26;
+  });
   charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
     type:'line',
     data:{labels:MLABELS,datasets:[
