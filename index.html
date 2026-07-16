@@ -4522,7 +4522,7 @@ function fmtSettingNum(v) {
 function saveSettingField(store, field, value) {
   const all = getStoreSettings();
   if (!all[store]) all[store] = Object.assign({}, SETTING_DEF);
-  all[store][field] = parseFloat(String(value).replace(/,/g,'')) || 0;
+  all[store][field] = field === 'intrDate' ? (value || '') : (parseFloat(String(value).replace(/,/g,'')) || 0);
   localStorage.setItem(SETTING_KEY, JSON.stringify(all));
   const badge = document.getElementById('setting-saved');
   badge.classList.add('show');
