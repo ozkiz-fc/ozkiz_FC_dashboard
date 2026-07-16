@@ -4672,13 +4672,29 @@ function renderCostDonut(canvasId, legendId, ytd, revenue) {
   const colors = [...COST_CATS.map(c => c.color), '#22c55e'];
   const values = [...COST_CATS.map(c => ytd[c.key] || 0), Math.max(0, ytd.contrib || 0)];
   killChart(canvasId);
+  const fmtCenter = v => v >= 1e8
+    ? Math.round(v/1e8).toLocaleString() + '억원'
+    : Math.round(v/1e4).toLocaleString() + '만원';
+  const centerPlugin = { id: 'costCenter_'+canvasId, afterDraw(chart) {
+    if (!revenue) return;
+    const { ctx, chartArea: { left, top, width, height } } = chart;
+    const cx = left + width/2, cy = top + height/2;
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '13px sans-serif'; ctx.fillStyle = '#94a3b8';
+    ctx.fillText('YTD 매출', cx, cy - 16);
+    ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#0f172a';
+    ctx.fillText(fmtCenter(revenue), cx, cy + 12);
+    ctx.restore();
+  }};
   charts[canvasId] = new Chart(document.getElementById(canvasId).getContext('2d'), {
     type: 'doughnut',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
-    options: { cutout: '60%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => {
+    options: { cutout: '62%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => {
       const pct = revenue ? (ctx.parsed / revenue * 100).toFixed(1) : (ctx.parsed / (values.reduce((a,b)=>a+b,1)) * 100).toFixed(1);
       return ` ${ctx.label}: ${pct}% (${Number(ctx.parsed).toLocaleString('ko-KR')}원)`;
-    }}}}}
+    }}}}},
+    plugins: [centerPlugin]
   });
   const allCats = [...COST_CATS, { label: '공헌이익', color: '#22c55e', key: 'contrib' }];
   document.getElementById(legendId).innerHTML = allCats.map(c => {
