@@ -890,6 +890,7 @@ tr:hover td{background:#f8fafc}
               <th>재무회계비율 (%)</th>
               <th>인테리어 금액 (원)</th>
               <th>감가상각 기간 (월)</th>
+              <th>인테리어 시공일</th>
             </tr>
           </thead>
           <tbody id="setting-tbody"></tbody>
@@ -3187,7 +3188,15 @@ function storeVarRate(name){
 }
 function storeFixed(name){
   const s=getStoreSettings()[name]||SETTING_DEF;
-  const intrDepreciation=Math.round((s.intr||0)/(s.intrMo||24));
+  let intrDepreciation=0;
+  if (s.intr && s.intrMo) {
+    const elapsed = s.intrDate
+      ? (new Date().getFullYear()-new Date(s.intrDate).getFullYear())*12
+        + (new Date().getMonth()-new Date(s.intrDate).getMonth())
+      : 0;
+    if (!s.intrDate || elapsed < s.intrMo)
+      intrDepreciation = Math.round((s.intr||0)/(s.intrMo||24));
+  }
   return s.supp+s.mgmt+intrDepreciation;
 }
 function calcContrib(name,sales,monthFrac){
@@ -4483,7 +4492,7 @@ function authStart() {
 
 // ── 세팅 ──────────────────────────────────────────────────────────────────
 const SETTING_KEY = 'ozkiz_store_settings';
-const SETTING_DEF = { cost: 0, mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0, tax: 100, intr: 0, intrMo: 24 };
+const SETTING_DEF = { cost: 0, mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0, tax: 100, intr: 0, intrMo: 24, intrDate: '' };
 
 function getStoreSettings() {
   try { return JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); } catch(e) { return {}; }
@@ -4538,6 +4547,8 @@ function renderSetting() {
           onfocus="settingNumFocus(this)" onblur="settingNumBlur(this,'${name}','intr')"></td>
       <td><input class="setting-input" style="width:70px" type="number" min="1" step="1" value="${s.intrMo??24}"
           onchange="saveSettingField('${name}','intrMo',this.value)"></td>
+      <td><input class="setting-input" style="width:120px" type="date" value="${s.intrDate||''}"
+          onchange="saveSettingField('${name}','intrDate',this.value)"></td>
     </tr>`;
   }).join('');
 }
