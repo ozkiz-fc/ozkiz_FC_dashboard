@@ -977,7 +977,20 @@ tr:hover td{background:#f8fafc}
 // ════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfpCkdx5mp3sBkgjA1IMsNdJNl24D4tow7wwhVsAkdrjDz2uyUp7-bZhFv4OG3whFa/exec';
 const CACHE_TTL = 60 * 60 * 1000; // 세션 캐시 60분
-const STORE_ALIASES = {'나주':'평촌', '평촌(이랜드)':'평촌'};
+const STORE_ALIASES = {
+  // EZAdmin 전체명 → 세팅/공헌이익 키 매핑
+  '(롯)남악_O':   '남악',
+  '부천 뉴코아_O': '부천',
+  '(신)의정부':   '의정부',
+  '앨리웨이':     '인천',
+  '유성 NC':      '유성',
+  '(롯)율하_O':   '율하',
+  '강서 NC':      '강서',
+  '현풍':         'STCO현풍',
+  '면세':         '면세점',
+  '나주':         '평촌',
+  '평촌(이랜드)': '평촌',
+};
 // EZAdmin STORE_LIST에서 숨길 매장 (롯데 평촌)
 const STORE_HIDDEN_EZADMIN = new Set(['평촌']);
 // getProfit API PSTORES에서 숨길 매장
