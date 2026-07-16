@@ -989,10 +989,10 @@ const STORE_ALIASES = {
   '현풍':         'STCO현풍',
   '나주':         'STCO용인',   // EZAdmin에서 나주로 등록됐다가 용인으로 명칭 변경
   '면세':         '면세점',
-  '평촌(이랜드)': '평촌',
 };
-// EZAdmin STORE_LIST에서 숨길 매장: 롯데 평촌 (종료)
-const STORE_HIDDEN_EZADMIN = new Set(['평촌']);
+// EZAdmin STORE_LIST에서 숨길 매장
+// '평촌(이랜드)': 데이터 없는 빈 항목, 실제 (이)평촌 데이터는 '평촌' 키에 있음
+const STORE_HIDDEN_EZADMIN = new Set(['평촌(이랜드)']);
 // getProfit API PSTORES에서 숨길 매장
 const STORE_HIDDEN_PROFIT  = new Set(['(롯)평촌']);
 function sname(n){return STORE_ALIASES[n]||n;}
