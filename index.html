@@ -443,7 +443,7 @@ tr:hover td{background:#f8fafc}
         <button class="nav-sub-item" id="nav-inv-store" onclick="switchMain('inv-store')">
           <span class="nav-sub-dot">●</span> 매장별 재고
         </button>
-        <button class="nav-sub-item" id="nav-inv-overview" onclick="switchMain('inv-overview')">
+        <button class="nav-sub-item" id="nav-inv-overview" onclick="switchMain('inv-overview')" style="display:none">
           <span class="nav-sub-dot">●</span> 통합 분석
         </button>
       </div>
@@ -839,6 +839,8 @@ tr:hover td{background:#f8fafc}
       📋 전체 상품 재고 리스트 <span style="font-size:11px;color:#94a3b8;font-weight:400">본사+매장 합산 · 재고 높은 순</span>
     </div>
     <div id="inv-prod-list-all" style="padding:0 24px 32px"></div>
+    <hr class="home-section-divider">
+    <div id="inv-strategy-section"></div>
   </div>
 
   <!-- ■ 재고현황 · 매장별 -->
@@ -873,16 +875,7 @@ tr:hover td{background:#f8fafc}
     <!-- 전략란 (단일 매장 선택 시) -->
     <div id="inv-store-strategy" style="display:none">
       <hr class="home-section-divider">
-      <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
-        📌 <span id="inv-strategy-label">매장명</span> 전략 메모
-      </div>
-      <div class="strategy-wrap">
-        <textarea id="inv-strategy-ta" class="strategy-ta" placeholder="재고 전략, 처분 계획, 발주 메모 등을 자유롭게 입력하세요..."></textarea>
-        <div class="strategy-footer">
-          <span>자동 저장</span>
-          <span id="inv-strategy-saved" class="strategy-saved">✓ 저장됨</span>
-        </div>
-      </div>
+      <div id="inv-store-strategy-content"></div>
     </div>
   </div>
 
@@ -1866,14 +1859,14 @@ function switchMain(tab, subTab) {
   else if (tab==='inv-total') {
     if (!invLoaded) invLoadSummary(false);
     else renderInvTotal();
+    renderInvStrategy();
   }
   else if (tab==='inv-store') {
     if (!invLoaded) invLoadSummary(true);
     else { renderInvStore(); renderInvStoreStrategy(); }
   }
   else if (tab==='inv-overview') {
-    renderInvOverview();
-    renderInvStrategy();
+    switchMain('inv-total');
   }
   else if (tab==='tax-total') renderTaxTotal();
   else if (tab==='tax-store') renderTaxStore();
@@ -2802,6 +2795,8 @@ function loadInvProdTable(cid) {
     _prodData = data.products || [];
     try { sessionStorage.setItem(ssKey, JSON.stringify(_prodData)); } catch(_) {}
     renderInvProdList(cid);
+    if (state.main==='inv-total') renderInvStrategy();
+    if (state.main==='inv-store') renderInvStoreStrategy();
   };
   document.head.appendChild(sc);
 }
@@ -4917,7 +4912,7 @@ function getInvActions(){try{return JSON.parse(localStorage.getItem(INV_ACTION_K
 function saveInvActions(o){localStorage.setItem(INV_ACTION_KEY,JSON.stringify(o));}
 function setInvAction(name,type){const a=getInvActions();if(!a[name])a[name]={};a[name].type=type;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);}
 function setInvMemo(name,memo){const a=getInvActions();if(!a[name])a[name]={};a[name].memo=memo;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);}
-function toggleInvDone(name){const a=getInvActions();if(!a[name])a[name]={};a[name].done=!a[name].done;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);renderInvStrategy();}
+function toggleInvDone(name){const a=getInvActions();if(!a[name])a[name]={};a[name].done=!a[name].done;a[name].updatedAt=new Date().toISOString().slice(0,10);saveInvActions(a);if(state.main==='inv-store')renderInvStoreStrategy();else renderInvStrategy();}
 
 function classifyInvRisks(){
   if(!_prodData)return{warn:[],caution:[]};
@@ -5007,7 +5002,7 @@ function renderInvStrategy(){
   });}
 }
 
-// ── 매장별 재고 전략 메모 ──────────────────────────────────────────────────
+// ── 매장별 재고 전략 ───────────────────────────────────────────────────────
 let _invStratTimer = null;
 
 function renderInvStoreStrategy() {
@@ -5017,28 +5012,90 @@ function renderInvStoreStrategy() {
   if (names.length !== 1) { wrap.style.display = 'none'; return; }
 
   const storeName = names[0];
-  const key = 'ozkiz_inv_strategy_store_' + storeName;
-  const ta = document.getElementById('inv-strategy-ta');
-  const label = document.getElementById('inv-strategy-label');
-
-  label.textContent = storeName;
-  ta.value = localStorage.getItem(key) || '';
   wrap.style.display = '';
 
-  // 새 매장으로 전환 시 이전 리스너 제거 후 재등록
-  const newTa = ta.cloneNode(true);
-  ta.parentNode.replaceChild(newTa, ta);
-  newTa.value = localStorage.getItem(key) || '';
-  newTa.addEventListener('input', () => {
-    clearTimeout(_invStratTimer);
-    _invStratTimer = setTimeout(() => {
-      localStorage.setItem(key, newTa.value);
-      const badge = document.getElementById('inv-strategy-saved');
-      badge.classList.add('show');
-      clearTimeout(badge._hideT);
-      badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500);
-    }, 600);
-  });
+  const content = document.getElementById('inv-store-strategy-content');
+  if (!content) return;
+
+  const actions = getInvActions();
+  const ne = n => n.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const ve = v => (v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+  const actSel = name => {
+    const cur = actions[name]?.type||'';
+    return `<select class="risk-act-sel" onchange="setInvAction('${ne(name)}',this.value)">
+      <option value="">액션 선택</option>
+      ${INV_ACTION_TYPES.map(t=>`<option value="${t.v}"${t.v===cur?' selected':''}>${t.l}</option>`).join('')}
+    </select>`;
+  };
+
+  const card = p => {
+    const isDone = !!actions[p.n]?.done;
+    const stQty = p.st?.[storeName]||0;
+    return `<div class="risk-card${isDone?' risk-done':''}">
+      <div class="risk-card-info">
+        <input type="checkbox"${isDone?' checked':''} onchange="toggleInvDone('${ne(p.n)}')" style="width:16px;height:16px;cursor:pointer;accent-color:#0ea5e9;flex-shrink:0">
+        ${p.img?`<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">`:''}
+        <span class="risk-prod-name" onclick="showProdTrend('${ne(p.n)}')" title="${ve(p.n)}">${p.n}</span>
+        <span class="risk-pill-sr">전체판매율 ${Math.round(p.sr)}%</span>
+        <span class="risk-pill-inv">전체매장재고 ${p.is_}개</span>
+        ${stQty?`<span style="font-size:11px;padding:2px 7px;border-radius:99px;background:#e0f2fe;color:#0369a1;white-space:nowrap">이 매장 ${stQty}개 판매</span>`:''}
+      </div>
+      <div class="risk-card-action">
+        ${actSel(p.n)}
+        <input class="risk-act-memo" type="text" placeholder="메모..." value="${ve(actions[p.n]?.memo||'')}" oninput="setInvMemo('${ne(p.n)}',this.value)">
+      </div>
+    </div>`;
+  };
+
+  let aw=[], ac=[], doneItems=[];
+  if (_prodData) {
+    const {warn,caution} = classifyInvRisks();
+    const hasStore = p => p.st && (p.st[storeName]||0) > 0;
+    const sw = warn.filter(hasStore), sc = caution.filter(hasStore);
+    aw = sw.filter(p=>!actions[p.n]?.done);
+    ac = sc.filter(p=>!actions[p.n]?.done);
+    doneItems = [...sw,...sc].filter(p=>actions[p.n]?.done);
+  }
+
+  const memoKey = 'ozkiz_inv_strategy_store_' + storeName;
+
+  content.innerHTML = `
+    <div class="home-sub-title" style="display:flex;align-items:center;gap:8px;padding:0 24px;flex-wrap:wrap">
+      📌 ${storeName} 전략 수립
+      ${aw.length?`<span class="risk-badge-warn">🔴 위험 ${aw.length}건</span>`:''}
+      ${ac.length?`<span class="risk-badge-caution">🟡 주의 ${ac.length}건</span>`:''}
+      ${doneItems.length?`<span style="font-size:11px;color:#64748b;font-weight:600">✅ 완료 ${doneItems.length}건</span>`:''}
+    </div>
+    ${!_prodData?`<div style="color:#94a3b8;padding:8px 24px 12px;font-size:13px">⚠️ 상품 데이터를 먼저 로드해주세요 (전체 재고 탭 방문)</div>`:''}
+    ${aw.length?`<div class="risk-section">
+      <div class="risk-section-title">🔴 위험 상품 <span class="risk-criteria">판매율 &lt;${RISK_WARN_SR}% &amp; 매장재고 ≥${RISK_WARN_IS}개</span></div>
+      ${aw.map(card).join('')}
+    </div>`:''}
+    ${ac.length?`<div class="risk-section">
+      <div class="risk-section-title">🟡 주의 상품 <span class="risk-criteria">판매율 &lt;${RISK_CAU_SR}% &amp; 매장재고 ≥${RISK_CAU_IS}개</span></div>
+      ${ac.map(card).join('')}
+    </div>`:''}
+    ${_prodData&&!aw.length&&!ac.length?`<div style="color:#64748b;padding:8px 24px 12px;font-size:13px">✅ ${storeName}에 해당하는 위험·주의 상품이 없습니다.</div>`:''}
+    ${doneItems.length?`<details style="padding:0 24px 8px"><summary style="cursor:pointer;color:#94a3b8;font-size:12px;padding:4px 0;user-select:none">✅ 완료된 액션 ${doneItems.length}건 ▸</summary><div style="margin-top:8px">${doneItems.map(card).join('')}</div></details>`:''}
+    <hr class="home-section-divider" style="margin:8px 0">
+    <div class="home-sub-title" style="padding:0 24px">📝 ${storeName} 전략 메모</div>
+    <div class="strategy-wrap">
+      <textarea id="inv-strategy-ta" class="strategy-ta" placeholder="재고 전략, 처분 계획, 발주 메모 등을 자유롭게 입력하세요...">${ve(localStorage.getItem(memoKey)||'')}</textarea>
+      <div class="strategy-footer"><span>자동 저장</span><span id="inv-strategy-saved" class="strategy-saved">✓ 저장됨</span></div>
+    </div>`;
+
+  const ta = content.querySelector('#inv-strategy-ta');
+  if (ta) {
+    ta.addEventListener('input', () => {
+      clearTimeout(_invStratTimer);
+      _invStratTimer = setTimeout(() => {
+        localStorage.setItem(memoKey, ta.value);
+        const b = document.getElementById('inv-strategy-saved');
+        if (b) { b.classList.add('show'); clearTimeout(b._hideT); b._hideT = setTimeout(()=>b.classList.remove('show'),1500); }
+      }, 600);
+    });
+  }
 }
 
 window.addEventListener('load', authStart);
