@@ -982,17 +982,17 @@ const STORE_ALIASES = {
   '(롯)남악_O':   '남악',
   '부천 뉴코아_O': '부천',
   '(신)의정부':   '의정부',
-  '앨리웨이':     'STCO용인',
+  '앨리웨이':     '인천',
   '유성 NC':      '유성',
   '(롯)율하_O':   '율하',
   '강서 NC':      '강서',
   '현풍':         'STCO현풍',
+  '나주':         'STCO용인',   // EZAdmin에서 나주로 등록됐다가 용인으로 명칭 변경
   '면세':         '면세점',
   '평촌(이랜드)': '평촌',
 };
-// EZAdmin STORE_LIST에서 숨길 매장
-// '평촌': 롯데 평촌 (종료), '나주': 구 통합 평촌 entry (롯데+이랜드 합산, 3월말 종료)
-const STORE_HIDDEN_EZADMIN = new Set(['평촌', '나주']);
+// EZAdmin STORE_LIST에서 숨길 매장: 롯데 평촌 (종료)
+const STORE_HIDDEN_EZADMIN = new Set(['평촌']);
 // getProfit API PSTORES에서 숨길 매장
 const STORE_HIDDEN_PROFIT  = new Set(['(롯)평촌']);
 function sname(n){return STORE_ALIASES[n]||n;}
