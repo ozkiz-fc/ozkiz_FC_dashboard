@@ -806,6 +806,11 @@ tr:hover td{background:#f8fafc}
       ⚠️ 재고 적체 <span style="font-size:11px;color:#94a3b8;font-weight:400">완판 12주 이상 · 미판매 포함 · WOS 높은 순</span>
     </div>
     <div class="table-wrap" id="inv-stuck-wrap"></div>
+    <hr class="home-section-divider">
+    <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
+      📋 전체 상품 재고 리스트 <span style="font-size:11px;color:#94a3b8;font-weight:400">본사+매장 합산 · 재고 높은 순</span>
+    </div>
+    <div id="inv-prod-list-all" style="padding:0 24px 32px"></div>
   </div>
 
   <!-- ■ 재고현황 · 매장별 -->
@@ -831,6 +836,11 @@ tr:hover td{background:#f8fafc}
       </div>
       <div id="table-inv-top" class="table-wrap"></div>
     </div>
+    <hr class="home-section-divider">
+    <div class="home-sub-title" style="display:flex;align-items:center;gap:12px">
+      📋 전체 상품 재고 리스트 <span style="font-size:11px;color:#94a3b8;font-weight:400">본사+매장 합산 · 재고 높은 순</span>
+    </div>
+    <div id="inv-prod-list-store" style="padding:0 24px 32px"></div>
   </div>
 
   <!-- ■ 재고 통합 분석 -->
@@ -871,13 +881,15 @@ tr:hover td{background:#f8fafc}
           <thead>
             <tr>
               <th>매장</th>
-              <th>원가 (%)</th>
+              <th>판매원가 (%)</th>
               <th>매니저수수료 (%)</th>
               <th>지원금 (원/월)</th>
               <th>점포수수료 (%)</th>
               <th>관리비 (원/월)</th>
               <th>운반비 (%)</th>
               <th>재무회계비율 (%)</th>
+              <th>인테리어 금액 (원)</th>
+              <th>감가상각 기간 (월)</th>
             </tr>
           </thead>
           <tbody id="setting-tbody"></tbody>
@@ -2469,6 +2481,12 @@ let _prodSort = {col:'ta', asc:false};
 let _prodSrch = '';
 let _prodCatFilter = '';
 let _prodPageSize = 50;
+
+// 재고현황 상품 리스트 상태
+let _invProdSort = {col:'totalInv', asc:false};
+let _invProdSrch = '';
+let _invProdCat  = '';
+let _invProdPage = 50;
 const PROD_STORE_COL = [
   '남악','부천','의정부','인천','유성','여수','율하','충장',
   '동수원','송파','제주','괴정','강서','순천','평택','고척',
@@ -2559,6 +2577,134 @@ function prodForceRefresh() {
   sessionStorage.removeItem('ozkiz_prodTbl3_' + today);
   _prodData = null;
   loadProdTable();
+}
+
+// ── 재고현황 전체 상품 리스트 ──────────────────────────────────────────────
+function loadInvProdTable(cid) {
+  const el = document.getElementById(cid);
+  if (!el) return;
+  if (_prodData) { renderInvProdList(cid); return; }
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;font-size:14px">📦 상품 데이터 로드 중... (첫 로드 시 30~60초 소요)</div>';
+  const ssKey = 'ozkiz_prodTbl3_' + new Date().toISOString().slice(0,10);
+  try {
+    const cached = sessionStorage.getItem(ssKey);
+    if (cached) { _prodData = JSON.parse(cached); renderInvProdList(cid); return; }
+  } catch(_) {}
+  const cb = '_invPtCb' + Date.now();
+  const sc = document.createElement('script');
+  sc.src = INV_API_URL + '?action=getProductTable&callback=' + cb;
+  window[cb] = function(data) {
+    delete window[cb]; sc.remove();
+    if (data.error) { el.innerHTML = `<div style="padding:20px;color:#ef4444">오류: ${data.error}</div>`; return; }
+    _prodData = data.products || [];
+    try { sessionStorage.setItem(ssKey, JSON.stringify(_prodData)); } catch(_) {}
+    renderInvProdList(cid);
+  };
+  document.head.appendChild(sc);
+}
+
+function invProdSortBy(col, cid) {
+  if (_invProdSort.col === col) _invProdSort.asc = !_invProdSort.asc;
+  else { _invProdSort.col = col; _invProdSort.asc = false; }
+  renderInvProdList(cid);
+}
+
+function invProdForceRefresh(cid) {
+  sessionStorage.removeItem('ozkiz_prodTbl3_' + new Date().toISOString().slice(0,10));
+  _prodData = null;
+  _invProdSrch = ''; _invProdCat = ''; _invProdPage = 50;
+  _invProdSort = {col:'totalInv', asc:false};
+  loadInvProdTable(cid);
+}
+
+function renderInvProdList(cid) {
+  const el = document.getElementById(cid);
+  if (!el || !_prodData) return;
+
+  const srch = _invProdSrch.toLowerCase();
+  let list = _prodData.filter(p =>
+    (!srch || p.n.toLowerCase().includes(srch)) &&
+    (!_invProdCat || p.ca === _invProdCat)
+  );
+
+  const col = _invProdSort.col, asc = _invProdSort.asc;
+  list = list.slice().sort((a, b) => {
+    let va, vb;
+    if (col === 'totalInv') { va=(a.ib||0)+(a.is||0); vb=(b.ib||0)+(b.is||0); }
+    else if (col === 'ib')  { va=a.ib||0; vb=b.ib||0; }
+    else if (col === 'is')  { va=a.is||0; vb=b.is||0; }
+    else { va=a[col]||0; vb=b[col]||0; }
+    return asc ? va-vb : vb-va;
+  });
+
+  const W  = n => (typeof n==='number') ? n.toLocaleString('ko-KR') : (n||'-');
+  const ith = (label, sortCol) => {
+    const arr = _invProdSort.col===sortCol ? (_invProdSort.asc?' ▲':' ▼') : '';
+    return `<th onclick="invProdSortBy('${sortCol}','${cid}')">${label}${arr}</th>`;
+  };
+
+  const cats = [...new Set(_prodData.map(p=>p.ca).filter(Boolean))].sort();
+  const catOpts = cats.map(c =>
+    `<option value="${c}"${c===_invProdCat?' selected':''}>${c}</option>`).join('');
+
+  const storeHdrHtml = PROD_STORE_COL.map(s => {
+    const abbr = PROD_STORE_SHORT[s]||s.slice(0,2);
+    return `<div class="sbc-hdr-itm" title="${s}">${abbr}</div>`;
+  }).join('');
+
+  const show = list.slice(0, _invProdPage);
+  const rows = show.map((p, i) => {
+    const totalInv = (p.ib||0)+(p.is||0);
+    const imgHtml  = p.img
+      ? `<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">`
+      : `<div class="prod-img-ph">👟</div>`;
+    const catHtml  = p.ca ? `<span class="cat-bdg">${p.ca}</span>` : '';
+    const nameEsc  = p.n.replace(/'/g,"\\'");
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${imgHtml}</td>
+      <td><button class="prod-name-btn" onclick="showProdTrend('${nameEsc}')" title="${p.n}">${p.n}</button></td>
+      <td>${catHtml}</td>
+      <td>${W(p.op)}</td>
+      <td style="padding:1px 4px">${buildDistBar(p.st,p.tq)}</td>
+      <td>${W(p.tq)}</td>
+      <td>${p.ib!=null?W(p.ib):'-'}</td>
+      <td>${p.is!=null?W(p.is):'-'}</td>
+      <td><strong>${totalInv>0?W(totalInv):'-'}</strong></td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="prod-search-bar">
+      <input class="prod-search-input" type="text" placeholder="상품명 검색..." value="${_invProdSrch}"
+        oninput="_invProdSrch=this.value;_invProdPage=50;renderInvProdList('${cid}')">
+      <select class="prod-cat-sel" onchange="_invProdCat=this.value;_invProdPage=50;renderInvProdList('${cid}')">
+        <option value="">전체 카테고리</option>${catOpts}
+      </select>
+      <span class="prod-tbl-cnt">${list.length}개 상품</span>
+      <button onclick="invProdForceRefresh('${cid}')" style="margin-left:auto;padding:4px 11px;border:1.5px solid #e2e8f0;border-radius:7px;background:#fff;cursor:pointer;font:inherit;font-size:12px;color:#64748b">🔄 새로고침</button>
+    </div>
+    <div class="prod-tbl-outer">
+      <table class="prod-tbl">
+        <thead><tr>
+          <th style="text-align:center;cursor:default">순위</th>
+          <th style="cursor:default"></th>
+          <th style="text-align:left;cursor:default">상품명</th>
+          <th style="text-align:left;cursor:default">카테고리</th>
+          ${ith('원가','op')}
+          <th style="cursor:default;min-width:244px;vertical-align:bottom;padding:4px 4px 0"><div class="sbc-hdr">${storeHdrHtml}</div></th>
+          ${ith('합계판매','tq')}
+          ${ith('본사재고','ib')}
+          ${ith('매장재고','is')}
+          ${ith('합계재고','totalInv')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${show.length<list.length ? `<div style="text-align:center;padding:14px 0 4px">
+      <button onclick="_invProdPage+=50;renderInvProdList('${cid}')" style="padding:8px 28px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">더 보기 (+${Math.min(50,list.length-show.length)}개)</button>
+      <span style="font-size:11px;color:#94a3b8;margin-left:10px">${show.length} / ${list.length}개 표시</span>
+    </div>` : ''}`;
 }
 
 function renderProdTable() {
@@ -2948,7 +3094,8 @@ function storeVarRate(name){
 }
 function storeFixed(name){
   const s=getStoreSettings()[name]||SETTING_DEF;
-  return s.supp+s.mgmt;
+  const intrDepreciation=Math.round((s.intr||0)/(s.intrMo||24));
+  return s.supp+s.mgmt+intrDepreciation;
 }
 function calcContrib(name,sales,monthFrac){
   return sales*(1-storeVarRate(name))-storeFixed(name)*(monthFrac||0);
@@ -3433,6 +3580,7 @@ function renderInvTotal() {
     chartInvBars('canvas-inv-bar', lat.stores);
   }
   invLoadProductsAll();
+  loadInvProdTable('inv-prod-list-all');
 }
 
 function chartInvTrend(cid, labels, totalData, storeData, costData) {
@@ -3907,6 +4055,7 @@ function renderInvStoreContent() {
     tbl.innerHTML = '<div style="padding:32px;color:#94a3b8;text-align:center;font-size:14px">매장을 1개만 선택하면 제품별 재고를 볼 수 있습니다.</div>';
     killChart('canvas-inv-cat');
   }
+  loadInvProdTable('inv-prod-list-store');
 }
 
 function chartInvStoreTrend(cid, labels, qtyData, costData) {
@@ -4241,7 +4390,7 @@ function authStart() {
 
 // ── 세팅 ──────────────────────────────────────────────────────────────────
 const SETTING_KEY = 'ozkiz_store_settings';
-const SETTING_DEF = { cost: 0, mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0, tax: 100 };
+const SETTING_DEF = { cost: 0, mgr: 0, supp: 0, shop: 0, mgmt: 0, dlvy: 0, tax: 100, intr: 0, intrMo: 24 };
 
 function getStoreSettings() {
   try { return JSON.parse(localStorage.getItem(SETTING_KEY) || '{}'); } catch(e) { return {}; }
@@ -4292,6 +4441,10 @@ function renderSetting() {
           onchange="saveSettingField('${name}','dlvy',this.value)"></td>
       <td><input class="setting-input" type="number" min="0" max="100" step="0.01" value="${s.tax??100}"
           onchange="saveSettingField('${name}','tax',this.value)"></td>
+      <td><input class="setting-input" style="width:120px" type="text" inputmode="numeric" value="${fmtSettingNum(s.intr)}"
+          onfocus="settingNumFocus(this)" onblur="settingNumBlur(this,'${name}','intr')"></td>
+      <td><input class="setting-input" style="width:70px" type="number" min="1" step="1" value="${s.intrMo??24}"
+          onchange="saveSettingField('${name}','intrMo',this.value)"></td>
     </tr>`;
   }).join('');
 }
