@@ -3261,11 +3261,12 @@ function storeFixed(name){
   const s=getStoreSettings()[name]||SETTING_DEF;
   let intrDepreciation=0;
   if (s.intr && s.intrMo) {
-    const elapsed = s.intrDate
-      ? (new Date().getFullYear()-new Date(s.intrDate).getFullYear())*12
-        + (new Date().getMonth()-new Date(s.intrDate).getMonth())
+    const hasDate = s.intrDate && String(s.intrDate).includes('-');
+    const elapsed = hasDate
+      ? (new Date().getFullYear()-new Date(String(s.intrDate)).getFullYear())*12
+        + (new Date().getMonth()-new Date(String(s.intrDate)).getMonth())
       : 0;
-    if (!s.intrDate || elapsed < s.intrMo)
+    if (!hasDate || elapsed < s.intrMo)
       intrDepreciation = Math.round((s.intr||0)/(s.intrMo||24));
   }
   return s.supp+s.mgmt+intrDepreciation;
@@ -4649,11 +4650,12 @@ function storeCostBreakdown(name, sales, monthFrac) {
   const mgmt = Math.round((s.mgmt || 0) * mf);
   let intrDep = 0;
   if (s.intr && s.intrMo) {
-    const elapsed = s.intrDate
-      ? (new Date().getFullYear() - new Date(s.intrDate).getFullYear()) * 12
-        + (new Date().getMonth() - new Date(s.intrDate).getMonth())
+    const hasDate = s.intrDate && String(s.intrDate).includes('-');
+    const elapsed = hasDate
+      ? (new Date().getFullYear() - new Date(String(s.intrDate)).getFullYear()) * 12
+        + (new Date().getMonth() - new Date(String(s.intrDate)).getMonth())
       : 0;
-    if (!s.intrDate || elapsed < s.intrMo)
+    if (!hasDate || elapsed < s.intrMo)
       intrDep = Math.round((s.intr || 0) / (s.intrMo || 24));
   }
   const intr = Math.round(intrDep * mf);
