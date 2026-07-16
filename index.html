@@ -977,7 +977,11 @@ tr:hover td{background:#f8fafc}
 // ════════════════════════════════════════════════
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfpCkdx5mp3sBkgjA1IMsNdJNl24D4tow7wwhVsAkdrjDz2uyUp7-bZhFv4OG3whFa/exec';
 const CACHE_TTL = 60 * 60 * 1000; // 세션 캐시 60분
-const STORE_ALIASES = {'나주':'평촌'};
+const STORE_ALIASES = {'나주':'평촌', '평촌(이랜드)':'평촌'};
+// EZAdmin STORE_LIST에서 숨길 매장 (롯데 평촌)
+const STORE_HIDDEN_EZADMIN = new Set(['평촌']);
+// getProfit API PSTORES에서 숨길 매장
+const STORE_HIDDEN_PROFIT  = new Set(['(롯)평촌']);
 function sname(n){return STORE_ALIASES[n]||n;}
 
 const MLABELS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -1030,7 +1034,7 @@ function callAPI() {
 }
 
 function processData(d) {
-  DATA = d; STORE_LIST = d.stores || [];
+  DATA = d; STORE_LIST = (d.stores || []).filter(n => !STORE_HIDDEN_EZADMIN.has(n));
   const m25 = d.monthly.filter(m => m.year === '2025');
   const m26 = d.monthly.filter(m => m.year === '2026');
   MONTHS_25 = Array.from({length:12}, (_,i) =>
@@ -3256,7 +3260,7 @@ function callProfitAPI(){
 }
 
 function processProfitData(d){
-  PROFIT_DATA=d; PSTORES=d.stores||[];
+  PROFIT_DATA=d; PSTORES=(d.stores||[]).filter(n=>!STORE_HIDDEN_PROFIT.has(n));
   const curMonth=new Date().getMonth()+1;
   PM26=(d.monthly_26||[]).filter(m=>m.month<=curMonth);
   PM25=d.monthly_25||[];
