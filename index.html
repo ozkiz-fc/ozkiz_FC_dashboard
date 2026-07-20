@@ -602,6 +602,7 @@ tr:hover td{background:#f8fafc}
       </div>
     </div>
     <div class="summary-cards" id="cards-tax-total"></div>
+    <div class="summary-cards" id="cards-tax-total-profit"></div>
     <div class="content-area">
       <div class="chart-wrap">
         <div class="chart-title" id="chart-tax-total-title"></div>
@@ -2204,6 +2205,7 @@ function renderTaxTotal(){
     chartTaxDaily('canvas-tax-total',null);
     tblTaxDaily('table-tax-total',null);
   }
+  renderTaxTotalProfitCards();
 }
 function renderTaxStore(){
   const {gran,name}=state.taxStore;
@@ -2236,6 +2238,42 @@ function renderTaxStore(){
   renderTaxStoreProfitCards(name);
 }
 
+function renderTaxTotalProfitCards(){
+  const el=document.getElementById('cards-tax-total-profit');
+  if(!el)return;
+  if(!PROFIT_DATA||!PM26.length){
+    el.innerHTML='<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">비용·공헌이익 불러오는 중...</div>';
+    return;
+  }
+  const n=PM26.length,_rp=prorateRatio();
+  const ytdSales=PM26.reduce((s,m)=>s+PSTORES.reduce((ss,name)=>ss+(m.stores[name]?.sales||0),0),0);
+  const ytdCost=Math.round(PM26.reduce((s,m,i)=>{
+    const mf=i===n-1?_rp:1;
+    return s+PSTORES.reduce((ss,name)=>ss+calcTaxCost(name,m.stores[name]?.sales||0,mf),0);
+  },0));
+  const ytdContrib=Math.round(PM26.reduce((s,m,i)=>{
+    const mf=i===n-1?_rp:1;
+    return s+totalContrib(m.stores,mf);
+  },0));
+  const contribRate=ytdSales?(ytdContrib/ytdSales*100):null;
+  const lbl=profitYtdLbl();
+  el.innerHTML=`
+    <div class="card card-c5">
+      <div class="card-label">26년 누적 비용 (${lbl})</div>
+      <div class="card-value" style="font-size:22px">${Mcard_p(ytdCost)}</div>
+      <div class="card-sub">${Mp(ytdCost)}</div>
+    </div>
+    <div class="card card-c3">
+      <div class="card-label">26년 누적 공헌이익 (${lbl})</div>
+      <div class="card-value" style="font-size:22px;color:${ytdContrib>=0?'#0f172a':'#dc2626'}">${Mcard_p(ytdContrib)}</div>
+      <div class="card-sub">${Mp(ytdContrib)}</div>
+    </div>
+    <div class="card card-c4">
+      <div class="card-label">공헌이익률 (실매출 기준)</div>
+      <div class="card-value" style="font-size:26px">${contribRate!==null?contribRate.toFixed(1)+'%':'-'}</div>
+      <div class="card-sub">실매출 ${Mp(ytdSales)}</div>
+    </div>`;
+}
 function renderTaxStoreProfitCards(rawName){
   const el=document.getElementById('cards-tax-store-profit');
   if(!el)return;
@@ -4786,6 +4824,7 @@ async function init() {
         profitState.store.name = PSTORES[0] || '';
       }
       if (state.main === 'home') renderHomeProfitCards();
+      if (state.main === 'tax-total') renderTaxTotalProfitCards();
       if (state.main === 'tax-store') renderTaxStoreProfitCards(state.taxStore.name);
     }).catch(e => {
       console.warn('영업이익 로드 실패:', e);
