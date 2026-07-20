@@ -2729,10 +2729,14 @@ function renderProdStoreView() {
   let list = _prodData.map(p => {
     const storeQty = (p.st||{})[store] || 0;
     const storeAmt = storeQty * (p.sp || 0);
-    const storeShare = p.tq > 0 ? Math.round(storeQty / p.tq * 100) : 0;
     const sr = (p.is != null && p.tq > 0) ? Math.round(p.tq / (p.tq + p.is) * 100) : null;
-    return Object.assign({}, p, {storeQty, storeAmt, storeShare, sr});
+    return Object.assign({}, p, {storeQty, storeAmt, sr});
   }).filter(p => p.storeQty > 0);
+
+  const totalStoreAmt = list.reduce((s, p) => s + p.storeAmt, 0);
+  list = list.map(p => Object.assign({}, p, {
+    storeShare: totalStoreAmt > 0 ? Math.round(p.storeAmt / totalStoreAmt * 1000) / 10 : 0
+  }));
 
   const col = _prodStoreSort.col, asc = _prodStoreSort.asc;
   list.sort((a,b) => { const va=a[col]||0, vb=b[col]||0; return asc?va-vb:vb-va; });
@@ -2750,7 +2754,7 @@ function renderProdStoreView() {
     const imgHtml = p.img ? `<img class="prod-img-sm" src="${p.img}" onerror="this.style.display='none'" alt="">` : `<div class="prod-img-ph">👟</div>`;
     const catHtml = p.ca ? `<span class="cat-bdg">${p.ca}</span>` : '';
     const nameEsc = p.n.replace(/'/g,"\\'");
-    const shareHtml = `<span style="color:${p.storeShare>=30?'#16a34a':p.storeShare>=10?'#0ea5e9':'#94a3b8'}">${p.storeShare}%</span>`;
+    const shareHtml = `<span style="color:${p.storeShare>=10?'#16a34a':p.storeShare>=3?'#0ea5e9':'#94a3b8'}">${p.storeShare.toFixed(1)}%</span>`;
     const srHtml = p.sr!==null ? `<span class="${p.sr>=80?'sr-hi':p.sr>=50?'sr-mid':'sr-lo'}">${p.sr}%</span>` : '-';
     return `<tr>
       <td>${i+1}</td><td>${imgHtml}</td>
