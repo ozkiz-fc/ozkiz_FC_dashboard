@@ -629,6 +629,7 @@ tr:hover td{background:#f8fafc}
       </div>
     </div>
     <div class="summary-cards" id="cards-tax-store"></div>
+    <div class="summary-cards" id="cards-tax-store-profit"></div>
     <div class="content-area">
       <div class="chart-wrap">
         <div class="chart-title" id="chart-tax-store-title"></div>
@@ -2247,6 +2248,47 @@ function renderTaxStore(){
     chartTaxDaily('canvas-tax-store',name);
     tblTaxDaily('table-tax-store',name);
   }
+  renderTaxStoreProfitCards(name);
+}
+
+function renderTaxStoreProfitCards(rawName){
+  const el=document.getElementById('cards-tax-store-profit');
+  if(!el)return;
+  if(!PROFIT_DATA||!PM26.length){
+    el.innerHTML='<div style="padding:12px;color:#94a3b8;grid-column:1/-1;font-size:13px">비용·공헌이익 불러오는 중...</div>';
+    return;
+  }
+  const name=sname(rawName);
+  const n=PM26.length,_rp=prorateRatio();
+  const ytdSales=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+  const ytdCost=Math.round(PM26.reduce((s,m,i)=>{
+    const mf=i===n-1?_rp:1;
+    return s+calcTaxCost(name,m.stores[name]?.sales||0,mf);
+  },0));
+  const ytdContrib=Math.round(PM26.reduce((s,m,i)=>{
+    const mf=i===n-1?_rp:1;
+    return s+calcContrib(name,m.stores[name]?.sales||0,mf);
+  },0));
+  const contribRate=ytdSales?(ytdContrib/ytdSales*100):null;
+  const lbl=profitYtdLbl();
+  const s=getStoreSettings()[name]||SETTING_DEF;
+  const taxNote=(s.tax??100)<100?' <span style="font-size:11px;color:#64748b">(점포수수료 제외)</span>':'';
+  el.innerHTML=`
+    <div class="card card-c5">
+      <div class="card-label">26년 누적 비용 (${lbl})${taxNote}</div>
+      <div class="card-value" style="font-size:22px">${Mcard_p(ytdCost)}</div>
+      <div class="card-sub">${Mp(ytdCost)}</div>
+    </div>
+    <div class="card card-c3">
+      <div class="card-label">26년 누적 공헌이익 (${lbl})</div>
+      <div class="card-value" style="font-size:22px;color:${ytdContrib>=0?'#0f172a':'#dc2626'}">${Mcard_p(ytdContrib)}</div>
+      <div class="card-sub">${Mp(ytdContrib)}</div>
+    </div>
+    <div class="card card-c4">
+      <div class="card-label">공헌이익률 (실매출 기준)</div>
+      <div class="card-value" style="font-size:26px">${contribRate!==null?contribRate.toFixed(1)+'%':'-'}</div>
+      <div class="card-sub">실매출 ${Mp(ytdSales)}</div>
+    </div>`;
 }
 
 // ════════════════════════════════════════════════
@@ -3323,6 +3365,14 @@ function storeFixed(name){
       intrDepreciation = Math.round((s.intr||0)/(s.intrMo||24));
   }
   return s.supp+s.mgmt+intrDepreciation;
+}
+function calcTaxCostRate(name){
+  const s=getStoreSettings()[name]||SETTING_DEF;
+  const tax=(s.tax??100);
+  return tax<100?(s.cost+s.mgr+s.dlvy)/100:(s.cost+s.mgr+s.shop+s.dlvy)/100;
+}
+function calcTaxCost(name,actualSales,monthFrac){
+  return actualSales*calcTaxCostRate(name)+storeFixed(name)*(monthFrac||0);
 }
 function calcContrib(name,sales,monthFrac){
   return sales*(1-storeVarRate(name))-storeFixed(name)*(monthFrac||0);
@@ -4748,6 +4798,7 @@ async function init() {
         profitState.store.name = PSTORES[0] || '';
       }
       if (state.main === 'home') renderHomeProfitCards();
+      if (state.main === 'tax-store') renderTaxStoreProfitCards(state.taxStore.name);
     }).catch(e => {
       console.warn('영업이익 로드 실패:', e);
       const el = document.getElementById('cards-home-profit');
