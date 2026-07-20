@@ -4033,17 +4033,32 @@ function chartInvWos(cid, stores) {
   const p = _invWosPeriod;
   const CAP = 52;
 
-  const storeData = INV_STORE_ORDER.map(name => {
-    const invQty = (stores[name]?.qty) || 0;
-    let weeklyRate = 0;
+  // STORE_LIST 원본명 → sname() displayName 으로 주간 판매량 합산
+  // (예: '(신)의정부' → '의정부', '강서 NC' → '강서', '현풍' → 'STCO현풍')
+  const salesQtyMap = {};
+  STORE_LIST.forEach(raw => {
+    const dn = sname(raw);
+    let rate = 0;
     if (p === 'w1') {
-      weeklyRate = WEEKS_26.length ? (WEEKS_26[WEEKS_26.length - 1]?.stores[name]?.qty || 0) : 0;
+      rate = WEEKS_26.length ? (WEEKS_26[WEEKS_26.length - 1]?.stores[raw]?.qty || 0) : 0;
     } else if (p === 'w4') {
       const last4 = WEEKS_26.slice(-4);
-      if (last4.length) weeklyRate = last4.reduce((s, w) => s + (w.stores[name]?.qty || 0), 0) / last4.length;
+      if (last4.length) rate = last4.reduce((s, w) => s + (w.stores[raw]?.qty || 0), 0) / last4.length;
     } else {
-      if (WEEKS_26.length) weeklyRate = WEEKS_26.reduce((s, w) => s + (w.stores[name]?.qty || 0), 0) / WEEKS_26.length;
+      if (WEEKS_26.length) rate = WEEKS_26.reduce((s, w) => s + (w.stores[raw]?.qty || 0), 0) / WEEKS_26.length;
     }
+    salesQtyMap[dn] = (salesQtyMap[dn] || 0) + rate;
+  });
+  // 진단용: 판매 없음 5개 매장 키 확인
+  const lastW = WEEKS_26[WEEKS_26.length - 1];
+  console.log('[WOS 진단] STORE_LIST:', STORE_LIST);
+  console.log('[WOS 진단] WEEKS_26 last stores keys:', lastW ? Object.keys(lastW.stores||{}) : 'no data');
+  console.log('[WOS 진단] salesQtyMap:', salesQtyMap);
+  console.log('[WOS 진단] 남악 rate:', salesQtyMap['남악'], '| 의정부:', salesQtyMap['의정부'], '| 강서:', salesQtyMap['강서']);
+
+  const storeData = INV_STORE_ORDER.map(name => {
+    const invQty = (stores[name]?.qty) || 0;
+    const weeklyRate = salesQtyMap[name] || 0;
     const wos = weeklyRate > 0 ? invQty / weeklyRate : null;
     return { name, invQty, weeklyRate: Math.round(weeklyRate * 10) / 10, wos };
   }).filter(d => d.invQty > 0);
