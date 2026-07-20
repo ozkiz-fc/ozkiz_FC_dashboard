@@ -3409,19 +3409,24 @@ function tblProfitMonthly(id,store){
     const s25=store?(m25.stores?.[store]?.sales||0):(m25.total_sales||0);
     sum26p+=p26;sum25p+=p25;sum26s+=s26;sum25s+=s25;
     const r26=profitRate(p26,s26),r25=profitRate(p25,s25);
+    const cost26=s26-p26;
     rowsArr.push(`<tr><td>${MLABELS[m26.month-1]}${isLast?'<span class="partial-badge">집계중</span>':''}</td>
+      <td>${Mp(s26)}</td><td>${Mp(cost26)}</td>
       <td style="color:${p26<0?'#dc2626':''}">${Mp(p26)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
       <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${pct(p26,p25)}</td><td class="td-growth">${diffHtml(p26-p25)}</td></tr>`);
   });
   const totR26=profitRate(sum26p,sum26s),totR25=profitRate(sum25p,sum25s);
+  const sumCost26=sum26s-sum26p;
   document.getElementById(id).innerHTML=`
     <table><thead><tr><th>월</th>
+      <th>26년 매출액</th><th>26년 비용</th>
       <th>26년 공헌이익</th><th>공헌이익률</th>
       <th>25년 공헌이익</th><th>공헌이익률</th>
       <th>전년비</th><th>증감액</th></tr></thead><tbody>
     ${rowsArr.reverse().join('')}
     <tr class="td-total"><td>누적 (${ytdLbl()})</td>
+      <td>${Mp(sum26s)}</td><td>${Mp(sumCost26)}</td>
       <td style="color:${sum26p<0?'#dc2626':''}">${Mp(sum26p)}</td><td>${totR26!==null?totR26.toFixed(1)+'%':'-'}</td>
       <td style="color:${sum25p<0?'#dc2626':''}">${Mp(sum25p)}</td><td>${totR25!==null?totR25.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${pct(sum26p,sum25p)}</td><td class="td-growth">${diffHtml(sum26p-sum25p)}</td>
@@ -3506,12 +3511,16 @@ function tblProfitStoreCumulative(id,store){
   const tot25p=PM25.slice(0,n).reduce((s,m,i)=>{const s25=i===n-1?Math.round((m.stores?.[store]?.sales||0)*_rp):(m.stores?.[store]?.sales||0);return s+Math.round(calcContrib(store,s25,i===n-1?_rp:1));},0);
   const tot25s=PM25.slice(0,n).reduce((s,m,i)=>s+(i===n-1?Math.round((m.stores?.[store]?.sales||0)*_rp):(m.stores?.[store]?.sales||0)),0);
   const cv=(p,s)=>`<div style="color:${p<0?'#dc2626':'#334155'}">${p?Math.round(p).toLocaleString('ko-KR')+'원':'-'}</div><div style="font-size:12px;color:#94a3b8">${profitRate(p,s)!==null?profitRate(p,s).toFixed(1)+'%':''}</div>`;
+  const cs=v=>`<div style="color:#334155">${v?Math.round(v).toLocaleString('ko-KR')+'원':'-'}</div>`;
+  const tot26cost=tot26s-tot26p;
   document.getElementById(id).innerHTML=`
     <table><thead><tr>
-      <th>연도</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
+      <th>항목</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
     </tr></thead><tbody>
-    <tr><td>2025년</td>${mon.map(i=>`<td>${cv(d25[i]?.p||0,d25[i]?.s||0)}</td>`).join('')}<td>${cv(tot25p,tot25s)}</td></tr>
-    <tr><td>2026년</td>${d26.map((d,i)=>`<td>${cv(d.p,d.s)}${i===n-1?'<span class="partial-badge">집계중</span>':''}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td style="color:#e2e8f0">-</td>').join('')}<td>${cv(tot26p,tot26s)}</td></tr>
+    <tr><td>26년 매출액</td>${d26.map((d,i)=>`<td>${cs(d.s)}${i===n-1?'<span class="partial-badge">집계중</span>':''}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td>-</td>').join('')}<td>${cs(tot26s)}</td></tr>
+    <tr><td>26년 비용</td>${d26.map((d,i)=>`<td>${cs(d.s-d.p)}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td>-</td>').join('')}<td>${cs(tot26cost)}</td></tr>
+    <tr><td>26년 공헌이익</td>${d26.map((d,i)=>`<td>${cv(d.p,d.s)}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td style="color:#e2e8f0">-</td>').join('')}<td>${cv(tot26p,tot26s)}</td></tr>
+    <tr><td>25년 공헌이익</td>${mon.map(i=>`<td>${cv(d25[i]?.p||0,d25[i]?.s||0)}</td>`).join('')}<td>${cv(tot25p,tot25s)}</td></tr>
     <tr class="td-total"><td>전년비</td>${mon.map(i=>`<td class="td-growth">${pct(d26[i]?.p||0,d25[i]?.p||0)}</td>`).join('')}<td class="td-growth">${pct(tot26p,tot25p)}</td></tr>
     </tbody></table>`;
 }
