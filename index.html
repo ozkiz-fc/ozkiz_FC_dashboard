@@ -3790,7 +3790,7 @@ function renderProfitTotal(){
   const t=document.getElementById('chart-profit-total-title');
   if(gran==='cumulative'){
     t.textContent='월별 공헌이익 추이 · 25·26년 비교';
-    chartProfitCumulativeLine('canvas-profit-total',null);
+    chartProfitMonthly('canvas-profit-total',null);
     tblProfitCumulative('table-profit-total');
   } else if(gran==='monthly'){
     t.textContent='월별 공헌이익 · 25·26년 비교';
@@ -3816,7 +3816,7 @@ function renderProfitStore(){
   const t=document.getElementById('chart-profit-store-title');
   if(gran==='cumulative'){
     t.textContent='월별 공헌이익 추이 · 25·26년 비교';
-    chartProfitCumulativeLine('canvas-profit-store',name);
+    chartProfitMonthly('canvas-profit-store',name);
     tblProfitStoreCumulative('table-profit-store',name);
   } else if(gran==='monthly'){
     t.textContent='월별 공헌이익 · 25·26년 비교';
@@ -4877,7 +4877,7 @@ function showAuthUser(email) {
   const el = document.getElementById('auth-user-email');
   if (el) el.textContent = email;
   const costWrap = document.getElementById('grp-cost-wrap');
-  if (costWrap) costWrap.style.display = email === 'henry@openhan.kr' ? '' : 'none';
+  if (costWrap) costWrap.style.display = '';
 }
 
 function handleCredential(response) {
