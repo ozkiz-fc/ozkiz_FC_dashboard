@@ -5109,11 +5109,11 @@ let _stratTimer = null;
 const RISK_WARN_SR = 25, RISK_WARN_IS = 15;
 const RISK_CAU_SR  = 40, RISK_CAU_IS  = 8;
 const INV_ACTION_TYPES = [
-  {v:'discount',l:'🏷️ 할인판매'},
-  {v:'return',  l:'📦 본사반납'},
-  {v:'event',   l:'🎪 행사투입'},
-  {v:'reorder', l:'🔄 추가발주'},
-  {v:'dispose', l:'🗑️ 폐기'},
+  {v:'online',   l:'🌐 온라인판매 회수'},
+  {v:'transfer', l:'🔀 매장간R/T'},
+  {v:'discount', l:'🏷️ 할인판매'},
+  {v:'return',   l:'📦 전량 본사 회수'},
+  {v:'addout',   l:'📤 매장 추가 출고'},
 ];
 
 function getInvActions(){try{return JSON.parse(localStorage.getItem(INV_ACTION_KEY)||'{}');}catch{return {};}}
