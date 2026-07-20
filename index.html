@@ -55,6 +55,8 @@ body{font-family:'Malgun Gothic','Segoe UI',sans-serif;background:#f0f4f8;color:
 .card{background:#fff;border-radius:12px;padding:20px 22px;border:1.5px solid #e2e8f0;border-top-width:4px;box-shadow:0 1px 4px #0000000a}
 .card-c1{border-top-color:#0ea5e9}.card-c2{border-top-color:#22c55e}
 .card-c3{border-top-color:#8b5cf6}.card-c4{border-top-color:#f97316}
+.card-c5{border-top-color:#e11d48}.card-c6{border-top-color:#64748b}
+.profit-summary-cards{grid-template-columns:repeat(3,1fr)!important}
 .card-label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;font-weight:700}
 .card-value{font-size:28px;font-weight:700;color:#0f172a;letter-spacing:-.5px;margin-bottom:4px}
 .card-qty{font-size:15px;color:#0284c7;font-weight:600;margin-bottom:6px}
@@ -448,19 +450,6 @@ tr:hover td{background:#f8fafc}
         </button>
       </div>
     </div>
-    <!-- 회의록 그룹 -->
-    <div class="nav-group">
-      <button class="nav-group-hd" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
-        <span class="nav-icon">📝</span>
-        <span>회의록</span>
-        <span class="nav-chevron">▾</span>
-      </button>
-      <div class="nav-sub collapsed" id="sub-memo">
-        <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
-          <span class="nav-sub-dot">●</span> 주간 회의록
-        </button>
-      </div>
-    </div>
     <!-- 비용 -->
     <div class="nav-group" id="grp-cost-wrap" style="display:none">
       <button class="nav-group-hd" id="grp-cost" onclick="toggleGroup('grp-cost','sub-cost')">
@@ -476,6 +465,19 @@ tr:hover td{background:#f8fafc}
         </button>
         <button class="nav-sub-item" id="nav-cost-setting" onclick="switchMain('cost-setting')">
           <span>세팅</span>
+        </button>
+      </div>
+    </div>
+    <!-- 회의록 그룹 -->
+    <div class="nav-group">
+      <button class="nav-group-hd" id="grp-memo" onclick="toggleGroup('grp-memo','sub-memo')">
+        <span class="nav-icon">📝</span>
+        <span>회의록</span>
+        <span class="nav-chevron">▾</span>
+      </button>
+      <div class="nav-sub collapsed" id="sub-memo">
+        <button class="nav-sub-item" id="nav-memo" onclick="switchMain('memo')">
+          <span class="nav-sub-dot">●</span> 주간 회의록
         </button>
       </div>
     </div>
@@ -652,7 +654,7 @@ tr:hover td{background:#f8fafc}
         </div>
       </div>
     </div>
-    <div class="summary-cards" id="cards-profit-total"></div>
+    <div class="summary-cards profit-summary-cards" id="cards-profit-total"></div>
     <div class="content-area">
       <div class="chart-wrap">
         <div class="chart-title" id="chart-profit-total-title"></div>
@@ -678,7 +680,7 @@ tr:hover td{background:#f8fafc}
         </div>
       </div>
     </div>
-    <div class="summary-cards" id="cards-profit-store"></div>
+    <div class="summary-cards profit-summary-cards" id="cards-profit-store"></div>
     <div class="content-area">
       <div class="chart-wrap">
         <div class="chart-title" id="chart-profit-store-title"></div>
@@ -3325,26 +3327,37 @@ function renderProfitCards(cardId,mon26,mon25,nameOpt){
   const ya26s=mon26.reduce((s,m)=>s+(m.total_sales||0),0);
   const ya25s=mon25.slice(0,n).reduce((s,m)=>s+(m.total_sales||0),0);
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
+  const ya26cost=ya26s-ya26p;
   document.getElementById(cardId).innerHTML=`
     <div class="card card-c1">
+      <div class="card-label">26년 누적 매출액 (${profitYtdLbl()})</div>
+      <div class="card-value" style="font-size:26px">${Mcard_p(ya26s)}</div>
+      <div class="card-sub">${Mp(ya26s)}</div>
+    </div>
+    <div class="card card-c5">
+      <div class="card-label">26년 누적 비용 (${profitYtdLbl()})</div>
+      <div class="card-value" style="font-size:26px">${Mcard_p(ya26cost)}</div>
+      <div class="card-sub">${Mp(ya26cost)}</div>
+    </div>
+    <div class="card card-c3">
       <div class="card-label">26년 누적 공헌이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya26p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya26p)}</div>
       <div class="card-sub">${Mp(ya26p)}</div>
+    </div>
+    <div class="card card-c4">
+      <div class="card-label">공헌이익률 (26년 / 25년)</div>
+      <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
+      <div class="card-sub">25년 동기: ${r25!==null?r25.toFixed(1)+'%':'-'}</div>
     </div>
     <div class="card card-c2">
       <div class="card-label">25년 동기 공헌이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya25p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya25p)}</div>
       <div class="card-sub">${Mp(ya25p)}</div>
     </div>
-    <div class="card card-c3">
+    <div class="card card-c6">
       <div class="card-label">전년 동기 대비</div>
       <div class="card-value" style="font-size:28px">${pct(ya26p,ya25p)}</div>
       <div class="card-sub">${diffHtml(ya26p-ya25p)}</div>
-    </div>
-    <div class="card card-c4">
-      <div class="card-label">공헌이익률 (26년 / 25년)</div>
-      <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
-      <div class="card-sub">25년 동기: ${r25!==null?r25.toFixed(1)+'%':'-'}</div>
     </div>`;
 }
 
@@ -3359,18 +3372,23 @@ function tblProfitCumulative(id){
     if(!v26s&&!v25s) return;
     tot26p+=v26p;tot25p+=v25p;tot26s+=v26s;tot25s+=v25s;
     const r26=profitRate(v26p,v26s),r25=profitRate(v25p,v25s);
+    const v26cost=v26s-v26p;
     rows+=`<tr><td>${name}</td>
+      <td>${Mp(v26s)}</td><td>${Mp(v26cost)}</td>
       <td style="color:${v26p<0?'#dc2626':''}">${Mp(v26p)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
       <td style="color:${v25p<0?'#dc2626':''}">${Mp(v25p)}</td><td>${r25!==null?r25.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${pct(v26p,v25p)}</td><td class="td-growth">${diffHtml(v26p-v25p)}</td></tr>`;
   });
   const tr26=profitRate(tot26p,tot26s),tr25=profitRate(tot25p,tot25s);
+  const tot26cost=tot26s-tot26p;
   document.getElementById(id).innerHTML=`
     <table><thead><tr><th>매장명</th>
+      <th>26년 매출액 (${lbl})</th><th>26년 비용 (${lbl})</th>
       <th>26년 공헌이익 (${lbl})</th><th>공헌이익률</th>
       <th>25년 공헌이익 (${lbl})</th><th>공헌이익률</th>
       <th>전년비</th><th>증감액</th></tr></thead><tbody>${rows}
     <tr class="td-total"><td>전체 합계</td>
+      <td>${Mp(tot26s)}</td><td>${Mp(tot26cost)}</td>
       <td style="color:${tot26p<0?'#dc2626':''}">${Mp(tot26p)}</td><td>${tr26!==null?tr26.toFixed(1)+'%':'-'}</td>
       <td style="color:${tot25p<0?'#dc2626':''}">${Mp(tot25p)}</td><td>${tr25!==null?tr25.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${pct(tot26p,tot25p)}</td><td class="td-growth">${diffHtml(tot26p-tot25p)}</td>
