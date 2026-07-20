@@ -3448,25 +3448,36 @@ function tblProfitWeekly(id,store){
     const p25=Math.round(store?calcContrib(store,w25?.stores?.[store]?.sales||0,WMF):totalContrib(w25?.stores,WMF));
     sum26p+=p26;sum25p+=p25;sum26s+=s26;
     const r26=profitRate(p26,s26);
+    const cost26=s26-p26;
     rowsArr.push(`<tr><td>${w26.label}</td>
+      <td>${Mp(s26)}</td><td>${Mp(cost26)}</td>
       <td style="color:${p26<0?'#dc2626':''}">${Mp(p26)}</td><td>${r26!==null?r26.toFixed(1)+'%':'-'}</td>
-      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td><td>-</td>
+      <td style="color:${p25<0?'#dc2626':''}">${Mp(p25)}</td>
       <td class="td-growth">${pct(p26,p25)}</td><td class="td-growth">${p26&&p25?diffHtml(p26-p25):'-'}</td></tr>`);
   });
   const totR26=profitRate(sum26p,sum26s);
+  const sumCost26=sum26s-sum26p;
   document.getElementById(id).innerHTML=`
     <table><thead><tr><th>주차</th>
+      <th>26년 매출액</th><th>26년 비용</th>
       <th>26년 공헌이익</th><th>공헌이익률</th>
-      <th>25년 공헌이익</th><th>공헌이익률</th>
+      <th>25년 공헌이익</th>
       <th>전년비</th><th>증감액</th></tr></thead><tbody>
     ${rowsArr.reverse().join('')}
     <tr class="td-total"><td>누적 합계</td>
+      <td>${Mp(sum26s)}</td><td>${Mp(sumCost26)}</td>
       <td style="color:${sum26p<0?'#dc2626':''}">${Mp(sum26p)}</td><td>${totR26!==null?totR26.toFixed(1)+'%':'-'}</td>
-      <td style="color:${sum25p<0?'#dc2626':''}">${Mp(sum25p)}</td><td>-</td>
+      <td style="color:${sum25p<0?'#dc2626':''}">${Mp(sum25p)}</td>
       <td class="td-growth">${pct(sum26p,sum25p)}</td><td class="td-growth">${diffHtml(sum26p-sum25p)}</td>
     </tr></tbody></table>`;
 }
 
+const _dailyMonState={};
+function profitDailyNav(id,store,dir){
+  const k=store||'__total__';
+  _dailyMonState[k]=(_dailyMonState[k]||1)+dir;
+  tblProfitDaily(id,store||null);
+}
 function tblProfitDaily(id,store){
   const daily=PDAILY_26;
   if(!daily||!daily.labels.length){
@@ -3482,23 +3493,52 @@ function tblProfitDaily(id,store){
   const profits=store
     ?salesArr.map(s=>Math.round(calcContrib(store,s,DMF)))
     :daily.labels.map((_,i)=>Math.round(PSTORES.reduce((sum,n)=>sum+calcContrib(n,daily.stores?.[n]?.sales?.[i]||0,DMF),0)));
-  const len=daily.labels.length,START=Math.max(0,len-30);
+  const today=new Date();
+  const todayMMDD=`${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const validIdx=daily.labels.map((lbl,i)=>({lbl,i})).filter(({lbl,i})=>lbl<=todayMMDD&&salesArr[i]>0);
+  const availMonths=[...new Set(validIdx.map(({lbl})=>parseInt(lbl.split('-')[0])))].sort((a,b)=>a-b);
+  if(!availMonths.length){
+    document.getElementById(id).innerHTML='<div style="padding:24px;color:#94a3b8;text-align:center">데이터 없음</div>';
+    return;
+  }
+  const k=store||'__total__';
+  if(!_dailyMonState[k]||!availMonths.includes(_dailyMonState[k])) _dailyMonState[k]=availMonths[availMonths.length-1];
+  const curMon=_dailyMonState[k];
+  const monIdx=availMonths.indexOf(curMon);
+  const hasPrev=monIdx>0,hasNext=monIdx<availMonths.length-1;
+  const monData=validIdx.filter(({lbl})=>parseInt(lbl.split('-')[0])===curMon);
   const dow=['일','월','화','수','목','금','토'];
-  let rows='';
-  for(let i=len-1;i>=START;i--){
-    const p=profits[i]||0,s=salesArr[i]||0,prevP=i>0?profits[i-1]||0:null;
+  let rows='',sumS=0,sumP=0;
+  const storeArg=store?`'${store}'`:'null';
+  for(let k2=monData.length-1;k2>=0;k2--){
+    const {lbl,i}=monData[k2];
+    const p=profits[i]||0,s=salesArr[i]||0,cost=s-p;
+    const prevP=i>0?profits[i-1]||0:null;
     const r=profitRate(p,s);
-    const d=new Date('2026-'+daily.labels[i]);
-    const dayLabel=isNaN(d.getTime())?daily.labels[i]:`${daily.labels[i]} (${dow[d.getDay()]})`;
+    const d=new Date('2026-'+lbl);
+    const dayLabel=isNaN(d.getTime())?lbl:`${lbl} (${dow[d.getDay()]})`;
+    sumS+=s;sumP+=p;
     rows+=`<tr><td>${dayLabel}</td>
+      <td>${Mp(s)}</td><td>${Mp(cost)}</td>
       <td style="color:${p<0?'#dc2626':''}">${Mp(p)}</td>
       <td>${r!==null?r.toFixed(1)+'%':'-'}</td>
       <td class="td-growth">${prevP!==null?pct(p,prevP):'<span class="growth-flat">-</span>'}</td></tr>`;
   }
-  document.getElementById(id).innerHTML=`
+  const sumR=profitRate(sumP,sumS);
+  const nav=`<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
+    <button onclick="profitDailyNav('${id}',${storeArg},-1)" ${hasPrev?'':'disabled'} style="padding:3px 12px;border:1px solid #cbd5e1;border-radius:6px;cursor:${hasPrev?'pointer':'default'};background:#fff;opacity:${hasPrev?1:.4}">◀ 이전달</button>
+    <span style="font-weight:700;font-size:15px">${MLABELS[curMon-1]}</span>
+    <button onclick="profitDailyNav('${id}',${storeArg},1)" ${hasNext?'':'disabled'} style="padding:3px 12px;border:1px solid #cbd5e1;border-radius:6px;cursor:${hasNext?'pointer':'default'};background:#fff;opacity:${hasNext?1:.4}">다음달 ▶</button>
+  </div>`;
+  document.getElementById(id).innerHTML=nav+`
     <table><thead><tr>
-      <th>날짜</th><th>공헌이익</th><th>공헌이익률</th><th>전일 대비</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+      <th>날짜</th><th>매출액</th><th>비용</th><th>공헌이익</th><th>공헌이익률</th><th>전일 대비</th>
+    </tr></thead><tbody>${rows}
+    <tr class="td-total"><td>${MLABELS[curMon-1]} 합계</td>
+      <td>${Mp(sumS)}</td><td>${Mp(sumS-sumP)}</td>
+      <td style="color:${sumP<0?'#dc2626':''}">${Mp(sumP)}</td>
+      <td>${sumR!==null?sumR.toFixed(1)+'%':'-'}</td><td>-</td>
+    </tr></tbody></table>`;
 }
 
 function tblProfitStoreCumulative(id,store){
