@@ -5114,6 +5114,7 @@ const INV_ACTION_TYPES = [
   {v:'discount', l:'🏷️ 할인판매'},
   {v:'return',   l:'📦 전량 본사 회수'},
   {v:'addout',   l:'📤 매장 추가 출고'},
+  {v:'reorder',  l:'🔄 추가 발주 요청'},
 ];
 
 function getInvActions(){try{return JSON.parse(localStorage.getItem(INV_ACTION_KEY)||'{}');}catch{return {};}}
