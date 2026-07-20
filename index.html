@@ -3772,12 +3772,12 @@ function callInvAPI(inv_type, q) {
 async function invLoadSummary(goStore) {
   const loadId = goStore ? 'cards-inv-store' : 'cards-inv';
 
-  // sessionStorage 캐시 확인 (재고는 하루 1회 업데이트 → 2시간 캐시)
+  // localStorage 캐시 확인 (재고는 하루 1회 업데이트 → 8시간 캐시, 탭 간 공유)
   try {
-    const raw = sessionStorage.getItem('ozkiz_inv_summary_v1');
+    const raw = localStorage.getItem('ozkiz_inv_summary_v2');
     if (raw) {
       const { data, ts } = JSON.parse(raw);
-      if (Date.now() - ts < 2 * 60 * 60 * 1000) {
+      if (Date.now() - ts < 8 * 60 * 60 * 1000) {
         INV_DATA = data; invLoaded = true;
         if (state.main === 'home') { renderHome(); return; }
         if (goStore) renderInvStore(); else renderInvTotal();
@@ -3791,7 +3791,7 @@ async function invLoadSummary(goStore) {
   try {
     INV_DATA = await callInvAPI('summary');
     invLoaded = true;
-    try { sessionStorage.setItem('ozkiz_inv_summary_v1', JSON.stringify({ data: INV_DATA, ts: Date.now() })); } catch(e) {}
+    try { localStorage.setItem('ozkiz_inv_summary_v2', JSON.stringify({ data: INV_DATA, ts: Date.now() })); } catch(e) {}
     if (state.main === 'home') { renderHome(); return; }
     if (goStore) renderInvStore(); else renderInvTotal();
   } catch(e) {
@@ -3800,7 +3800,7 @@ async function invLoadSummary(goStore) {
 }
 
 function invRefresh() {
-  sessionStorage.removeItem('ozkiz_inv_summary_v1');
+  localStorage.removeItem('ozkiz_inv_summary_v2');
   INV_DATA = null; invLoaded = false;
   invLoadSummary(state.main === 'inv-store');
 }
@@ -4561,6 +4561,7 @@ function tblInvTopProducts(container, products, storeName) {
 async function init() {
   try {
     initBestStores();
+    invLoadSummary(false); // 재고 캐시 백그라운드 선로드 (localStorage 히트 시 즉시 완료)
 
     // Phase 1: 매출 데이터 먼저 → 홈 즉시 표시
     const data = await callAPI();
