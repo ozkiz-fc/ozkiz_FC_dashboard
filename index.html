@@ -4926,10 +4926,15 @@ async function init() {
       o.value = name; o.textContent = sname(name); taxSel.appendChild(o);
     });
     state.taxStore.name = STORE_LIST[0] || '';
+    // 캐시가 있으면 동기적으로 먼저 주입 → renderHome() 시 공헌이익 즉시 표시
+    try {
+      const _pr = sessionStorage.getItem('ozkiz_profit_v2');
+      if (_pr) { const {data,ts}=JSON.parse(_pr); if(Date.now()-ts<CACHE_TTL) processProfitData(data); }
+    } catch(e) {}
     document.getElementById('loading').style.display = 'none';
     renderHome();
 
-    // Phase 2: 영업이익 백그라운드 로드 (홈 렌더 차단 안 함)
+    // Phase 2: 영업이익 백그라운드 로드 (캐시 만료 시 갱신)
     callProfitAPI().then(profitData => {
       processProfitData(profitData);
       if (PROFIT_DATA?.updatedAt) document.getElementById('profit-updated-at').textContent = '⏱ ' + PROFIT_DATA.updatedAt;
