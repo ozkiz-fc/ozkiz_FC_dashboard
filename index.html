@@ -4252,6 +4252,99 @@ function chartInvBars(cid, stores) {
 }
 
 
+function chartInvStoreCompare(cid, latStores, selNames) {
+  killChart(cid);
+  const selSet = new Set(selNames);
+  const sorted = INV_STORE_ORDER
+    .filter(n => latStores[n])
+    .map(n => ({ name: n, qty: (latStores[n]||{}).qty || 0 }))
+    .sort((a, b) => b.qty - a.qty);
+  if (!sorted.length) return;
+
+  const total = sorted.reduce((s, d) => s + d.qty, 0);
+  const avg   = Math.round(total / sorted.length);
+
+  const bgColors = sorted.map(d => {
+    if (selSet.has(d.name)) return '#0ea5e9dd';
+    if (d.qty > avg * 1.5)  return '#f97316bb';
+    if (d.qty < avg * 0.5)  return '#22c55ebb';
+    return '#94a3b866';
+  });
+
+  const avgPlugin = {
+    id: 'avgLine',
+    afterDraw(chart) {
+      const xScale = chart.scales.x;
+      const { ctx, chartArea: { top, bottom } } = chart;
+      const px = xScale.getPixelForValue(avg);
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(px, top);
+      ctx.lineTo(px, bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 10px "Malgun Gothic",sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('평균 ' + avg.toLocaleString() + '개', px + 4, top + 13);
+      ctx.restore();
+    }
+  };
+
+  const canvas = document.getElementById(cid);
+  canvas.style.height = Math.max(320, sorted.length * 26) + 'px';
+
+  charts[cid] = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(d => d.name),
+      datasets: [{
+        data: sorted.map(d => d.qty),
+        backgroundColor: bgColors,
+        borderWidth: 0,
+        borderRadius: 3,
+        barThickness: 18
+      }]
+    },
+    plugins: [avgPlugin],
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: CHART_COLORS.tooltip.bg,
+          titleColor: CHART_COLORS.tooltip.title,
+          bodyColor: CHART_COLORS.tooltip.body,
+          callbacks: {
+            label(c) {
+              const ratio = avg ? Math.round(c.parsed.x / avg * 100) : 0;
+              return ` ${c.parsed.x.toLocaleString()}개 (평균 대비 ${ratio}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: CHART_COLORS.gridY },
+          ticks: { color: CHART_COLORS.tick, font: { size: 11 }, callback: v => v.toLocaleString() }
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            color: ctx => selSet.has(sorted[ctx.index]?.name) ? '#0ea5e9' : CHART_COLORS.tick,
+            font: ctx => ({ size: 11, weight: selSet.has(sorted[ctx.index]?.name) ? '700' : '400' })
+          }
+        }
+      }
+    }
+  });
+}
+
 let _invWosPeriod = 'w4';
 function setInvWosPeriod(p) {
   _invWosPeriod = p;
@@ -4701,8 +4794,15 @@ function renderInvStoreContent() {
       <div class="card-sub">전체 원가의 ${costShare}%</div>
     </div>`;
 
-  killChart('canvas-inv-store');
-  document.getElementById('chart-inv-store-title').textContent = '';
+  const allLatStores = lat.stores || {};
+  if (Object.keys(allLatStores).length) {
+    document.getElementById('chart-inv-store-title').textContent =
+      `전체 매장 재고 수량 비교 · 평균 ${Math.round(Object.values(allLatStores).reduce((s,v)=>s+(v.qty||0),0)/Object.keys(allLatStores).length).toLocaleString()}개`;
+    chartInvStoreCompare('canvas-inv-store', allLatStores, names);
+  } else {
+    killChart('canvas-inv-store');
+    document.getElementById('chart-inv-store-title').textContent = '';
+  }
 
   const tbl = document.getElementById('table-inv-top');
   if (names.length === 1) {
