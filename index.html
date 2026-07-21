@@ -2764,6 +2764,7 @@ let _prodPageSize = 50;
 
 // 재고현황 상품 리스트 상태
 let _invProdSort = {col:'totalInv', asc:false};
+let _invProdSortStore = {col:'storeSales', asc:false};
 let _invProdSrch = '';
 let _invProdCat  = '';
 let _invProdPage = 50;
@@ -2978,8 +2979,9 @@ function loadInvProdTable(cid) {
 }
 
 function invProdSortBy(col, cid) {
-  if (_invProdSort.col === col) _invProdSort.asc = !_invProdSort.asc;
-  else { _invProdSort.col = col; _invProdSort.asc = false; }
+  const ss = cid === 'inv-prod-list-store' ? _invProdSortStore : _invProdSort;
+  if (ss.col === col) ss.asc = !ss.asc;
+  else { ss.col = col; ss.asc = false; }
   renderInvProdList(cid);
 }
 
@@ -2988,6 +2990,7 @@ function invProdForceRefresh(cid) {
   _prodData = null;
   _invProdSrch = ''; _invProdCat = ''; _invProdPage = 50;
   _invProdSort = {col:'totalInv', asc:false};
+  _invProdSortStore = {col:'storeSales', asc:false};
   loadInvProdTable(cid);
 }
 
@@ -2995,25 +2998,40 @@ function renderInvProdList(cid) {
   const el = document.getElementById(cid);
   if (!el || !_prodData) return;
 
+  const isStoreMode = cid === 'inv-prod-list-store';
+  const selStores   = isStoreMode ? Array.from(invStoreSel) : null;
+  const singleStore = selStores?.length === 1 ? selStores[0] : null;
+  const ss = isStoreMode ? _invProdSortStore : _invProdSort;
+
   const srch = _invProdSrch.toLowerCase();
   let list = _prodData.filter(p =>
     (!srch || p.n.toLowerCase().includes(srch)) &&
     (!_invProdCat || p.ca === _invProdCat)
   );
 
-  const col = _invProdSort.col, asc = _invProdSort.asc;
+  const col = ss.col, asc = ss.asc;
   list = list.slice().sort((a, b) => {
     let va, vb;
-    if (col === 'totalInv') { va=(a.ib||0)+(a.is||0); vb=(b.ib||0)+(b.is||0); }
-    else if (col === 'ib')  { va=a.ib||0; vb=b.ib||0; }
-    else if (col === 'is')  { va=a.is||0; vb=b.is||0; }
+    if (col === 'totalInv')   { va=(a.ib||0)+(a.is||0); vb=(b.ib||0)+(b.is||0); }
+    else if (col === 'ib')    { va=a.ib||0; vb=b.ib||0; }
+    else if (col === 'is')    { va=a.is||0; vb=b.is||0; }
+    else if (col === 'storeSales') {
+      const st = singleStore;
+      va=st?(a.st||{})[st]||0:(selStores||[]).reduce((s,n)=>s+((a.st||{})[n]||0),0);
+      vb=st?(b.st||{})[st]||0:(selStores||[]).reduce((s,n)=>s+((b.st||{})[n]||0),0);
+    }
+    else if (col === 'storeInv') {
+      const st = singleStore;
+      va=st?(a.si||{})[st]||0:(selStores||[]).reduce((s,n)=>s+((a.si||{})[n]||0),0);
+      vb=st?(b.si||{})[st]||0:(selStores||[]).reduce((s,n)=>s+((b.si||{})[n]||0),0);
+    }
     else { va=a[col]||0; vb=b[col]||0; }
     return asc ? va-vb : vb-va;
   });
 
-  const W  = n => (typeof n==='number') ? n.toLocaleString('ko-KR') : (n||'-');
+  const W   = n => (typeof n==='number') ? n.toLocaleString('ko-KR') : (n||'-');
   const ith = (label, sortCol) => {
-    const arr = _invProdSort.col===sortCol ? (_invProdSort.asc?' ▲':' ▼') : '';
+    const arr = ss.col===sortCol ? (ss.asc?' ▲':' ▼') : '';
     return `<th onclick="invProdSortBy('${sortCol}','${cid}')">${label}${arr}</th>`;
   };
 
@@ -3034,6 +3052,28 @@ function renderInvProdList(cid) {
       : `<div class="prod-img-ph">👟</div>`;
     const catHtml  = p.ca ? `<span class="cat-bdg">${p.ca}</span>` : '';
     const nameEsc  = p.n.replace(/'/g,"\\'");
+
+    if (isStoreMode) {
+      const stSales = singleStore
+        ? (p.st||{})[singleStore] ?? null
+        : selStores.reduce((s,n)=>s+((p.st||{})[n]||0), 0);
+      const stInv = singleStore
+        ? (p.si||{})[singleStore] ?? null
+        : selStores.reduce((s,n)=>s+((p.si||{})[n]||0), 0);
+      const storeTotal = (p.ib||0) + (stInv != null ? stInv : (p.is||0));
+      return `<tr>
+        <td>${i+1}</td>
+        <td>${imgHtml}</td>
+        <td><button class="prod-name-btn" onclick="showProdTrend('${nameEsc}')" title="${p.n}">${p.n}</button></td>
+        <td>${catHtml}</td>
+        <td>${W(p.op)}</td>
+        <td>${stSales!=null?W(stSales):'-'}</td>
+        <td>${p.ib!=null?W(p.ib):'-'}</td>
+        <td>${stInv!=null?W(stInv):p.is!=null?W(p.is):'-'}</td>
+        <td><strong>${storeTotal>0?W(storeTotal):'-'}</strong></td>
+      </tr>`;
+    }
+
     return `<tr>
       <td>${i+1}</td>
       <td>${imgHtml}</td>
@@ -3047,6 +3087,9 @@ function renderInvProdList(cid) {
       <td><strong>${totalInv>0?W(totalInv):'-'}</strong></td>
     </tr>`;
   }).join('');
+
+  const storeLabel = singleStore ? singleStore
+    : selStores ? `선택 ${selStores.length}개 매장` : '';
 
   el.innerHTML = `
     <div class="prod-search-bar">
@@ -3066,10 +3109,10 @@ function renderInvProdList(cid) {
           <th style="text-align:left;cursor:default">상품명</th>
           <th style="text-align:left;cursor:default">카테고리</th>
           ${ith('원가','op')}
-          <th style="cursor:default;min-width:244px;vertical-align:bottom;padding:4px 4px 0"><div class="sbc-hdr">${storeHdrHtml}</div></th>
-          ${ith('합계판매','tq')}
+          ${isStoreMode ? '' : `<th style="cursor:default;min-width:244px;vertical-align:bottom;padding:4px 4px 0"><div class="sbc-hdr">${storeHdrHtml}</div></th>`}
+          ${isStoreMode ? ith(`${storeLabel} 판매`,'storeSales') : ith('합계판매','tq')}
           ${ith('본사재고','ib')}
-          ${ith('매장재고','is')}
+          ${isStoreMode ? ith(`${storeLabel} 재고`,'storeInv') : ith('매장재고','is')}
           ${ith('합계재고','totalInv')}
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -4658,15 +4701,8 @@ function renderInvStoreContent() {
       <div class="card-sub">전체 원가의 ${costShare}%</div>
     </div>`;
 
-  if (hist.length > 1) {
-    const storeQtys  = hist.map(h => names.reduce((s, n) => s + (((h.stores||{})[n]||{}).qty||0), 0));
-    const storeCosts = hist.map(h => Math.floor(names.reduce((s, n) => s + (((h.stores||{})[n]||{}).cost||0), 0) / 10000));
-    document.getElementById('chart-inv-store-title').textContent = label + ' 재고 추이 (일별)';
-    chartInvStoreTrend('canvas-inv-store', hist.map(h => h.date), storeQtys, storeCosts);
-  } else {
-    document.getElementById('chart-inv-store-title').textContent = '재고 추이 (데이터 2일 이상부터 표시)';
-    killChart('canvas-inv-store');
-  }
+  killChart('canvas-inv-store');
+  document.getElementById('chart-inv-store-title').textContent = '';
 
   const tbl = document.getElementById('table-inv-top');
   if (names.length === 1) {
