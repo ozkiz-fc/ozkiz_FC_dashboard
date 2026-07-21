@@ -5133,14 +5133,15 @@ function storeCostBreakdown(name, sales, monthFrac) {
   const supp = Math.round((s.supp || 0) * mf);
   const mgmt = Math.round((s.mgmt || 0) * mf);
   let intrDep = 0;
-  if (s.intr && s.intrMo) {
+  if (s.intr) {
+    const intrMo = s.intrMo || 24;
     const hasDate = s.intrDate && String(s.intrDate).includes('-');
     const elapsed = hasDate
       ? (new Date().getFullYear() - new Date(String(s.intrDate)).getFullYear()) * 12
         + (new Date().getMonth() - new Date(String(s.intrDate)).getMonth())
       : 0;
-    if (!hasDate || elapsed < s.intrMo)
-      intrDep = Math.round((s.intr || 0) / (s.intrMo || 24));
+    if (!hasDate || elapsed < intrMo)
+      intrDep = Math.round((s.intr || 0) / intrMo);
   }
   const intr = Math.round(intrDep * mf);
   const totalCost = varCost + mgrFee + shopFee + dlvyCost + supp + mgmt + intr;
