@@ -2225,7 +2225,7 @@ function renderTaxTotal(){
       if(!DAILY25?.labels?.length||!DAILY?.labels?.length)return null;
       return STORE_LIST.reduce((s,n)=>{const v=d25ytdAmt(n);return v!==null?s+Math.round(v*storeTaxRatio(n)):s;},0);
     })();
-    renderCards('cards-tax-total',tt26,tt25,Q26,Q25,taxYtd25,d25ytdQty(),true);
+    document.getElementById('cards-tax-total').innerHTML='';
     const t=document.getElementById('chart-tax-total-title');
     if(gran==='cumulative'){
       t.textContent='월별 매출 추이 · 25·26년 비교';
@@ -2254,11 +2254,7 @@ function renderTaxStore(){
     const r=storeTaxRatio(name);
     const d26=sd26(name),d25=sd25(name);
     const ytd25v=d25ytdAmt(name);
-    renderCards('cards-tax-store',
-      d26.map(d=>Math.round(d.a*r)),d25.map(d=>Math.round(d.a*r)),
-      d26.map(d=>d.q),d25.map(d=>d.q),
-      ytd25v!==null?Math.round(ytd25v*r):null,d25ytdQty(name),true
-    );
+    document.getElementById('cards-tax-store').innerHTML='';
     const t=document.getElementById('chart-tax-store-title');
     if(gran==='cumulative'){
       t.textContent='월별 매출 추이 · 25·26년 비교';
@@ -2289,32 +2285,57 @@ function renderTaxTotalProfitCards(){
     return;
   }
   const n=PM26.length,_rp=prorateRatio();
-  const ytdSales=PM26.reduce((s,m)=>s+PSTORES.reduce((ss,name)=>ss+(m.stores[name]?.sales||0),0),0);
-  const ytdCost=Math.round(PM26.reduce((s,m,i)=>{
-    const mf=i===n-1?_rp:1;
-    return s+PSTORES.reduce((ss,name)=>ss+calcTaxCost(name,m.stores[name]?.sales||0,mf),0);
-  },0));
-  const ytdContrib=Math.round(PM26.reduce((s,m,i)=>{
-    const mf=i===n-1?_rp:1;
-    return s+totalContrib(m.stores,mf);
-  },0));
-  const contribRate=ytdSales?(ytdContrib/ytdSales*100):null;
   const lbl=profitYtdLbl();
+  // 26년
+  const taxSales26=Math.round(PM26.reduce((s,m)=>s+PSTORES.reduce((ss,nm)=>ss+(m.stores[nm]?.sales||0)*storeTaxRatio(nm),0),0));
+  const realSales26=PM26.reduce((s,m)=>s+PSTORES.reduce((ss,nm)=>ss+(m.stores[nm]?.sales||0),0),0);
+  const ytdCost26=Math.round(PM26.reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+PSTORES.reduce((ss,nm)=>ss+calcTaxCost(nm,m.stores[nm]?.sales||0,mf),0);},0));
+  const ytdContrib26=Math.round(PM26.reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+totalContrib(m.stores,mf);},0));
+  // 25년
+  const taxSales25=Math.round(PM25.slice(0,n).reduce((s,m)=>s+PSTORES.reduce((ss,nm)=>ss+(m.stores[nm]?.sales||0)*storeTaxRatio(nm),0),0));
+  const ytdCost25=Math.round(PM25.slice(0,n).reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+PSTORES.reduce((ss,nm)=>ss+calcTaxCost(nm,m.stores[nm]?.sales||0,mf),0);},0));
+  const ytdContrib25=Math.round(PM25.slice(0,n).reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+totalContrib(m.stores,mf);},0));
+  const r26=realSales26?(ytdContrib26/realSales26*100):null;
   el.innerHTML=`
+    <div class="card card-c1">
+      <div class="card-label">26년 세금계산서 매출 (${lbl})</div>
+      <div class="card-value" style="font-size:26px">${Mcard_p(taxSales26)}</div>
+      <div class="card-sub">${Mp(taxSales26)}</div>
+    </div>
     <div class="card card-c5">
-      <div class="card-label">26년 누적 비용 (${lbl})</div>
-      <div class="card-value" style="font-size:22px">${Mcard_p(ytdCost)}</div>
-      <div class="card-sub">${Mp(ytdCost)}</div>
+      <div class="card-label">26년 비용 (${lbl})</div>
+      <div class="card-value" style="font-size:26px">${Mcard_p(ytdCost26)}</div>
+      <div class="card-sub">${Mp(ytdCost26)}</div>
     </div>
     <div class="card card-c3">
-      <div class="card-label">26년 누적 공헌이익 (${lbl})</div>
-      <div class="card-value" style="font-size:22px;color:${ytdContrib>=0?'#0f172a':'#dc2626'}">${Mcard_p(ytdContrib)}</div>
-      <div class="card-sub">${Mp(ytdContrib)}</div>
+      <div class="card-label">26년 공헌이익 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;color:${ytdContrib26>=0?'#0f172a':'#dc2626'}">${Mcard_p(ytdContrib26)}</div>
+      <div class="card-sub">${Mp(ytdContrib26)}</div>
     </div>
     <div class="card card-c4">
-      <div class="card-label">공헌이익률 (실매출 기준)</div>
-      <div class="card-value" style="font-size:26px">${contribRate!==null?contribRate.toFixed(1)+'%':'-'}</div>
-      <div class="card-sub">실매출 ${Mp(ytdSales)}</div>
+      <div class="card-label">공헌이익률 (26년)</div>
+      <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
+      <div class="card-sub">실매출 ${Mp(realSales26)}</div>
+    </div>
+    <div class="card card-c1">
+      <div class="card-label">25년 세금계산서 매출 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;opacity:.75">${Mcard_p(taxSales25)}</div>
+      <div class="card-sub">${Mp(taxSales25)}</div>
+    </div>
+    <div class="card card-c5">
+      <div class="card-label">25년 비용 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;opacity:.75">${Mcard_p(ytdCost25)}</div>
+      <div class="card-sub">${Mp(ytdCost25)}</div>
+    </div>
+    <div class="card card-c2">
+      <div class="card-label">25년 공헌이익 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;color:${ytdContrib25>=0?'#0f172a':'#dc2626'};opacity:.75">${Mcard_p(ytdContrib25)}</div>
+      <div class="card-sub">${Mp(ytdContrib25)}</div>
+    </div>
+    <div class="card card-c6">
+      <div class="card-label">전년 동기 대비</div>
+      <div class="card-value" style="font-size:28px">${pct(ytdContrib26,ytdContrib25)}</div>
+      <div class="card-sub">${diffHtml(ytdContrib26-ytdContrib25)}</div>
     </div>`;
 }
 function renderTaxStoreProfitCards(rawName){
@@ -2326,34 +2347,61 @@ function renderTaxStoreProfitCards(rawName){
   }
   const name=sname(rawName);
   const n=PM26.length,_rp=prorateRatio();
-  const ytdSales=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
-  const ytdCost=Math.round(PM26.reduce((s,m,i)=>{
-    const mf=i===n-1?_rp:1;
-    return s+calcTaxCost(name,m.stores[name]?.sales||0,mf);
-  },0));
-  const ytdContrib=Math.round(PM26.reduce((s,m,i)=>{
-    const mf=i===n-1?_rp:1;
-    return s+calcContrib(name,m.stores[name]?.sales||0,mf);
-  },0));
-  const contribRate=ytdSales?(ytdContrib/ytdSales*100):null;
   const lbl=profitYtdLbl();
-  const s=getStoreSettings()[name]||SETTING_DEF;
-  const taxNote=(s.tax??100)<100?' <span style="font-size:11px;color:#64748b">(점포수수료 제외)</span>':'';
+  const st=getStoreSettings()[name]||SETTING_DEF;
+  const taxNote=(st.tax??100)<100?' <span style="font-size:11px;color:#64748b">(점포수수료 제외)</span>':'';
+  const r=storeTaxRatio(name);
+  // 26년
+  const taxSales26=Math.round(PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0)*r,0));
+  const realSales26=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+  const ytdCost26=Math.round(PM26.reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+calcTaxCost(name,m.stores[name]?.sales||0,mf);},0));
+  const ytdContrib26=Math.round(PM26.reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+calcContrib(name,m.stores[name]?.sales||0,mf);},0));
+  // 25년
+  const taxSales25=Math.round(PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.sales||0)*r,0));
+  const realSales25=PM25.slice(0,n).reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
+  const ytdCost25=Math.round(PM25.slice(0,n).reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+calcTaxCost(name,m.stores[name]?.sales||0,mf);},0));
+  const ytdContrib25=Math.round(PM25.slice(0,n).reduce((s,m,i)=>{const mf=i===n-1?_rp:1;return s+calcContrib(name,m.stores[name]?.sales||0,mf);},0));
+  const r26=realSales26?(ytdContrib26/realSales26*100):null;
   el.innerHTML=`
+    <div class="card card-c1">
+      <div class="card-label">26년 세금계산서 매출 (${lbl})</div>
+      <div class="card-value" style="font-size:26px">${Mcard_p(taxSales26)}</div>
+      <div class="card-sub">${Mp(taxSales26)}</div>
+    </div>
     <div class="card card-c5">
-      <div class="card-label">26년 누적 비용 (${lbl})${taxNote}</div>
-      <div class="card-value" style="font-size:22px">${Mcard_p(ytdCost)}</div>
-      <div class="card-sub">${Mp(ytdCost)}</div>
+      <div class="card-label">26년 비용 (${lbl})${taxNote}</div>
+      <div class="card-value" style="font-size:26px">${Mcard_p(ytdCost26)}</div>
+      <div class="card-sub">${Mp(ytdCost26)}</div>
     </div>
     <div class="card card-c3">
-      <div class="card-label">26년 누적 공헌이익 (${lbl})</div>
-      <div class="card-value" style="font-size:22px;color:${ytdContrib>=0?'#0f172a':'#dc2626'}">${Mcard_p(ytdContrib)}</div>
-      <div class="card-sub">${Mp(ytdContrib)}</div>
+      <div class="card-label">26년 공헌이익 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;color:${ytdContrib26>=0?'#0f172a':'#dc2626'}">${Mcard_p(ytdContrib26)}</div>
+      <div class="card-sub">${Mp(ytdContrib26)}</div>
     </div>
     <div class="card card-c4">
-      <div class="card-label">공헌이익률 (실매출 기준)</div>
-      <div class="card-value" style="font-size:26px">${contribRate!==null?contribRate.toFixed(1)+'%':'-'}</div>
-      <div class="card-sub">실매출 ${Mp(ytdSales)}</div>
+      <div class="card-label">공헌이익률 (26년)</div>
+      <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
+      <div class="card-sub">실매출 ${Mp(realSales26)}</div>
+    </div>
+    <div class="card card-c1">
+      <div class="card-label">25년 세금계산서 매출 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;opacity:.75">${Mcard_p(taxSales25)}</div>
+      <div class="card-sub">${Mp(taxSales25)}</div>
+    </div>
+    <div class="card card-c5">
+      <div class="card-label">25년 비용 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;opacity:.75">${Mcard_p(ytdCost25)}</div>
+      <div class="card-sub">${Mp(ytdCost25)}</div>
+    </div>
+    <div class="card card-c2">
+      <div class="card-label">25년 공헌이익 (${lbl})</div>
+      <div class="card-value" style="font-size:26px;color:${ytdContrib25>=0?'#0f172a':'#dc2626'};opacity:.75">${Mcard_p(ytdContrib25)}</div>
+      <div class="card-sub">${Mp(ytdContrib25)}</div>
+    </div>
+    <div class="card card-c6">
+      <div class="card-label">전년 동기 대비</div>
+      <div class="card-value" style="font-size:28px">${pct(ytdContrib26,ytdContrib25)}</div>
+      <div class="card-sub">${diffHtml(ytdContrib26-ytdContrib25)}</div>
     </div>`;
 }
 
