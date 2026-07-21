@@ -57,7 +57,6 @@ body{font-family:'Malgun Gothic','Segoe UI',sans-serif;background:#f0f4f8;color:
 .card-c1{border-top-color:#0ea5e9}.card-c2{border-top-color:#22c55e}
 .card-c3{border-top-color:#8b5cf6}.card-c4{border-top-color:#f97316}
 .card-c5{border-top-color:#e11d48}.card-c6{border-top-color:#64748b}
-.profit-summary-cards{grid-template-columns:repeat(3,1fr)!important}
 .card-label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;font-weight:700}
 .card-value{font-size:28px;font-weight:700;color:#0f172a;letter-spacing:-.5px;margin-bottom:4px}
 .card-qty{font-size:15px;color:#0284c7;font-weight:600;margin-bottom:6px}
@@ -3469,7 +3468,7 @@ function renderProfitCards(cardId,mon26,mon25,nameOpt){
   const ya26s=mon26.reduce((s,m)=>s+_pmSales(m),0);
   const ya25s=mon25.slice(0,n).reduce((s,m)=>s+_pmSales(m),0);
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
-  const ya26cost=ya26s-ya26p;
+  const ya26cost=ya26s-ya26p, ya25cost=ya25s-ya25p;
   document.getElementById(cardId).innerHTML=`
     <div class="card card-c1">
       <div class="card-label">26년 누적 매출액 (${profitYtdLbl()})</div>
@@ -3477,23 +3476,33 @@ function renderProfitCards(cardId,mon26,mon25,nameOpt){
       <div class="card-sub">${Mp(ya26s)}</div>
     </div>
     <div class="card card-c5">
-      <div class="card-label">26년 누적 비용 (${profitYtdLbl()})</div>
+      <div class="card-label">26년 비용 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px">${Mcard_p(ya26cost)}</div>
       <div class="card-sub">${Mp(ya26cost)}</div>
     </div>
     <div class="card card-c3">
-      <div class="card-label">26년 누적 공헌이익 (${profitYtdLbl()})</div>
+      <div class="card-label">26년 공헌이익 (${profitYtdLbl()})</div>
       <div class="card-value" style="font-size:26px;color:${ya26p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya26p)}</div>
       <div class="card-sub">${Mp(ya26p)}</div>
     </div>
     <div class="card card-c4">
-      <div class="card-label">공헌이익률 (26년 / 25년)</div>
+      <div class="card-label">공헌이익률 (26년)</div>
       <div class="card-value" style="font-size:26px">${r26!==null?r26.toFixed(1)+'%':'-'}</div>
       <div class="card-sub">25년 동기: ${r25!==null?r25.toFixed(1)+'%':'-'}</div>
     </div>
+    <div class="card card-c1">
+      <div class="card-label">25년 동기 매출액 (${profitYtdLbl()})</div>
+      <div class="card-value" style="font-size:26px;opacity:.75">${Mcard_p(ya25s)}</div>
+      <div class="card-sub">${Mp(ya25s)}</div>
+    </div>
+    <div class="card card-c5">
+      <div class="card-label">25년 비용 (${profitYtdLbl()})</div>
+      <div class="card-value" style="font-size:26px;opacity:.75">${Mcard_p(ya25cost)}</div>
+      <div class="card-sub">${Mp(ya25cost)}</div>
+    </div>
     <div class="card card-c2">
-      <div class="card-label">25년 동기 공헌이익 (${profitYtdLbl()})</div>
-      <div class="card-value" style="font-size:26px;color:${ya25p>=0?'#0f172a':'#dc2626'}">${Mcard_p(ya25p)}</div>
+      <div class="card-label">25년 공헌이익 (${profitYtdLbl()})</div>
+      <div class="card-value" style="font-size:26px;color:${ya25p>=0?'#0f172a':'#dc2626'};opacity:.75">${Mcard_p(ya25p)}</div>
       <div class="card-sub">${Mp(ya25p)}</div>
     </div>
     <div class="card card-c6">
