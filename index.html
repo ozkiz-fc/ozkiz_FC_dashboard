@@ -3427,14 +3427,15 @@ function storeVarRate(name){
 function storeFixed(name){
   const s=getStoreSettings()[name]||SETTING_DEF;
   let intrDepreciation=0;
-  if (s.intr && s.intrMo) {
+  if (s.intr) {
+    const intrMo = s.intrMo || 24;
     const hasDate = s.intrDate && String(s.intrDate).includes('-');
     const elapsed = hasDate
       ? (new Date().getFullYear()-new Date(String(s.intrDate)).getFullYear())*12
         + (new Date().getMonth()-new Date(String(s.intrDate)).getMonth())
       : 0;
-    if (!hasDate || elapsed < s.intrMo)
-      intrDepreciation = Math.round((s.intr||0)/(s.intrMo||24));
+    if (!hasDate || elapsed < intrMo)
+      intrDepreciation = Math.round((s.intr||0)/intrMo);
   }
   return s.supp+s.mgmt+intrDepreciation;
 }
@@ -3464,8 +3465,9 @@ function renderProfitCards(cardId,mon26,mon25,nameOpt){
     const mf=i===n-1?_rp:1;
     return s+(nameOpt?calcContrib(nameOpt,m.total_sales||0,mf):totalContrib(m.stores,mf));
   },0));
-  const ya26s=mon26.reduce((s,m)=>s+(m.total_sales||0),0);
-  const ya25s=mon25.slice(0,n).reduce((s,m)=>s+(m.total_sales||0),0);
+  const _pmSales=m=>m.total_sales>0?m.total_sales:PSTORES.reduce((s,nm)=>s+(m.stores?.[nm]?.sales||0),0);
+  const ya26s=mon26.reduce((s,m)=>s+_pmSales(m),0);
+  const ya25s=mon25.slice(0,n).reduce((s,m)=>s+_pmSales(m),0);
   const r26=profitRate(ya26p,ya26s),r25=profitRate(ya25p,ya25s);
   const ya26cost=ya26s-ya26p;
   document.getElementById(cardId).innerHTML=`
