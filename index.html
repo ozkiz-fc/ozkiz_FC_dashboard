@@ -3492,9 +3492,11 @@ function calcTaxCostRate(name){
   return tax<100?(s.cost+s.mgr+s.dlvy)/100:(s.cost+s.mgr+s.shop+s.dlvy)/100;
 }
 function calcTaxCost(name,actualSales,monthFrac){
+  if(!actualSales) return 0;
   return actualSales*calcTaxCostRate(name)+storeFixed(name)*(monthFrac||0);
 }
 function calcContrib(name,sales,monthFrac){
+  if(!sales) return 0;
   return sales*(1-storeVarRate(name))-storeFixed(name)*(monthFrac||0);
 }
 function totalContrib(storesMap,monthFrac){
