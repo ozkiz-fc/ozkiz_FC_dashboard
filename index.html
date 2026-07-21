@@ -189,7 +189,7 @@ tr:hover td{background:#f8fafc}
 /* ── 재고현황 ── */
 /* ── 판매 베스트 카드형 ── */
 .best-cards-wrap{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 24px 28px;min-height:0}
-.best-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 4px #0000000a;transition:transform .15s,box-shadow .15s}
+.best-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 4px #0000000a;transition:transform .15s,box-shadow .15s;cursor:pointer}
 .best-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px #0000001a}
 .best-card-img-wrap{width:100%;height:158px;background:#f8fafc;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .best-card-img-wrap img{width:100%;height:100%;object-fit:contain}
@@ -204,6 +204,31 @@ tr:hover td{background:#f8fafc}
 .best-bar{height:100%;border-radius:99px;transition:width .4s ease}
 .best-overall-badge{position:absolute;top:8px;right:8px;font-size:10px;font-weight:700;color:#fff;background:#0f172a;padding:2px 7px;border-radius:99px;z-index:1;white-space:nowrap;line-height:1.5}
 .best-overall-badge-out{background:#cbd5e1;color:#64748b}
+/* ── 상품 상세 모달 ── */
+.prod-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.prod-detail-modal{background:#fff;border-radius:18px;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;padding:24px 24px 28px;position:relative;box-shadow:0 24px 64px rgba(0,0,0,.22)}
+.prod-detail-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border:none;background:#f1f5f9;border-radius:50%;cursor:pointer;font-size:14px;color:#64748b;display:flex;align-items:center;justify-content:center;line-height:1}
+.pd-header{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px}
+.pd-img{width:84px;height:84px;object-fit:contain;border-radius:12px;border:1.5px solid #f1f5f9;flex-shrink:0;background:#f8fafc}
+.pd-img-ph{width:84px;height:84px;border-radius:12px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0}
+.pd-header-info{flex:1;padding-top:2px}
+.pd-name{font-size:15px;font-weight:700;color:#0f172a;line-height:1.4;margin-top:5px}
+.pd-section-title{font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:.07em;text-transform:uppercase;margin:16px 0 8px;padding-top:14px;border-top:1px solid #f1f5f9}
+.pd-metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.pd-metric{background:#f8fafc;border-radius:10px;padding:10px 12px}
+.pd-metric-label{font-size:10px;font-weight:600;color:#94a3b8;margin-bottom:3px}
+.pd-metric-value{font-size:14px;font-weight:700;color:#0f172a}
+.pd-metric-sub{font-size:10px;color:#94a3b8;margin-top:2px}
+.pd-metric.accent{background:#eff6ff}
+.pd-metric.accent .pd-metric-value{color:#0ea5e9}
+.pd-metric.warn .pd-metric-value{color:#f97316}
+.pd-stores{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto}
+.pd-store-row{display:grid;grid-template-columns:62px 1fr 46px 34px;gap:6px;align-items:center}
+.pd-store-nm{font-size:11px;font-weight:600;color:#475569;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pd-store-bar-wrap{height:5px;background:#e2e8f0;border-radius:99px;overflow:hidden}
+.pd-store-bar{height:100%;background:#0ea5e9;border-radius:99px}
+.pd-store-qty{font-size:11px;font-weight:600;color:#334155;text-align:right}
+.pd-store-pct{font-size:10px;color:#94a3b8;text-align:right}
 /* ── 홈 대시보드 ── */
 .home-sub-title{padding:16px 28px 8px;font-size:13px;font-weight:700;color:#64748b;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
 .home-section-divider{margin:4px 24px 0;border:none;border-top:1.5px solid #e2e8f0}
@@ -1753,12 +1778,14 @@ function renderHomeBestCards(data) {
   const fmtP = v => v ? Number(v).toLocaleString('ko-KR')+'원' : '-';
   const rankCls = r => r===1?'best-card-rank-1':r===2?'best-card-rank-2':r===3?'best-card-rank-3':'best-card-rank-n';
   const rankTxt = r => r<=3?['🥇','🥈','🥉'][r-1]:r+'위';
+  _bestDetailItems = items;
   wrap.innerHTML = items.map((item,idx) => {
     const r = idx+1;
     const imgEl = item.i
       ? `<img src="${item.i}" loading="lazy" onerror="this.style.display='none'">`
       : '<div style="color:#e2e8f0;font-size:40px">▪</div>';
-    return `<div class="best-card">
+    const nameEsc = (item.n||'').replace(/'/g,"\\'");
+    return `<div class="best-card" onclick="showProdDetail('${nameEsc}')">
       <div class="best-card-img-wrap">${imgEl}</div>
       <div class="best-card-rank ${rankCls(r)}">${rankTxt(r)}</div>
       <div class="best-card-body">
@@ -2632,6 +2659,7 @@ function bestRenderTable(items, isStore, label, totalSales) {
     const od=bestState.cacheOverall[key];
     if (od&&od.overall) od.overall.forEach((it,i)=>{overallRankMap[it.n]=i+1;});
   }
+  _bestDetailItems = sliced;
   wrap.innerHTML=sliced.map((item,idx)=>{
     const r=idx+1;
     const pct=Math.round(Number(bestState.sort==='qty'?item.q:item.s)/maxVal*100);
@@ -2645,7 +2673,8 @@ function bestRenderTable(items, isStore, label, totalSales) {
         ?`<span class="best-overall-badge">전체 ${oRank}위</span>`
         :`<span class="best-overall-badge best-overall-badge-out">TOP20밖</span>`;
     }
-    return `<div class="best-card">
+    const nameEsc=(item.n||'').replace(/'/g,"\\'");
+    return `<div class="best-card" onclick="showProdDetail('${nameEsc}')">
       <div class="best-card-img-wrap">${imgEl}</div>
       <div class="best-card-rank ${rankCls(r)}">${rankTxt(r)}</div>
       ${overallBadge}
@@ -3301,6 +3330,77 @@ function showProdTrend(name) {
 
 function closeProdTrend() {
   document.getElementById('prod-trend-overlay').style.display = 'none';
+}
+
+let _bestDetailItems = [];
+
+function showProdDetail(name) {
+  const p = (_prodData||[]).find(d=>d.n===name);
+  const item = _bestDetailItems.find(d=>d.n===name) || {};
+  const img = p?.img || item.i || null;
+  const cat = p?.ca || item.c || '';
+  const op = p?.op||0, sp = p?.sp||0;
+  const tq = p?.tq||item.q||0, ta = p?.ta||item.s||0;
+  const ib = p?.ib??null, is_ = p?.is??null;
+  const st = p?.st||{};
+
+  const costRate = sp>0 ? Math.round(op/sp*100) : null;
+  const estIn = (tq>0&&is_!==null) ? tq+is_ : null;
+  const sellRate = (tq>0&&is_!==null) ? Math.round(tq/(tq+is_)*100) : null;
+
+  const W = v=>v!=null?Number(v).toLocaleString('ko-KR'):'-';
+  const Won = v=>v!=null?Number(v).toLocaleString('ko-KR')+'원':'-';
+  const mt = (label,val,sub,cls)=>`<div class="pd-metric${cls?' '+cls:''}"><div class="pd-metric-label">${label}</div><div class="pd-metric-value">${val}</div>${sub?`<div class="pd-metric-sub">${sub}</div>`:''}</div>`;
+
+  const storeEntries = Object.entries(st).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const storeHtml = storeEntries.map(([nm,qty])=>{
+    const pct = tq>0?Math.round(qty/tq*100):0;
+    return `<div class="pd-store-row">
+      <span class="pd-store-nm" title="${nm}">${nm}</span>
+      <div class="pd-store-bar-wrap"><div class="pd-store-bar" style="width:${pct}%"></div></div>
+      <span class="pd-store-qty">${W(qty)}개</span>
+      <span class="pd-store-pct">${pct}%</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('prod-detail-modal').innerHTML = `
+    <button class="prod-detail-close" onclick="closeProdDetail()">✕</button>
+    <div class="pd-header">
+      ${img?`<img class="pd-img" src="${img}" onerror="this.style.display='none'" alt="">`:`<div class="pd-img-ph">👟</div>`}
+      <div class="pd-header-info">
+        ${cat?`<span class="cat-bdg">${cat}</span>`:''}
+        <div class="pd-name">${name}</div>
+      </div>
+    </div>
+    <div class="pd-section-title">가격</div>
+    <div class="pd-metrics-grid">
+      ${mt('원가',Won(op||null),'','')}
+      ${mt('실판매가',Won(sp||null),'','')}
+      ${costRate!==null?mt('원가율',costRate+'%','',costRate<50?'accent':''):''}
+    </div>
+    <div class="pd-section-title">판매 현황</div>
+    <div class="pd-metrics-grid">
+      ${mt('총판매수량',W(tq)+'개','','accent')}
+      ${mt('총판매금액',Won(ta||null),'','')}
+      ${sellRate!==null?mt('매장 판매율',sellRate+'%','판매÷(판매+재고)',sellRate>=80?'accent':sellRate<50?'warn':''):''}
+    </div>
+    <div class="pd-section-title">재고 현황</div>
+    <div class="pd-metrics-grid">
+      ${is_!==null?mt('매장 재고',W(is_)+'개',op?Won(is_*op):'',''):''}
+      ${ib!==null?mt('본사 재고',W(ib)+'개',op?Won(ib*op):'',''):''}
+      ${estIn!==null?mt('총입고 추정',W(estIn)+'개','판매+매장재고',''):''}
+    </div>
+    ${storeHtml?`<div class="pd-section-title">매장별 판매 수량</div><div class="pd-stores">${storeHtml}</div>`:''}
+    ${!p&&!storeHtml?`<div style="font-size:12px;color:#94a3b8;padding:8px 0">💡 "전체 상품" 탭을 로드하면 재고·매장별 상세정보를 볼 수 있습니다.</div>`:''}
+  `;
+  document.getElementById('prod-detail-overlay').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+
+function closeProdDetail(e) {
+  if (e && e.target !== document.getElementById('prod-detail-overlay')) return;
+  document.getElementById('prod-detail-overlay').style.display='none';
+  document.body.style.overflow='';
 }
 
 function renderTrend() {
@@ -5837,12 +5937,17 @@ function renderInvStoreStrategy() {
 }
 
 window.addEventListener('load', authStart);
-document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeProdTrend(); });
+document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closeProdTrend(); closeProdDetail(); } });
 </script>
 
 <!-- ■ 상품 트렌드 모달 -->
 <div id="prod-trend-overlay" onclick="if(event.target===this)closeProdTrend()">
   <div id="prod-trend-box"></div>
+</div>
+
+<!-- ■ 제품 상세 모달 -->
+<div class="prod-detail-overlay" id="prod-detail-overlay" style="display:none" onclick="closeProdDetail(event)">
+  <div class="prod-detail-modal" id="prod-detail-modal"></div>
 </div>
 </body>
 </html>
