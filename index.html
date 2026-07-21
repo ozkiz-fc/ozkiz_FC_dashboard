@@ -5245,12 +5245,16 @@ function scheduleRemoteSettingSave() {
 }
 
 // 원격 설정 불러오기 (GAS → localStorage 덮어쓰기)
+// 원격이 비어있으면 로컬 설정을 자동 업로드 (최초 동기화)
 async function loadRemoteSettings() {
   try {
     const res = await fetch(INV_API_URL + '?action=getSettings');
     const d = await res.json();
     if (d.ok && d.settings && Object.keys(d.settings).length) {
       localStorage.setItem(SETTING_KEY, JSON.stringify(d.settings));
+    } else {
+      const local = getStoreSettings();
+      if (Object.keys(local).length) scheduleRemoteSettingSave();
     }
   } catch(e) {}
 }
