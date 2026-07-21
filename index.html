@@ -5230,33 +5230,48 @@ function saveSettingField(store, field, value) {
   scheduleRemoteSettingSave();
 }
 
-// 원격 설정 저장 (1.5초 디바운스 — 연속 입력 시 마지막 값만 전송)
+// 원격 설정 저장 (1.5초 디바운스 — JSONP 방식)
 let _settingSyncTimer = null;
 function scheduleRemoteSettingSave() {
   clearTimeout(_settingSyncTimer);
-  _settingSyncTimer = setTimeout(async () => {
-    try {
-      const enc = btoa(unescape(encodeURIComponent(JSON.stringify(getStoreSettings()))));
-      await fetch(INV_API_URL + '?' + new URLSearchParams({action:'saveSettings', data: enc}));
-      const badge = document.getElementById('setting-saved');
-      if (badge) { badge.textContent = '☁ 동기화됨'; badge.classList.add('show'); clearTimeout(badge._hideT); badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500); }
-    } catch(e) {}
+  _settingSyncTimer = setTimeout(() => {
+    const enc = btoa(unescape(encodeURIComponent(JSON.stringify(getStoreSettings()))));
+    const cb = '_saveSetCb' + Date.now();
+    const el = document.createElement('script');
+    const tid = setTimeout(() => { delete window[cb]; el.remove(); }, 10000);
+    window[cb] = d => {
+      clearTimeout(tid); delete window[cb]; el.remove();
+      if (d.ok) {
+        const badge = document.getElementById('setting-saved');
+        if (badge) { badge.textContent = '☁ 동기화됨'; badge.classList.add('show'); clearTimeout(badge._hideT); badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500); }
+      }
+    };
+    el.src = `${INV_API_URL}?action=saveSettings&callback=${cb}&data=${encodeURIComponent(enc)}`;
+    el.onerror = () => { clearTimeout(tid); delete window[cb]; el.remove(); };
+    document.head.appendChild(el);
   }, 1500);
 }
 
-// 원격 설정 불러오기 (GAS → localStorage 덮어쓰기)
-// 원격이 비어있으면 로컬 설정을 자동 업로드 (최초 동기화)
-async function loadRemoteSettings() {
-  try {
-    const res = await fetch(INV_API_URL + '?action=getSettings');
-    const d = await res.json();
-    if (d.ok && d.settings && Object.keys(d.settings).length) {
-      localStorage.setItem(SETTING_KEY, JSON.stringify(d.settings));
-    } else {
-      const local = getStoreSettings();
-      if (Object.keys(local).length) scheduleRemoteSettingSave();
-    }
-  } catch(e) {}
+// 원격 설정 불러오기 (JSONP 방식 — 원격 비어있으면 로컬→GAS 자동 업로드)
+function loadRemoteSettings() {
+  return new Promise(resolve => {
+    const cb = '_getSetCb' + Date.now();
+    const el = document.createElement('script');
+    const tid = setTimeout(() => { delete window[cb]; el.remove(); resolve(); }, 8000);
+    window[cb] = d => {
+      clearTimeout(tid); delete window[cb]; el.remove();
+      if (d.ok && d.settings && Object.keys(d.settings).length) {
+        localStorage.setItem(SETTING_KEY, JSON.stringify(d.settings));
+      } else {
+        const local = getStoreSettings();
+        if (Object.keys(local).length) scheduleRemoteSettingSave();
+      }
+      resolve();
+    };
+    el.src = `${INV_API_URL}?action=getSettings&callback=${cb}`;
+    el.onerror = () => { clearTimeout(tid); delete window[cb]; el.remove(); resolve(); };
+    document.head.appendChild(el);
+  });
 }
 
 function settingNumFocus(el) {
