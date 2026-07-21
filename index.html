@@ -1397,16 +1397,23 @@ function tblDaily(id, store) {
 // ── 테이블: 매장별 누적 ──
 function tblStoreCumulative(id, store) {
   const d26=sd26(store), d25=sd25(store), n=d26.length;
+  const _r=prorateRatio();
   const mon=Array.from({length:Math.max(n,4)},(_,i)=>i);
   const tot26={a:d26.reduce((s,d)=>s+d.a,0),q:d26.reduce((s,d)=>s+d.q,0)};
-  const tot25={a:d25.slice(0,n).reduce((s,d)=>s+d.a,0),q:d25.slice(0,n).reduce((s,d)=>s+d.q,0)};
+  // 마지막 달(진행중)은 YTD 처리
+  const last25a=d25curAmt(store)??Math.round((d25[n-1]?.a||0)*_r);
+  const last25q=d25curQty(store)??Math.round((d25[n-1]?.q||0)*_r);
+  const tot25a=d25ytdAmt(store)??d25.slice(0,n-1).reduce((s,d)=>s+d.a,0)+last25a;
+  const tot25q=d25ytdQty(store)??d25.slice(0,n-1).reduce((s,d)=>s+d.q,0)+last25q;
   document.getElementById(id).innerHTML=`
     <table><thead><tr>
       <th>연도</th>${mon.map(i=>`<th>${MLABELS[i]}</th>`).join('')}<th>누적</th>
     </tr></thead><tbody>
-    <tr><td>2025년</td>${mon.map(i=>`<td>${cv(d25[i]?.a||0,d25[i]?.q||0)}</td>`).join('')}<td>${cv(tot25.a,tot25.q)}</td></tr>
+    <tr><td>2025년</td>${mon.map(i=>i===n-1
+      ?`<td>${cv(last25a,last25q)}<span class="partial-badge">동기간</span></td>`
+      :`<td>${cv(d25[i]?.a||0,d25[i]?.q||0)}</td>`).join('')}<td>${cv(tot25a,tot25q)}</td></tr>
     <tr><td>2026년</td>${d26.map((d,i)=>`<td>${cv(d.a,d.q)}${i===n-1?'<span class="partial-badge">집계중</span>':''}</td>`).join('')}${Array(Math.max(0,4-n)).fill('<td style="color:#e2e8f0">-</td>').join('')}<td>${cv(tot26.a,tot26.q)}</td></tr>
-    <tr class="td-total"><td>전년비</td>${mon.map(i=>`<td class="td-growth">${pct(d26[i]?.a||0,d25[i]?.a||0)}</td>`).join('')}<td class="td-growth">${pct(tot26.a,tot25.a)}</td></tr>
+    <tr class="td-total"><td>전년비</td>${mon.map(i=>{const a25=i===n-1?last25a:(d25[i]?.a||0);return`<td class="td-growth">${pct(d26[i]?.a||0,a25)}</td>`;}).join('')}<td class="td-growth">${pct(tot26.a,tot25a)}</td></tr>
     </tbody></table>`;
 }
 
@@ -1498,19 +1505,34 @@ function chartDaily(cid, store) {
   const amts=store?DAILY.stores[store]?.amount:DAILY.total_amount;
   const qtys=store?DAILY.stores[store]?.qty:DAILY.total_qty;
   if (!amts) return;
+  // 25년 동기간 매핑
+  let amts25=null;
+  if (DAILY25?.labels?.length) {
+    const src25=store?DAILY25.stores[store]?.amount:DAILY25.total_amount;
+    if (src25) {
+      const m25={};
+      DAILY25.labels.forEach((l,i)=>{m25[l]=(m25[l]||0)+(src25[i]||0);});
+      amts25=DAILY.labels.map(l=>+((m25[l]||0)/1e6).toFixed(2));
+    }
+  }
+  const datasets=[
+    {label:'26년 매출',data:amts.map(v=>+(v/1e6).toFixed(2)),borderColor:CHART_COLORS.line26,
+     backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3,order:1},
+    {label:'수량(개)',data:qtys,type:'bar',backgroundColor:'#8b5cf640',borderRadius:2,yAxisID:'y2',order:3}
+  ];
+  if (amts25) datasets.splice(1,0,{
+    label:'25년 매출',data:amts25,borderColor:CHART_COLORS.line25,
+    backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],tension:.3,order:2
+  });
   charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
     type:'line',
-    data:{labels:DAILY.labels,datasets:[
-      {label:'매출',data:amts.map(v=>+(v/1e6).toFixed(2)),borderColor:CHART_COLORS.line26,
-       backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3,order:1},
-      {label:'수량(개)',data:qtys,type:'bar',backgroundColor:'#8b5cf640',borderRadius:2,yAxisID:'y2',order:2}
-    ]},
+    data:{labels:DAILY.labels,datasets},
     options:{responsive:true,interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
         tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,
           bodyColor:CHART_COLORS.tooltip.body,
-          callbacks:{label(c){return c.dataset.yAxisID==='y2'?` 수량: ${c.parsed.y?.toLocaleString()}개`:` 매출: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
+          callbacks:{label(c){return c.dataset.yAxisID==='y2'?` 수량: ${c.parsed.y?.toLocaleString()}개`:` ${c.dataset.label}: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
       scales:{
         x:{ticks:{color:CHART_COLORS.tick,maxRotation:45,maxTicksLimit:15,font:{size:12}},grid:{color:CHART_COLORS.gridX}},
         y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}},
@@ -1767,7 +1789,7 @@ function renderTotal() {
       chartWeekly('canvas-total',null);
       tblWeekly('table-total',null);
     } else {
-      t.textContent='일별 매출 추이 (2026년)';
+      t.textContent='일별 매출 추이 (26년·25년 동기)';
       chartDaily('canvas-total',null);
       tblDaily('table-total',null);
     }
@@ -1794,7 +1816,7 @@ function renderStore() {
       chartWeekly('canvas-store',name);
       tblWeekly('table-store',name);
     } else {
-      t.textContent='일별 매출 추이 (2026년)';
+      t.textContent='일별 매출 추이 (26년·25년 동기)';
       chartDaily('canvas-store',name);
       tblDaily('table-store',name);
     }
@@ -2025,16 +2047,35 @@ function chartTaxDaily(cid,store){
     amts=DAILY.total_amount.map((_,i)=>STORE_LIST.reduce((s,n)=>s+Math.round((DAILY.stores[n]?.amount?.[i]||0)*storeTaxRatio(n)),0));
     qtys=DAILY.total_qty;
   }
+  // 25년 동기간 매핑
+  let amts25=null;
+  if (DAILY25?.labels?.length) {
+    const src25=store?DAILY25.stores[store]?.amount:DAILY25.total_amount;
+    if (src25) {
+      const r25=store?storeTaxRatio(store):null;
+      const m25={};
+      DAILY25.labels.forEach((l,i)=>{
+        const v=src25[i]||0;
+        m25[l]=(m25[l]||0)+(r25?Math.round(v*r25):STORE_LIST.reduce((s,n)=>s+Math.round((DAILY25.stores[n]?.amount?.[i]||0)*storeTaxRatio(n)),0));
+      });
+      amts25=DAILY.labels.map(l=>+((m25[l]||0)/1e6).toFixed(2));
+    }
+  }
+  const datasets=[
+    {label:'26년 매출',data:amts.map(v=>+(v/1e6).toFixed(2)),borderColor:CHART_COLORS.line26,backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3,order:1},
+    {label:'수량(개)',data:qtys,type:'bar',backgroundColor:'#8b5cf640',borderRadius:2,yAxisID:'y2',order:3}
+  ];
+  if (amts25) datasets.splice(1,0,{
+    label:'25년 매출',data:amts25,borderColor:CHART_COLORS.line25,
+    backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,borderDash:[4,3],tension:.3,order:2
+  });
   charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
     type:'line',
-    data:{labels:DAILY.labels,datasets:[
-      {label:'매출',data:amts.map(v=>+(v/1e6).toFixed(2)),borderColor:CHART_COLORS.line26,backgroundColor:CHART_COLORS.line26+'18',borderWidth:2,pointRadius:2,fill:true,tension:.3,order:1},
-      {label:'수량(개)',data:qtys,type:'bar',backgroundColor:'#8b5cf640',borderRadius:2,yAxisID:'y2',order:2}
-    ]},
+    data:{labels:DAILY.labels,datasets},
     options:{responsive:true,interaction:{mode:'index',intersect:false},
       plugins:{legend:{labels:{color:CHART_COLORS.legend,font:{size:13}}},
         tooltip:{backgroundColor:CHART_COLORS.tooltip.bg,titleColor:CHART_COLORS.tooltip.title,bodyColor:CHART_COLORS.tooltip.body,
-          callbacks:{label(c){return c.dataset.yAxisID==='y2'?` 수량: ${c.parsed.y?.toLocaleString()}개`:` 매출: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
+          callbacks:{label(c){return c.dataset.yAxisID==='y2'?` 수량: ${c.parsed.y?.toLocaleString()}개`:` ${c.dataset.label}: ${(c.parsed.y*1e6).toLocaleString('ko-KR')}원`;}}}},
       scales:{x:{ticks:{color:CHART_COLORS.tick,maxRotation:45,maxTicksLimit:15,font:{size:12}},grid:{color:CHART_COLORS.gridX}},
         y:{ticks:{color:CHART_COLORS.tick,font:{size:13},callback:yAxisFmt},grid:{color:CHART_COLORS.gridY}},
         y2:{position:'right',ticks:{color:'#8b5cf6',font:{size:13},callback:v=>v},grid:{drawOnChartArea:false}}}}
@@ -2240,7 +2281,7 @@ function renderTaxTotal(){
       chartTaxWeekly('canvas-tax-total',null);
       tblTaxWeekly('table-tax-total',null);
     }else{
-      t.textContent='일별 매출 추이 (2026년)';
+      t.textContent='일별 매출 추이 (26년·25년 동기)';
       chartTaxDaily('canvas-tax-total',null);
       tblTaxDaily('table-tax-total',null);
     }
@@ -2269,7 +2310,7 @@ function renderTaxStore(){
       chartTaxWeekly('canvas-tax-store',name);
       tblTaxWeekly('table-tax-store',name);
     }else{
-      t.textContent='일별 매출 추이 (2026년)';
+      t.textContent='일별 매출 추이 (26년·25년 동기)';
       chartTaxDaily('canvas-tax-store',name);
       tblTaxDaily('table-tax-store',name);
     }
@@ -5040,8 +5081,10 @@ async function init() {
     initBestStores();
     invLoadSummary(false); // 재고 캐시 백그라운드 선로드 (localStorage 히트 시 즉시 완료)
 
-    // Phase 1: 매출 데이터 먼저 → 홈 즉시 표시
+    // Phase 1: 매출 데이터 + 원격 설정 병렬 로드 → 공헌이익 계산에 올바른 설정 반영
+    const remoteSettingsLoad = loadRemoteSettings().catch(() => {});
     const data = await callAPI();
+    await remoteSettingsLoad; // callAPI와 거의 동시 완료, 추가 지연 없음
     processData(data);
     document.getElementById('updated-at').textContent = data.updatedAt ? '⏱ ' + data.updatedAt : '';
     document.getElementById('tax-updated-at').textContent = data.updatedAt ? '⏱ ' + data.updatedAt : '';
@@ -5180,9 +5223,36 @@ function saveSettingField(store, field, value) {
   if (field === 'tax') all[store][field] = Math.min(100, Math.max(0, all[store][field]));
   localStorage.setItem(SETTING_KEY, JSON.stringify(all));
   const badge = document.getElementById('setting-saved');
+  badge.textContent = '✓ 저장됨';
   badge.classList.add('show');
   clearTimeout(badge._hideT);
   badge._hideT = setTimeout(() => badge.classList.remove('show'), 2000);
+  scheduleRemoteSettingSave();
+}
+
+// 원격 설정 저장 (1.5초 디바운스 — 연속 입력 시 마지막 값만 전송)
+let _settingSyncTimer = null;
+function scheduleRemoteSettingSave() {
+  clearTimeout(_settingSyncTimer);
+  _settingSyncTimer = setTimeout(async () => {
+    try {
+      const enc = btoa(unescape(encodeURIComponent(JSON.stringify(getStoreSettings()))));
+      await fetch(INV_API_URL + '?' + new URLSearchParams({action:'saveSettings', data: enc}));
+      const badge = document.getElementById('setting-saved');
+      if (badge) { badge.textContent = '☁ 동기화됨'; badge.classList.add('show'); clearTimeout(badge._hideT); badge._hideT = setTimeout(() => badge.classList.remove('show'), 1500); }
+    } catch(e) {}
+  }, 1500);
+}
+
+// 원격 설정 불러오기 (GAS → localStorage 덮어쓰기)
+async function loadRemoteSettings() {
+  try {
+    const res = await fetch(INV_API_URL + '?action=getSettings');
+    const d = await res.json();
+    if (d.ok && d.settings && Object.keys(d.settings).length) {
+      localStorage.setItem(SETTING_KEY, JSON.stringify(d.settings));
+    }
+  } catch(e) {}
 }
 
 function settingNumFocus(el) {
