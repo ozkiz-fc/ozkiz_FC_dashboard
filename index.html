@@ -490,7 +490,7 @@ tr:hover td{background:#f8fafc}
     <div class="nav-group">
       <button class="nav-group-hd" id="grp-return" onclick="toggleGroup('grp-return','sub-return')">
         <span class="nav-icon">↩️</span>
-        <span>반품 관리</span>
+        <span>반품관리</span>
         <span class="nav-chevron">▾</span>
       </button>
       <div class="nav-sub collapsed" id="sub-return">
@@ -6490,6 +6490,7 @@ async function _retLoadAndRender(tab, force) {
         _ret3mRates = rates;
         const stats = _retCalcStats(_retLastData.stores, _retState.year, _retState.month);
         renderRetSetting(_retLastData, stats, rates);
+        retApplyAll_fromRates(rates);
         if (msgEl) msgEl.textContent = `${_retLastData.period} 기준 · 캐시 · 3개월 평균 반영`;
       });
     }
@@ -6512,6 +6513,7 @@ async function _retLoadAndRender(tab, force) {
         _ret3mRates = rates;
         const stats = _retCalcStats(data.stores, _retState.year, _retState.month);
         renderRetSetting(data, stats, rates);
+        retApplyAll_fromRates(rates);
         if (msgEl) msgEl.textContent = `${data.period} 기준 · 3개월 평균 반영됨`;
       });
     }
@@ -6630,6 +6632,14 @@ function retApplyOne(name, rate) {
   saveSettingField(name, 'retRate', rate);
   const btn = document.getElementById(`ret-apply-${name}`);
   if (btn) { btn.textContent = '✓ 반영됨'; btn.style.background = '#22c55e'; btn.style.color = '#fff'; btn.disabled = true; }
+}
+
+function retApplyAll_fromRates(rates3m) {
+  if (!rates3m) return;
+  INV_STORE_ORDER.forEach(name => {
+    const rate = rates3m[name] ?? null;
+    if (rate !== null) retApplyOne(name, rate);
+  });
 }
 
 function retApplyAll() {
