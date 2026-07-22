@@ -497,8 +497,11 @@ tr:hover td{background:#f8fafc}
         <button class="nav-sub-item" id="nav-return-status" onclick="switchMain('return-status')">
           <span class="nav-sub-dot">●</span> 반품 현황
         </button>
-        <button class="nav-sub-item" id="nav-return-trend" onclick="switchMain('return-trend')">
-          <span class="nav-sub-dot">●</span> 반품 추이
+        <button class="nav-sub-item" id="nav-return-trend-all" onclick="switchMain('return-trend-all')">
+          <span class="nav-sub-dot">●</span> 반품 추이 · 전체
+        </button>
+        <button class="nav-sub-item" id="nav-return-trend-store" onclick="switchMain('return-trend-store')">
+          <span class="nav-sub-dot">●</span> 반품 추이 · 매장별
         </button>
         <button class="nav-sub-item" id="nav-return-setting" onclick="switchMain('return-setting')">
           <span class="nav-sub-dot">●</span> 감가상각 연동
@@ -1014,33 +1017,95 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
-  <!-- ■ 반품 추이 -->
-  <div id="sec-return-trend" class="section-wrap">
+  <!-- ■ 반품 추이 · 전체 -->
+  <div id="sec-return-trend-all" class="section-wrap">
     <div class="topbar">
       <div class="topbar-left">
-        <span class="page-title">📉 반품 추이</span>
-        <span id="ret-trend-msg" class="updated"></span>
+        <span class="page-title">📉 반품 추이 · 전체</span>
+        <span id="ret-trend-all-msg" class="updated"></span>
       </div>
       <div class="topbar-right">
-        <select id="ret-trend-year" class="store-select" style="width:90px">
+        <select id="ret-trend-all-year" class="store-select" style="width:90px">
           <option value="2025">2025년</option>
           <option value="2026" selected>2026년</option>
         </select>
-        <select id="ret-trend-month" class="store-select" style="width:80px">
-          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
-          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
-          <option value="7" selected>7월</option><option value="8">8월</option><option value="9">9월</option>
-          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
-        </select>
-        <button class="btn-ret btn-ret-primary" onclick="retQuery('trend')">조회</button>
-        <button class="btn-ret btn-ret-ghost" onclick="retQuery('trend',true)">새로고침</button>
+        <button class="btn-ret btn-ret-primary" onclick="retTrendQuery('all')">조회</button>
+        <button class="btn-ret btn-ret-ghost" onclick="retTrendQuery('all',true)">새로고침</button>
       </div>
     </div>
-    <div id="ret-trend-loading" class="ret-loading"><div class="ret-spinner"></div>B300(출고)+B600(반품) 조회 중... 약 1~2분 소요</div>
+    <div id="ret-trend-all-loading" class="ret-loading"><div class="ret-spinner"></div>반품 이력 불러오는 중...</div>
     <div class="content-area">
       <div class="chart-wrap" style="position:relative;min-height:320px">
-        <canvas id="ret-trend-chart"></canvas>
-        <div id="ret-trend-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:#94a3b8">조회 버튼을 눌러 데이터를 불러오세요</div>
+        <canvas id="ret-trend-all-chart"></canvas>
+        <div id="ret-trend-all-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:#94a3b8">조회 버튼을 눌러 데이터를 불러오세요</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="text-align:left">월</th>
+            <th>전체 판매</th>
+            <th>전체 반품</th>
+            <th>반품율</th>
+            <th>전월 대비</th>
+          </tr></thead>
+          <tbody id="ret-trend-all-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">조회 버튼을 눌러 데이터를 불러오세요</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ■ 반품 추이 · 매장별 -->
+  <div id="sec-return-trend-store" class="section-wrap">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">📉 반품 추이 · 매장별</span>
+        <span id="ret-trend-store-msg" class="updated"></span>
+      </div>
+      <div class="topbar-right">
+        <select id="ret-trend-store-sel" class="store-select">
+          <option value="">매장 선택</option>
+          <option value="남악">남악</option><option value="부천">부천</option>
+          <option value="의정부">의정부</option><option value="인천">인천</option>
+          <option value="유성">유성</option><option value="여수">여수</option>
+          <option value="율하">율하</option><option value="충장">충장</option>
+          <option value="동수원">동수원</option><option value="송파">송파</option>
+          <option value="제주">제주</option><option value="괴정">괴정</option>
+          <option value="강서">강서</option><option value="순천">순천</option>
+          <option value="평택">평택</option><option value="고척">고척</option>
+          <option value="원주">원주</option><option value="마리오">마리오</option>
+          <option value="창원">창원</option><option value="평촌">평촌</option>
+          <option value="면세점">면세점</option><option value="STCO현풍">STCO현풍</option>
+          <option value="STCO용인">STCO용인</option>
+        </select>
+        <select id="ret-trend-store-year" class="store-select" style="width:90px">
+          <option value="2025">2025년</option>
+          <option value="2026" selected>2026년</option>
+        </select>
+        <button class="btn-ret btn-ret-primary" onclick="retTrendQuery('store')">조회</button>
+        <button class="btn-ret btn-ret-ghost" onclick="retTrendQuery('store',true)">새로고침</button>
+      </div>
+    </div>
+    <div id="ret-trend-store-loading" class="ret-loading"><div class="ret-spinner"></div>반품 이력 불러오는 중...</div>
+    <div class="content-area">
+      <div class="chart-wrap" style="position:relative;min-height:320px">
+        <canvas id="ret-trend-store-chart"></canvas>
+        <div id="ret-trend-store-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;color:#94a3b8">매장을 선택하고 조회 버튼을 눌러주세요</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="text-align:left">월</th>
+            <th>판매수량</th>
+            <th>반품수량</th>
+            <th>반품율</th>
+            <th>전월 대비</th>
+          </tr></thead>
+          <tbody id="ret-trend-store-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">매장을 선택하고 조회 버튼을 눌러주세요</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -2049,7 +2114,7 @@ function switchMain(tab, subTab) {
 
   // 섹션 표시
   const _secTab = tab === 'cost-setting' ? 'setting' : tab;
-  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store','inv-overview','tax-total','tax-store','setting','cost-total','cost-store','return-status','return-trend','return-setting'].forEach(k =>
+  ['home','total','store','profit-total','profit-store','best','memo','inv-total','inv-store','inv-overview','tax-total','tax-store','setting','cost-total','cost-store','return-status','return-trend-all','return-trend-store','return-setting'].forEach(k =>
     document.getElementById('sec-'+k).classList.toggle('active', k === _secTab));
 
   // 서브아이템 활성화
@@ -2075,12 +2140,13 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-cost-total').classList.toggle('active', tab==='cost-total');
   document.getElementById('nav-cost-store').classList.toggle('active', tab==='cost-store');
   document.getElementById('nav-return-status').classList.toggle('active', tab==='return-status');
-  document.getElementById('nav-return-trend').classList.toggle('active', tab==='return-trend');
+  document.getElementById('nav-return-trend-all').classList.toggle('active', tab==='return-trend-all');
+  document.getElementById('nav-return-trend-store').classList.toggle('active', tab==='return-trend-store');
   document.getElementById('nav-return-setting').classList.toggle('active', tab==='return-setting');
 
   // 그룹 헤더 활성화 + 아코디언 열기
   const isCost = tab==='cost-setting'||tab==='cost-total'||tab==='cost-store';
-  const isReturn = tab==='return-status'||tab==='return-trend'||tab==='return-setting';
+  const isReturn = tab==='return-status'||tab==='return-trend-all'||tab==='return-trend-store'||tab==='return-setting';
   document.getElementById('grp-sales').classList.toggle('active', tab==='total'||tab==='store');
   document.getElementById('grp-profit').classList.toggle('active', isProfit);
   document.getElementById('grp-best').classList.toggle('active', isBest);
@@ -2097,7 +2163,7 @@ function switchMain(tab, subTab) {
     'inv-total':['grp-inv','sub-inv'], 'inv-store':['grp-inv','sub-inv'], 'inv-overview':['grp-inv','sub-inv'],
     memo:['grp-memo','sub-memo'],
     'cost-setting':['grp-cost','sub-cost'], 'cost-total':['grp-cost','sub-cost'], 'cost-store':['grp-cost','sub-cost'],
-    'return-status':['grp-return','sub-return'], 'return-trend':['grp-return','sub-return'], 'return-setting':['grp-return','sub-return']
+    'return-status':['grp-return','sub-return'], 'return-trend-all':['grp-return','sub-return'], 'return-trend-store':['grp-return','sub-return'], 'return-setting':['grp-return','sub-return']
   };
   const _g = _grpMap[tab];
   if (_g) openGroup(_g[0], _g[1]); else closeAllGroups();
@@ -2138,7 +2204,17 @@ function switchMain(tab, subTab) {
   else if (tab==='cost-total') renderCostTotal();
   else if (tab==='cost-store') renderCostStore();
   else if (tab==='return-status') { retSyncSelectors('status'); if(_retLastData) renderRetStatus(_retLastData, _retCalcStats(_retLastData.stores, _retState.year, _retState.month)); }
-  else if (tab==='return-trend') { retSyncSelectors('trend'); if(_retLastData) renderRetTrend(_retLastData, _retCalcStats(_retLastData.stores, _retState.year, _retState.month)); }
+  else if (tab==='return-trend-all') {
+    const y = _retTrendState.year;
+    document.getElementById('ret-trend-all-year').value = y;
+    if (_retYearCache[y]) renderRetTrendAll(_retYearCache[y], y);
+  }
+  else if (tab==='return-trend-store') {
+    const y = _retTrendState.year;
+    document.getElementById('ret-trend-store-year').value = y;
+    if (_retTrendState.store) document.getElementById('ret-trend-store-sel').value = _retTrendState.store;
+    if (_retYearCache[y] && _retTrendState.store) renderRetTrendStore(_retYearCache[y], y, _retTrendState.store);
+  }
   else if (tab==='return-setting') { retSyncSelectors('setting'); if(_retLastData) renderRetSetting(_retLastData, _retCalcStats(_retLastData.stores, _retState.year, _retState.month), _ret3mRates); }
 }
 function setGran(sec, val) {
@@ -6146,6 +6222,8 @@ const _retCache = {};
 let _retLastData = null;
 let _ret3mRates = null;
 const _retState = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+const _retYearCache = {};
+const _retTrendState = { year: new Date().getFullYear(), store: null };
 
 function _getStoreSaleQty(name, year, month) {
   if (!DATA?.monthly) return 0;
@@ -6193,6 +6271,194 @@ async function _retCalc3mAvg(year, month) {
   return rates;
 }
 
+function _retFetchYear(year, force) {
+  const key = String(year);
+  if (!force && _retYearCache[key]) return Promise.resolve(_retYearCache[key]);
+  if (force) delete _retYearCache[key];
+  return new Promise(resolve => {
+    const cb = '_rcy_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    const el = document.createElement('script');
+    const tid = setTimeout(() => { delete window[cb]; el.remove(); resolve(null); }, 30000);
+    window[cb] = d => {
+      clearTimeout(tid); delete window[cb]; el.remove();
+      if (d && !d.error) {
+        _retYearCache[key] = d;
+        if (d.months) {
+          Object.entries(d.months).forEach(([m, mData]) => {
+            const mk = `${year}-${String(Number(m)).padStart(2,'0')}`;
+            if (!_retCache[mk] && mData && mData.stores)
+              _retCache[mk] = { ok: true, period: mk, stores: mData.stores };
+          });
+        }
+      }
+      resolve(d && !d.error ? d : null);
+    };
+    el.src = `${INV_API_URL}?action=getReturnAnalysis&year=${year}&mode=year&callback=${cb}`;
+    el.onerror = () => { clearTimeout(tid); delete window[cb]; el.remove(); resolve(null); };
+    document.head.appendChild(el);
+  });
+}
+
+function retTrendQuery(mode, force) {
+  const yearEl = document.getElementById(mode === 'all' ? 'ret-trend-all-year' : 'ret-trend-store-year');
+  if (!yearEl) return;
+  _retTrendState.year = parseInt(yearEl.value);
+  if (mode === 'store') {
+    const storeEl = document.getElementById('ret-trend-store-sel');
+    _retTrendState.store = storeEl ? storeEl.value : null;
+  }
+  _retTrendLoadAndRender(mode, force);
+}
+
+async function _retTrendLoadAndRender(mode, force) {
+  const pfx = mode === 'all' ? 'ret-trend-all' : 'ret-trend-store';
+  const loadEl = document.getElementById(`${pfx}-loading`);
+  const msgEl  = document.getElementById(`${pfx}-msg`);
+  if (loadEl) loadEl.classList.add('show');
+  if (msgEl)  msgEl.textContent = '반품 이력 불러오는 중...';
+  const data = await _retFetchYear(_retTrendState.year, force);
+  if (loadEl) loadEl.classList.remove('show');
+  if (!data) {
+    if (msgEl) msgEl.textContent = '데이터를 불러오지 못했습니다 (GAS year-mode 미배포 시 각 월 조회 후 다시 시도)';
+    return;
+  }
+  const availMonths = Object.keys(data.months || {}).length;
+  if (msgEl) msgEl.textContent = `${_retTrendState.year}년 · ${availMonths}개월 데이터`;
+  if (mode === 'all') renderRetTrendAll(data, _retTrendState.year);
+  else renderRetTrendStore(data, _retTrendState.year, _retTrendState.store);
+}
+
+function renderRetTrendAll(yearData, year) {
+  killChart('ret-trend-all-chart');
+  const canvas  = document.getElementById('ret-trend-all-chart');
+  const emptyEl = document.getElementById('ret-trend-all-empty');
+  const tbody   = document.getElementById('ret-trend-all-tbody');
+  const rows = Array.from({length: 12}, (_, i) => {
+    const m  = i + 1;
+    const md = yearData?.months?.[m];
+    if (!md) return { m, totalSale: null, totalRet: null, rate: null };
+    let totalSale = 0, totalRet = 0;
+    INV_STORE_ORDER.forEach(n => {
+      totalSale += _getStoreSaleQty(n, year, m);
+      totalRet  += (md.stores?.[n]?.ret_qty || 0);
+    });
+    return { m, totalSale, totalRet, rate: totalSale > 0 ? Math.round(totalRet / totalSale * 1000) / 10 : null };
+  });
+  const validRows = rows.filter(r => r.rate !== null);
+  if (!validRows.length) {
+    if (canvas)  canvas.style.display = 'none';
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = '데이터가 없습니다. GAS year-mode 배포 후 조회하거나 반품 현황에서 각 월을 먼저 조회해주세요.'; }
+    if (tbody)   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">데이터 없음</td></tr>';
+    return;
+  }
+  if (canvas)  canvas.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+  const avgRate = Math.round(validRows.reduce((a, r) => a + r.rate, 0) / validRows.length * 10) / 10;
+  const bColors = rows.map(r => r.rate !== null ? _retRateSty(r.rate, avgRate).color + 'bb' : '#e2e8f040');
+  const bdColors = rows.map(r => r.rate !== null ? _retRateSty(r.rate, avgRate).color : '#e2e8f0');
+  charts['ret-trend-all-chart'] = new Chart(canvas, {
+    data: {
+      labels: rows.map(r => `${r.m}월`),
+      datasets: [
+        { type:'bar', label:'월별 반품율', data: rows.map(r => r.rate), backgroundColor: bColors, borderColor: bdColors, borderWidth:2, borderRadius:4, order:2 },
+        { type:'line', label:`평균 ${avgRate}%`, data: Array(12).fill(avgRate), borderColor:'#0ea5e9', borderDash:[6,3], borderWidth:2, pointRadius:0, fill:false, order:1 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display:true, position:'top' },
+        tooltip: { callbacks: { label: ctx => {
+          if (ctx.dataset.type === 'line') return `평균: ${ctx.raw}%`;
+          const r = rows[ctx.dataIndex];
+          return r.rate !== null ? `반품율: ${r.rate}% (판매 ${r.totalSale.toLocaleString()}, 반품 ${r.totalRet.toLocaleString()})` : '데이터 없음';
+        }}}
+      },
+      scales: { y: { beginAtZero:true, title:{ display:true, text:'반품율 (%)' }, ticks:{ callback: v => v+'%' } } }
+    }
+  });
+  if (tbody) tbody.innerHTML = rows.map((r, idx) => {
+    const prev = idx > 0 ? rows[idx-1].rate : null;
+    const diff = (r.rate !== null && prev !== null) ? parseFloat((r.rate - prev).toFixed(1)) : null;
+    const diffStr = diff !== null ? `<span style="color:${diff>0?'#ef4444':diff<0?'#16a34a':'#94a3b8'};font-size:12px">${diff>0?'+':''}${diff}%</span>` : '';
+    const sty = r.rate !== null ? _retRateSty(r.rate, avgRate) : {color:'#94a3b8', bg:''};
+    return `<tr style="${sty.bg}">
+      <td>${r.m}월</td>
+      <td>${r.totalSale !== null ? r.totalSale.toLocaleString() : '-'}</td>
+      <td>${r.totalRet  !== null ? r.totalRet.toLocaleString()  : '-'}</td>
+      <td style="font-weight:700;color:${sty.color}">${r.rate !== null ? r.rate+'%' : '–'}</td>
+      <td>${diffStr || '-'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderRetTrendStore(yearData, year, storeName) {
+  killChart('ret-trend-store-chart');
+  const canvas  = document.getElementById('ret-trend-store-chart');
+  const emptyEl = document.getElementById('ret-trend-store-empty');
+  const tbody   = document.getElementById('ret-trend-store-tbody');
+  if (!storeName) {
+    if (canvas)  canvas.style.display = 'none';
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = '매장을 선택하고 조회 버튼을 눌러주세요'; }
+    if (tbody)   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">매장을 선택해주세요</td></tr>';
+    return;
+  }
+  const rows = Array.from({length: 12}, (_, i) => {
+    const m  = i + 1;
+    const md = yearData?.months?.[m];
+    if (!md) return { m, saleQty: null, retQty: null, rate: null };
+    const saleQty = _getStoreSaleQty(storeName, year, m);
+    const retQty  = md.stores?.[storeName]?.ret_qty || 0;
+    return { m, saleQty, retQty, rate: saleQty > 0 ? Math.round(retQty / saleQty * 1000) / 10 : null };
+  });
+  const validRows = rows.filter(r => r.saleQty !== null);
+  if (!validRows.length) {
+    if (canvas)  canvas.style.display = 'none';
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = `${storeName} 데이터가 없습니다`; }
+    return;
+  }
+  if (canvas)  canvas.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+  const vr = rows.filter(r => r.rate !== null);
+  const avgRate = vr.length ? Math.round(vr.reduce((a,r) => a+r.rate, 0) / vr.length * 10) / 10 : 0;
+  const bColors = rows.map(r => r.rate !== null ? _retRateSty(r.rate, avgRate).color + 'bb' : '#e2e8f040');
+  const bdColors = rows.map(r => r.rate !== null ? _retRateSty(r.rate, avgRate).color : '#e2e8f0');
+  charts['ret-trend-store-chart'] = new Chart(canvas, {
+    data: {
+      labels: rows.map(r => `${r.m}월`),
+      datasets: [
+        { type:'bar', label:`${storeName} 반품율`, data: rows.map(r => r.rate), backgroundColor: bColors, borderColor: bdColors, borderWidth:2, borderRadius:4, order:2 },
+        { type:'line', label:`평균 ${avgRate}%`, data: Array(12).fill(avgRate), borderColor:'#0ea5e9', borderDash:[6,3], borderWidth:2, pointRadius:0, fill:false, order:1 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display:true, position:'top' },
+        tooltip: { callbacks: { label: ctx => {
+          if (ctx.dataset.type === 'line') return `평균: ${ctx.raw}%`;
+          const r = rows[ctx.dataIndex];
+          return r.rate !== null ? `반품율: ${r.rate}% (판매 ${r.saleQty.toLocaleString()}, 반품 ${r.retQty.toLocaleString()})` : '데이터 없음';
+        }}}
+      },
+      scales: { y: { beginAtZero:true, title:{ display:true, text:'반품율 (%)' }, ticks:{ callback: v => v+'%' } } }
+    }
+  });
+  if (tbody) tbody.innerHTML = rows.map((r, idx) => {
+    const prev = idx > 0 ? rows[idx-1].rate : null;
+    const diff = (r.rate !== null && prev !== null) ? parseFloat((r.rate - prev).toFixed(1)) : null;
+    const diffStr = diff !== null ? `<span style="color:${diff>0?'#ef4444':diff<0?'#16a34a':'#94a3b8'};font-size:12px">${diff>0?'+':''}${diff}%</span>` : '';
+    const sty = r.rate !== null ? _retRateSty(r.rate, avgRate) : {color:'#94a3b8', bg:''};
+    return `<tr style="${sty.bg}">
+      <td>${r.m}월</td>
+      <td>${r.saleQty !== null ? r.saleQty.toLocaleString() : '-'}</td>
+      <td>${r.retQty  !== null ? r.retQty.toLocaleString()  : '-'}</td>
+      <td style="font-weight:700;color:${sty.color}">${r.rate !== null ? r.rate+'%' : '–'}</td>
+      <td>${diffStr || '-'}</td>
+    </tr>`;
+  }).join('');
+}
+
 function retSyncSelectors(tab) {
   const y = document.getElementById(`ret-${tab}-year`);
   const m = document.getElementById(`ret-${tab}-month`);
@@ -6205,7 +6471,7 @@ function retQuery(tab, force) {
   const m = parseInt(document.getElementById(`ret-${tab}-month`).value);
   _retState.year = y; _retState.month = m;
   // sync other tabs' selectors
-  ['status','trend','setting'].forEach(t => { if(t!==tab) retSyncSelectors(t); });
+  ['status','setting'].forEach(t => { if(t!==tab) retSyncSelectors(t); });
   _retLoadAndRender(tab, force);
 }
 
@@ -6258,7 +6524,6 @@ async function _retLoadAndRender(tab, force) {
 function _retDispatch(tab, data) {
   const stats = _retCalcStats(data.stores, _retState.year, _retState.month);
   if (tab === 'status')  renderRetStatus(data, stats);
-  if (tab === 'trend')   renderRetTrend(data, stats);
   if (tab === 'setting') renderRetSetting(data, stats, _ret3mRates);
 }
 
@@ -6321,69 +6586,6 @@ function renderRetStatus(data, stats) {
   }).join('');
 }
 
-function renderRetTrend(data, stats) {
-  killChart('ret-trend-chart');
-  const canvas = document.getElementById('ret-trend-chart');
-  if (!canvas) return;
-  const chartData = INV_STORE_ORDER
-    .map(n => {
-      const s = data.stores[n] || {};
-      const saleQty = _getStoreSaleQty(n, _retState.year, _retState.month);
-      const rate = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : 0;
-      return { name: n, rate, sale: saleQty };
-    })
-    .filter(d => d.sale > 0)
-    .sort((a, b) => b.rate - a.rate);
-  const emptyEl = document.getElementById('ret-trend-empty');
-  if (!chartData.length) {
-    canvas.style.display = 'none';
-    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = '출고 데이터가 없습니다.'; }
-    return;
-  }
-  canvas.style.display = '';
-  if (emptyEl) emptyEl.style.display = 'none';
-  const bColors = chartData.map(d => _retRateSty(d.rate, stats.avgRate).color);
-  charts['ret-trend-chart'] = new Chart(canvas, {
-    data: {
-      labels: chartData.map(d => d.name),
-      datasets: [
-        {
-          type: 'bar', label: '반품율',
-          data: chartData.map(d => d.rate),
-          backgroundColor: bColors.map(c => c + 'bb'),
-          borderColor: bColors, borderWidth: 2, borderRadius: 4, order: 2
-        },
-        {
-          type: 'line', label: `평균 ${stats.avgRate}%`,
-          data: Array(chartData.length).fill(stats.avgRate),
-          borderColor: '#0ea5e9', borderDash: [6, 3], borderWidth: 2,
-          pointRadius: 0, fill: false, order: 1
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: true, position: 'top' },
-        tooltip: {
-          callbacks: {
-            label: ctx => ctx.dataset.type === 'bar'
-              ? `반품율: ${ctx.raw}% (판매 ${chartData[ctx.dataIndex].sale.toLocaleString()}개)`
-              : `평균: ${ctx.raw}%`
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          suggestedMax: Math.max(...chartData.map(d => d.rate), stats.avgRate * 1.5) + 5,
-          title: { display: true, text: '반품율 (%)' },
-          ticks: { callback: v => v + '%' }
-        }
-      }
-    }
-  });
-}
 
 function renderRetSetting(data, stats, rates3m = null) {
   const tbody = document.getElementById('ret-setting-tbody');
