@@ -1001,7 +1001,7 @@ tr:hover td{background:#f8fafc}
         <table>
           <thead><tr>
             <th style="text-align:left">매장</th>
-            <th>출고수량</th>
+            <th>판매수량</th>
             <th>반품수량</th>
             <th>반품율</th>
             <th>평균 대비</th>
@@ -1077,15 +1077,22 @@ tr:hover td{background:#f8fafc}
         <table>
           <thead><tr>
             <th style="text-align:left">매장</th>
-            <th>실제 반품율</th>
+            <th>이번달 (반품/판매)</th>
+            <th>3개월 평균</th>
             <th>현재 세팅값</th>
             <th>차이</th>
             <th style="text-align:center">반영</th>
           </tr></thead>
           <tbody id="ret-setting-tbody">
-            <tr><td colspan="5" style="text-align:center;padding:28px;color:#94a3b8">조회 버튼을 눌러 데이터를 불러오세요</td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:28px;color:#94a3b8">조회 버튼을 눌러 데이터를 불러오세요</td></tr>
           </tbody>
         </table>
+      </div>
+      <div style="padding:12px 4px 4px;font-size:12px;color:#94a3b8;line-height:2">
+        <b style="color:#64748b">📌 산출 기준 (비고)</b><br>
+        · 이번달: B600 반품수량 ÷ 주문관리 판매수량 (해당 월 기준)<br>
+        · 3개월 평균: 조회월 포함 최근 3개월 반품 합계 ÷ 판매 합계<br>
+        · <b style="color:#475569">반영 버튼: 3개월 평균값을 세팅 탭 반품율에 적용</b> (3개월 데이터 없을 시 이번달 기준 적용)
       </div>
     </div>
   </div>
@@ -1111,7 +1118,7 @@ tr:hover td{background:#f8fafc}
               <th>점포수수료 (%)</th>
               <th>관리비 (원/월)</th>
               <th>운반비 (%)</th>
-              <th>반품율 (%)</th>
+              <th>반품율 (%)<span title="감가상각 연동 탭에서 실적 기반으로 갱신 가능 · 3개월 평균(반품/판매) 기준" style="cursor:help;color:#94a3b8;margin-left:3px;font-weight:400">ⓘ</span></th>
               <th>재무회계비율 (%)</th>
               <th>인테리어 금액 (원)</th>
               <th>감가상각 기간 (월)</th>
@@ -1120,6 +1127,9 @@ tr:hover td{background:#f8fafc}
           </thead>
           <tbody id="setting-tbody"></tbody>
         </table>
+        <div style="font-size:12px;color:#94a3b8;padding:8px 2px 0;line-height:1.8">
+          반품율 산출 기준: B600 반품수량 ÷ 주문관리 판매수량 · 최근 3개월 평균 적용 — 감가상각 연동 탭에서 변경
+        </div>
       </div>
       <div class="setting-save-bar">
         <span id="setting-saved" class="setting-saved-badge">✓ 저장됨</span>
@@ -2127,9 +2137,9 @@ function switchMain(tab, subTab) {
   else if (tab==='cost-setting') renderSetting();
   else if (tab==='cost-total') renderCostTotal();
   else if (tab==='cost-store') renderCostStore();
-  else if (tab==='return-status') { retSyncSelectors('status'); if(_retLastData) renderRetStatus(_retLastData, _retCalcStats(_retLastData.stores)); }
-  else if (tab==='return-trend') { retSyncSelectors('trend'); if(_retLastData) renderRetTrend(_retLastData, _retCalcStats(_retLastData.stores)); }
-  else if (tab==='return-setting') { retSyncSelectors('setting'); if(_retLastData) renderRetSetting(_retLastData, _retCalcStats(_retLastData.stores)); }
+  else if (tab==='return-status') { retSyncSelectors('status'); if(_retLastData) renderRetStatus(_retLastData, _retCalcStats(_retLastData.stores, _retState.year, _retState.month)); }
+  else if (tab==='return-trend') { retSyncSelectors('trend'); if(_retLastData) renderRetTrend(_retLastData, _retCalcStats(_retLastData.stores, _retState.year, _retState.month)); }
+  else if (tab==='return-setting') { retSyncSelectors('setting'); if(_retLastData) renderRetSetting(_retLastData, _retCalcStats(_retLastData.stores, _retState.year, _retState.month), _ret3mRates); }
 }
 function setGran(sec, val) {
   state[sec].gran=val;
@@ -6134,7 +6144,54 @@ function renderInvStoreStrategy() {
 // ════════════════════════════════════════════════
 const _retCache = {};
 let _retLastData = null;
+let _ret3mRates = null;
 const _retState = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+
+function _getStoreSaleQty(name, year, month) {
+  if (!DATA?.monthly) return 0;
+  const m = DATA.monthly.find(d => d.year === String(year) && d.month === Number(month));
+  return m?.stores?.[name]?.qty || 0;
+}
+
+function _retFetchMonth(year, month) {
+  const key = `${year}-${String(month).padStart(2,'0')}`;
+  if (_retCache[key]) return Promise.resolve(_retCache[key]);
+  return new Promise(resolve => {
+    const cb = '_rc_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    const el = document.createElement('script');
+    const tid = setTimeout(() => { delete window[cb]; el.remove(); resolve(null); }, 120000);
+    window[cb] = d => { clearTimeout(tid); delete window[cb]; el.remove(); if (!d.error) _retCache[key] = d; resolve(d.error ? null : d); };
+    el.src = `${INV_API_URL}?action=getReturnAnalysis&year=${year}&month=${month}&callback=${cb}`;
+    el.onerror = () => { clearTimeout(tid); delete window[cb]; el.remove(); resolve(null); };
+    document.head.appendChild(el);
+  });
+}
+
+async function _retCalc3mAvg(year, month) {
+  const months = [];
+  let y = Number(year), m = Number(month);
+  for (let i = 0; i < 3; i++) {
+    months.push({y, m});
+    m--; if (m === 0) { m = 12; y--; }
+  }
+  const results = await Promise.all(months.map(({y, m}) => _retFetchMonth(y, m)));
+  const agg = {};
+  results.forEach((data, idx) => {
+    if (!data) return;
+    const {y, m} = months[idx];
+    INV_STORE_ORDER.forEach(name => {
+      if (!agg[name]) agg[name] = {ret: 0, sale: 0};
+      agg[name].ret  += (data.stores[name]?.ret_qty || 0);
+      agg[name].sale += _getStoreSaleQty(name, y, m);
+    });
+  });
+  const rates = {};
+  INV_STORE_ORDER.forEach(name => {
+    const a = agg[name];
+    rates[name] = (a && a.sale > 0) ? Math.round(a.ret / a.sale * 1000) / 10 : null;
+  });
+  return rates;
+}
 
 function retSyncSelectors(tab) {
   const y = document.getElementById(`ret-${tab}-year`);
@@ -6157,27 +6214,41 @@ async function _retLoadAndRender(tab, force) {
   const loadEl = document.getElementById(`ret-${tab}-loading`);
   const msgEl  = document.getElementById(`ret-${tab}-msg`);
 
-  if (force) delete _retCache[key];
-  if (_retCache[key]) { _retLastData = _retCache[key]; _retDispatch(tab, _retCache[key]); return; }
+  if (force) { delete _retCache[key]; if (tab === 'setting') _ret3mRates = null; }
+
+  if (_retCache[key]) {
+    _retLastData = _retCache[key];
+    _retDispatch(tab, _retCache[key]);
+    if (tab === 'setting' && !_ret3mRates) {
+      _retCalc3mAvg(_retState.year, _retState.month).then(rates => {
+        _ret3mRates = rates;
+        const stats = _retCalcStats(_retLastData.stores, _retState.year, _retState.month);
+        renderRetSetting(_retLastData, stats, rates);
+        if (msgEl) msgEl.textContent = `${_retLastData.period} 기준 · 캐시 · 3개월 평균 반영`;
+      });
+    }
+    return;
+  }
 
   if (loadEl) loadEl.classList.add('show');
   if (msgEl)  msgEl.textContent = 'B300+B600 조회 중 (약 1~2분)...';
 
   try {
-    const cb = '_rc_' + Date.now();
-    const data = await new Promise((resolve, reject) => {
-      const el = document.createElement('script');
-      const tid = setTimeout(() => { delete window[cb]; el.remove(); reject(new Error('시간 초과 (120초)')); }, 120000);
-      window[cb] = d => { clearTimeout(tid); delete window[cb]; el.remove(); d.error ? reject(new Error(d.error)) : resolve(d); };
-      el.src = `${INV_API_URL}?action=getReturnAnalysis&year=${_retState.year}&month=${_retState.month}&callback=${cb}`;
-      el.onerror = () => { clearTimeout(tid); delete window[cb]; el.remove(); reject(new Error('연결 오류')); };
-      document.head.appendChild(el);
-    });
-    _retCache[key] = data;
+    const data = await _retFetchMonth(_retState.year, _retState.month);
+    if (!data) throw new Error('데이터 없음');
     _retLastData = data;
     if (loadEl) loadEl.classList.remove('show');
     if (msgEl)  msgEl.textContent = `${data.period} 기준 · 캐시 6시간`;
     _retDispatch(tab, data);
+    if (tab === 'setting') {
+      _ret3mRates = null;
+      _retCalc3mAvg(_retState.year, _retState.month).then(rates => {
+        _ret3mRates = rates;
+        const stats = _retCalcStats(data.stores, _retState.year, _retState.month);
+        renderRetSetting(data, stats, rates);
+        if (msgEl) msgEl.textContent = `${data.period} 기준 · 3개월 평균 반영됨`;
+      });
+    }
   } catch(e) {
     if (loadEl) loadEl.classList.remove('show');
     if (msgEl)  msgEl.textContent = '오류: ' + e.message;
@@ -6185,24 +6256,25 @@ async function _retLoadAndRender(tab, force) {
 }
 
 function _retDispatch(tab, data) {
-  const stats = _retCalcStats(data.stores);
+  const stats = _retCalcStats(data.stores, _retState.year, _retState.month);
   if (tab === 'status')  renderRetStatus(data, stats);
   if (tab === 'trend')   renderRetTrend(data, stats);
-  if (tab === 'setting') renderRetSetting(data, stats);
+  if (tab === 'setting') renderRetSetting(data, stats, _ret3mRates);
 }
 
-function _retCalcStats(stores) {
-  let totalOut = 0, totalRet = 0;
+function _retCalcStats(stores, year, month) {
+  let totalSale = 0, totalRet = 0;
   const rated = [];
   INV_STORE_ORDER.forEach(n => {
     const s = stores[n] || {};
-    totalOut += s.out_qty || 0;
-    totalRet += s.ret_qty || 0;
-    if (s.ret_rate !== null && s.ret_rate !== undefined) rated.push(s.ret_rate);
+    const saleQty = _getStoreSaleQty(n, year, month);
+    totalSale += saleQty;
+    totalRet  += (s.ret_qty || 0);
+    if (saleQty > 0 && s.ret_qty > 0) rated.push(Math.round(s.ret_qty / saleQty * 1000) / 10);
   });
-  const avgRate  = rated.length ? Math.round(rated.reduce((a,b) => a+b, 0) / rated.length * 10) / 10 : 0;
-  const totalRate = totalOut > 0 ? Math.round(totalRet / totalOut * 1000) / 10 : 0;
-  return { totalOut, totalRet, totalRate, avgRate };
+  const totalRate = totalSale > 0 ? Math.round(totalRet / totalSale * 1000) / 10 : 0;
+  const avgRate   = rated.length ? Math.round(rated.reduce((a,b) => a+b, 0) / rated.length * 10) / 10 : 0;
+  return { totalSale, totalRet, totalRate, avgRate };
 }
 
 function _retRateSty(rate, avg) {
@@ -6216,31 +6288,34 @@ function renderRetStatus(data, stats) {
   const cards = document.getElementById('ret-status-cards');
   if (cards) {
     cards.innerHTML = `
-      <div class="card card-c1"><div class="card-label">전체 출고</div><div class="card-value">${stats.totalOut.toLocaleString()}</div><div class="card-sub">수량</div></div>
+      <div class="card card-c1"><div class="card-label">전체 판매</div><div class="card-value">${stats.totalSale.toLocaleString()}</div><div class="card-sub">판매수량</div></div>
       <div class="card card-c5"><div class="card-label">전체 반품</div><div class="card-value">${stats.totalRet.toLocaleString()}</div><div class="card-sub">수량</div></div>
-      <div class="card card-c4"><div class="card-label">전체 반품율</div><div class="card-value">${stats.totalRate}%</div><div class="card-sub">반품/출고</div></div>
-      <div class="card card-c6"><div class="card-label">매장 평균 반품율</div><div class="card-value">${stats.avgRate}%</div><div class="card-sub">출고있는 매장 기준</div></div>`;
+      <div class="card card-c4"><div class="card-label">전체 반품율</div><div class="card-value">${stats.totalRate}%</div><div class="card-sub">반품/판매</div></div>
+      <div class="card card-c6"><div class="card-label">매장 평균 반품율</div><div class="card-value">${stats.avgRate}%</div><div class="card-sub">판매있는 매장 기준</div></div>`;
   }
   const tbody = document.getElementById('ret-status-tbody');
   if (!tbody) return;
-  const rows = INV_STORE_ORDER
-    .map(n => ({ name: n, ...(data.stores[n] || { out_qty: 0, ret_qty: 0, ret_rate: null }) }))
-    .sort((a, b) => {
-      if (a.ret_rate === null && b.ret_rate === null) return 0;
-      if (a.ret_rate === null) return 1;
-      if (b.ret_rate === null) return -1;
-      return b.ret_rate - a.ret_rate;
-    });
+  const rows = INV_STORE_ORDER.map(n => {
+    const s = data.stores[n] || {};
+    const saleQty = _getStoreSaleQty(n, _retState.year, _retState.month);
+    const rate = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : null;
+    return { name: n, saleQty, ret_qty: s.ret_qty || 0, rate };
+  }).sort((a, b) => {
+    if (a.rate === null && b.rate === null) return 0;
+    if (a.rate === null) return 1;
+    if (b.rate === null) return -1;
+    return b.rate - a.rate;
+  });
   tbody.innerHTML = rows.map(r => {
-    const sty  = _retRateSty(r.ret_rate, stats.avgRate);
-    const diff = r.ret_rate !== null ? (r.ret_rate - stats.avgRate).toFixed(1) : null;
+    const sty  = _retRateSty(r.rate, stats.avgRate);
+    const diff = r.rate !== null ? (r.rate - stats.avgRate).toFixed(1) : null;
     const diffStr = diff !== null
       ? `<span style="color:${sty.color};font-size:12px">${parseFloat(diff) >= 0 ? '+' : ''}${diff}%</span>` : '';
     return `<tr style="${sty.bg}">
       <td>${r.name}</td>
-      <td>${r.out_qty > 0 ? r.out_qty.toLocaleString() : '-'}</td>
+      <td>${r.saleQty > 0 ? r.saleQty.toLocaleString() : '-'}</td>
       <td>${r.ret_qty > 0 ? r.ret_qty.toLocaleString() : '-'}</td>
-      <td style="font-weight:700;color:${sty.color}">${r.ret_rate !== null ? r.ret_rate + '%' : '-'}</td>
+      <td style="font-weight:700;color:${sty.color}">${r.rate !== null ? r.rate + '%' : '-'}</td>
       <td>${diffStr}</td>
     </tr>`;
   }).join('');
@@ -6251,8 +6326,13 @@ function renderRetTrend(data, stats) {
   const canvas = document.getElementById('ret-trend-chart');
   if (!canvas) return;
   const chartData = INV_STORE_ORDER
-    .map(n => ({ name: n, rate: data.stores[n]?.ret_rate ?? 0, out: data.stores[n]?.out_qty ?? 0 }))
-    .filter(d => d.out > 0)
+    .map(n => {
+      const s = data.stores[n] || {};
+      const saleQty = _getStoreSaleQty(n, _retState.year, _retState.month);
+      const rate = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : 0;
+      return { name: n, rate, sale: saleQty };
+    })
+    .filter(d => d.sale > 0)
     .sort((a, b) => b.rate - a.rate);
   const emptyEl = document.getElementById('ret-trend-empty');
   if (!chartData.length) {
@@ -6288,7 +6368,7 @@ function renderRetTrend(data, stats) {
         tooltip: {
           callbacks: {
             label: ctx => ctx.dataset.type === 'bar'
-              ? `반품율: ${ctx.raw}% (출고 ${chartData[ctx.dataIndex].out.toLocaleString()}개)`
+              ? `반품율: ${ctx.raw}% (판매 ${chartData[ctx.dataIndex].sale.toLocaleString()}개)`
               : `평균: ${ctx.raw}%`
           }
         }
@@ -6305,27 +6385,37 @@ function renderRetTrend(data, stats) {
   });
 }
 
-function renderRetSetting(data, stats) {
+function renderRetSetting(data, stats, rates3m = null) {
   const tbody = document.getElementById('ret-setting-tbody');
   if (!tbody) return;
   const all = getStoreSettings();
   let hasData = false;
   tbody.innerHTML = INV_STORE_ORDER.map(name => {
-    const actualRate  = data.stores[name]?.ret_rate ?? null;
+    const s = data.stores[name] || {};
+    const saleQty    = _getStoreSaleQty(name, _retState.year, _retState.month);
+    const curRate    = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : null;
+    const avg3m      = rates3m ? (rates3m[name] ?? null) : undefined;
     const settingRate = (all[name] || {}).retRate ?? 0;
-    const diff = actualRate !== null ? parseFloat((actualRate - settingRate).toFixed(1)) : null;
-    const diffStyle = diff !== null
+    const applyRate  = (avg3m != null) ? avg3m : curRate;
+    const diff = applyRate !== null ? parseFloat((applyRate - settingRate).toFixed(1)) : null;
+    const diffStyle  = diff !== null
       ? (diff > 1 ? 'color:#ef4444;font-weight:700' : diff < -1 ? 'color:#16a34a;font-weight:700' : 'color:#94a3b8')
       : '';
-    const rateSty = _retRateSty(actualRate, stats.avgRate);
-    if (actualRate !== null) hasData = true;
+    const curSty = _retRateSty(curRate, stats.avgRate);
+    if (curRate !== null) hasData = true;
+
+    const avg3mCell = rates3m === null
+      ? `<td style="color:#94a3b8;font-size:12px">계산 중...</td>`
+      : `<td style="font-weight:700;color:${avg3m != null ? _retRateSty(avg3m, stats.avgRate).color : '#94a3b8'}">${avg3m != null ? avg3m + '%' : '-'}</td>`;
+
     return `<tr>
       <td>${name}</td>
-      <td style="font-weight:700;color:${actualRate !== null ? rateSty.color : '#94a3b8'}">${actualRate !== null ? actualRate + '%' : '-'}</td>
+      <td style="color:${curRate !== null ? curSty.color : '#94a3b8'}">${curRate !== null ? curRate + '%' : '-'}</td>
+      ${avg3mCell}
       <td>${settingRate}%</td>
       <td style="${diffStyle}">${diff !== null ? (diff >= 0 ? '+' : '') + diff + '%' : '-'}</td>
-      <td style="text-align:center">${actualRate !== null
-        ? `<button class="btn-ret-apply" id="ret-apply-${name}" onclick="retApplyOne('${name}',${actualRate})">반영</button>`
+      <td style="text-align:center">${applyRate !== null
+        ? `<button class="btn-ret-apply" id="ret-apply-${name}" onclick="retApplyOne('${name}',${applyRate})">${rates3m !== null ? '3개월↗' : '반영'}</button>`
         : '<span style="color:#cbd5e1">-</span>'
       }</td>
     </tr>`;
@@ -6341,13 +6431,14 @@ function retApplyOne(name, rate) {
 }
 
 function retApplyAll() {
-  const key = `${_retState.year}-${String(_retState.month).padStart(2,'0')}`;
-  const data = _retCache[key];
-  if (!data) return;
-  const stats = _retCalcStats(data.stores);
+  if (!_retLastData) return;
   INV_STORE_ORDER.forEach(name => {
-    const rate = data.stores[name]?.ret_rate;
-    if (rate !== null && rate !== undefined) retApplyOne(name, rate);
+    const rate3m = _ret3mRates?.[name] ?? null;
+    if (rate3m !== null) { retApplyOne(name, rate3m); return; }
+    const s = _retLastData.stores[name] || {};
+    const saleQty = _getStoreSaleQty(name, _retState.year, _retState.month);
+    const curRate = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : null;
+    if (curRate !== null) retApplyOne(name, curRate);
   });
 }
 
