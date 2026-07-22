@@ -2381,10 +2381,10 @@ function tblTaxCumulative(id){
     if(!v26&&!v25)return;
     tot26+=v26;tot25+=v25;
     let costHtml='-',contribHtml='-',rateHtml='-';
-    if(hasPM&&PSTORES.includes(dname)){
-      const ytdCost=Math.round(PM26.reduce((s,m,i)=>s+calcTaxCost(dname,m.stores[dname]?.sales||0,i===pm_n-1?_rp:1),0));
-      const ytdContrib=Math.round(PM26.reduce((s,m,i)=>s+calcContrib(dname,m.stores[dname]?.sales||0,i===pm_n-1?_rp:1),0));
-      const ytdSales=PM26.reduce((s,m)=>s+(m.stores[dname]?.sales||0),0);
+    if(hasPM&&PSTORES.includes(name)){
+      const ytdCost=Math.round(PM26.reduce((s,m,i)=>s+calcTaxCost(dname,m.stores[name]?.sales||0,i===pm_n-1?_rp:1),0));
+      const ytdContrib=Math.round(PM26.reduce((s,m,i)=>s+calcContrib(dname,m.stores[name]?.sales||0,i===pm_n-1?_rp:1),0));
+      const ytdSales=PM26.reduce((s,m)=>s+(m.stores[name]?.sales||0),0);
       const rate=ytdSales?(ytdContrib/ytdSales*100):null;
       costHtml=M(ytdCost);
       contribHtml=`<span style="color:${ytdContrib>=0?'#22c55e':'#ef4444'}">${M(ytdContrib)}</span>`;
@@ -3907,11 +3907,13 @@ const profitYtdLbl=()=>{
 };
 
 function storeVarRate(name){
-  const s=getStoreSettings()[name]||SETTING_DEF;
+  const all=getStoreSettings();
+  const s=all[name]||all[STORE_ALIASES[name]]||SETTING_DEF;
   return (s.cost+s.mgr+s.shop+s.dlvy)/100;
 }
 function storeFixed(name){
-  const s=getStoreSettings()[name]||SETTING_DEF;
+  const all=getStoreSettings();
+  const s=all[name]||all[STORE_ALIASES[name]]||SETTING_DEF;
   let intrDepreciation=0;
   if (s.intr) {
     const intrMo = s.intrMo || 24;
@@ -3926,7 +3928,8 @@ function storeFixed(name){
   return s.supp+s.mgmt+intrDepreciation;
 }
 function calcTaxCostRate(name){
-  const s=getStoreSettings()[name]||SETTING_DEF;
+  const all=getStoreSettings();
+  const s=all[name]||all[STORE_ALIASES[name]]||SETTING_DEF;
   const tax=(s.tax??100);
   return tax<100?(s.cost+s.mgr+s.dlvy)/100:(s.cost+s.mgr+s.shop+s.dlvy)/100;
 }
