@@ -3761,7 +3761,7 @@ function memoLoadAll() {
   document.getElementById('memo-list').innerHTML = '<div class="memo-empty">불러오는 중...</div>';
   fetch(SCRIPT_URL + '?action=getMemos')
     .then(r => r.json())
-    .then(d => { memoData = (d.memos || []).sort((a,b) => b.reportDate > a.reportDate ? 1 : b.reportDate < a.reportDate ? -1 : 0); memoLoaded = true; memoRenderList(); })
+    .then(d => { memoData = (d.memos || []).sort((a,b) => new Date(b.reportDate) - new Date(a.reportDate)); memoLoaded = true; memoRenderList(); })
     .catch(() => {
       document.getElementById('memo-list').innerHTML =
         '<div class="memo-empty" style="color:#dc2626">불러오기 실패. 새로고침 해주세요.</div>';
