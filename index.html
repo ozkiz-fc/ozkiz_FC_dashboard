@@ -6263,7 +6263,7 @@ async function _retCalc3mAvg(year, month) {
     INV_STORE_ORDER.forEach(name => {
       if (!agg[name]) agg[name] = {ret: 0, sale: 0};
       agg[name].ret  += (data.stores[name]?.ret_qty || 0);
-      agg[name].sale += _getStoreSaleQty(name, y, m);
+      agg[name].sale += (data.stores[name]?.out_qty || 0);
     });
   });
   const rates = {};
@@ -6599,8 +6599,7 @@ function renderRetSetting(data, stats, rates3m = null) {
   let hasData = false;
   tbody.innerHTML = INV_STORE_ORDER.map(name => {
     const s = data.stores[name] || {};
-    const saleQty    = _getStoreSaleQty(name, _retState.year, _retState.month);
-    const curRate    = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : null;
+    const curRate    = s.ret_rate ?? null;
     const avg3m      = rates3m ? (rates3m[name] ?? null) : undefined;
     const settingRate = (all[name] || {}).retRate ?? 0;
     const applyRate  = (avg3m != null) ? avg3m : curRate;
@@ -6651,8 +6650,7 @@ function retApplyAll() {
     const rate3m = _ret3mRates?.[name] ?? null;
     if (rate3m !== null) { retApplyOne(name, rate3m); return; }
     const s = _retLastData.stores[name] || {};
-    const saleQty = _getStoreSaleQty(name, _retState.year, _retState.month);
-    const curRate = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : null;
+    const curRate = s.ret_rate ?? null;
     if (curRate !== null) retApplyOne(name, curRate);
   });
 }
