@@ -2390,6 +2390,16 @@ function tblTaxCumulative(id){
       contribHtml=`<span style="color:${ytdContrib>=0?'#22c55e':'#ef4444'}">${M(ytdContrib)}</span>`;
       rateHtml=rate!==null?`${rate.toFixed(1)}%`:'-';
       totCost+=ytdCost;totContrib+=ytdContrib;totSales+=ytdSales;
+    } else if(hasPM&&v26>0){
+      const ez26=MONTHS_26;
+      const ytdCost=Math.round(ez26.reduce((s,m,i)=>s+calcTaxCost(dname,m.stores[name]?.amount||0,i===n-1?_rp:1),0));
+      const ytdSales=ez26.reduce((s,m)=>s+(m.stores[name]?.amount||0),0);
+      const ytdContrib=Math.round(ez26.reduce((s,m,i)=>s+calcContrib(dname,m.stores[name]?.amount||0,i===n-1?_rp:1),0));
+      const rate=ytdSales?(ytdContrib/ytdSales*100):null;
+      costHtml=M(ytdCost);
+      contribHtml=`<span style="color:${ytdContrib>=0?'#22c55e':'#ef4444'}">${M(ytdContrib)}</span>`;
+      rateHtml=rate!==null?`${rate.toFixed(1)}%`:'-';
+      totCost+=ytdCost;totContrib+=ytdContrib;totSales+=ytdSales;
     }
     rows+=`<tr><td>${dname}</td>
       <td>${M(v26)}</td>
