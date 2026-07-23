@@ -5876,12 +5876,12 @@ function renderCostTotal() {
   _withFilter(() => {
     const n = PM26.length, pr = prorateRatio();
     const stores = PSTORES.length ? PSTORES : INV_STORE_ORDER;
-    const aggr = { cost:0, mgr:0, shop:0, dlvy:0, supp:0, mgmt:0, intr:0, totalCost:0, contrib:0 };
+    const aggr = { cost:0, mgr:0, shop:0, dlvy:0, supp:0, mgmt:0, intr:0, retLoss:0, totalCost:0, contrib:0 };
     let totRevenue = 0;
     const storeAggr = {};
 
     stores.forEach(name => {
-      const bd = { cost:0, mgr:0, shop:0, dlvy:0, supp:0, mgmt:0, intr:0, totalCost:0, contrib:0, revenue:0 };
+      const bd = { cost:0, mgr:0, shop:0, dlvy:0, supp:0, mgmt:0, intr:0, retLoss:0, totalCost:0, contrib:0, revenue:0 };
       PM26.forEach((m, i) => {
         const sales = m.stores[name]?.sales || 0;
         const b = storeCostBreakdown(name, sales, i === n-1 ? pr : 1);
