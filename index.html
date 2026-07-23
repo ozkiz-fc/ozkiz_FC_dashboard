@@ -6360,7 +6360,7 @@ function renderRetTrendAll(yearData, year) {
     if (!md) return { m, totalSale: null, totalRet: null, rate: null };
     let totalSale = 0, totalRet = 0;
     INV_STORE_ORDER.forEach(n => {
-      totalSale += _getStoreSaleQty(n, year, m);
+      totalSale += (md.stores?.[n]?.out_qty || 0);
       totalRet  += (md.stores?.[n]?.ret_qty || 0);
     });
     return { m, totalSale, totalRet, rate: totalSale > 0 ? Math.round(totalRet / totalSale * 1000) / 10 : null };
@@ -6428,7 +6428,7 @@ function renderRetTrendStore(yearData, year, storeName) {
     const m  = i + 1;
     const md = yearData?.months?.[m];
     if (!md) return { m, saleQty: null, retQty: null, rate: null };
-    const saleQty = _getStoreSaleQty(storeName, year, m);
+    const saleQty = md?.stores?.[storeName]?.out_qty || 0;
     const retQty  = md.stores?.[storeName]?.ret_qty || 0;
     return { m, saleQty, retQty, rate: saleQty > 0 ? Math.round(retQty / saleQty * 1000) / 10 : null };
   });
@@ -6555,7 +6555,7 @@ function _retCalcStats(stores, year, month) {
   const rated = [];
   INV_STORE_ORDER.forEach(n => {
     const s = stores[n] || {};
-    const saleQty = _getStoreSaleQty(n, year, month);
+    const saleQty = s.out_qty || 0;
     totalSale += saleQty;
     totalRet  += (s.ret_qty || 0);
     if (saleQty > 0 && s.ret_qty > 0) rated.push(Math.round(s.ret_qty / saleQty * 1000) / 10);
@@ -6585,7 +6585,7 @@ function renderRetStatus(data, stats) {
   if (!tbody) return;
   const rows = INV_STORE_ORDER.map(n => {
     const s = data.stores[n] || {};
-    const saleQty = _getStoreSaleQty(n, _retState.year, _retState.month);
+    const saleQty = s.out_qty || 0;
     const rate = (saleQty > 0 && s.ret_qty > 0) ? Math.round(s.ret_qty / saleQty * 1000) / 10 : null;
     return { name: n, saleQty, ret_qty: s.ret_qty || 0, rate };
   }).sort((a, b) => {
