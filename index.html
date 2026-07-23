@@ -459,11 +459,17 @@ tr:hover td{background:#f8fafc}
         <span class="nav-chevron">▾</span>
       </button>
       <div class="nav-sub collapsed" id="sub-best">
-        <button class="nav-sub-item" id="nav-best-overall" onclick="switchMain('best','overall')">
-          <span class="nav-sub-dot">●</span> 전체
+        <button class="nav-sub-item" id="nav-best-overall-best" onclick="switchMain('best','overall','best')">
+          <span class="nav-sub-dot">●</span> 전체 · 기간별 베스트
         </button>
-        <button class="nav-sub-item" id="nav-best-store" onclick="switchMain('best','store')">
-          <span class="nav-sub-dot">●</span> 매장별
+        <button class="nav-sub-item" id="nav-best-overall-table" onclick="switchMain('best','overall','table')">
+          <span class="nav-sub-dot">●</span> 전체 · 전체 상품
+        </button>
+        <button class="nav-sub-item" id="nav-best-store-best" onclick="switchMain('best','store','best')">
+          <span class="nav-sub-dot">●</span> 매장별 · 기간별 베스트
+        </button>
+        <button class="nav-sub-item" id="nav-best-store-table" onclick="switchMain('best','store','table')">
+          <span class="nav-sub-dot">●</span> 매장별 · 전체 상품
         </button>
       </div>
     </div>
@@ -764,12 +770,7 @@ tr:hover td{background:#f8fafc}
         <span class="page-title">📦 제품관리</span>
         <span id="best-updated-at" class="updated"></span>
       </div>
-      <div class="topbar-right">
-        <div class="view-toggle-wrap">
-          <button id="btn-view-best" class="view-toggle-btn active" onclick="bestSwitchView('best')">📊 기간별 베스트</button>
-          <button id="btn-view-table" class="view-toggle-btn" onclick="bestSwitchView('table')">📋 전체 상품</button>
-        </div>
-      </div>
+      <div class="topbar-right"></div>
     </div>
     <!-- 매장 선택 알약 — 기간별 베스트·전체 상품 공용 -->
     <div class="store-picker" id="store-picker"></div>
@@ -2109,7 +2110,7 @@ function toggleGroup(grpId, subId) {
   else closeAllGroups();
 }
 
-function switchMain(tab, subTab) {
+function switchMain(tab, subTab, viewMode) {
   state.main = tab;
 
   // 섹션 표시
@@ -2128,8 +2129,10 @@ function switchMain(tab, subTab) {
   document.getElementById('nav-store').classList.toggle('active', tab==='store');
   document.getElementById('nav-profit-total').classList.toggle('active', tab==='profit-total');
   document.getElementById('nav-profit-store').classList.toggle('active', tab==='profit-store');
-  document.getElementById('nav-best-overall').classList.toggle('active', isBest && bTab==='overall');
-  document.getElementById('nav-best-store').classList.toggle('active', isBest && bTab==='store');
+  document.getElementById('nav-best-overall-best').classList.toggle('active', isBest && bTab==='overall' && bestState.view==='best');
+  document.getElementById('nav-best-overall-table').classList.toggle('active', isBest && bTab==='overall' && bestState.view==='table');
+  document.getElementById('nav-best-store-best').classList.toggle('active', isBest && bTab==='store' && bestState.view==='best');
+  document.getElementById('nav-best-store-table').classList.toggle('active', isBest && bTab==='store' && bestState.view==='table');
   document.getElementById('nav-memo').classList.toggle('active', tab==='memo');
   document.getElementById('nav-inv-total').classList.toggle('active', tab==='inv-total');
   document.getElementById('nav-inv-store').classList.toggle('active', tab==='inv-store');
@@ -2175,10 +2178,11 @@ function switchMain(tab, subTab) {
   else if (tab==='profit-store') renderProfitStore();
   else if (tab==='best') {
     if (subTab) bestState.tab = subTab;
+    if (viewMode) bestSwitchView(viewMode);
     document.getElementById('store-picker').style.display = bestState.tab==='store' ? 'flex' : 'none';
     if (!bestState.startDate) bestSetPeriod('yesterday');
     else bestLoadData();
-    if (_prodData && document.getElementById('best-view-table').style.display!=='none') {
+    if (_prodData && bestState.view==='table') {
       _prodStorePage = 50;
       if (bestState.tab==='store') renderProdStoreView(); else renderProdTable();
     }
@@ -2757,7 +2761,7 @@ const BEST_STORE_COLORS = {
 const BEST_SS_TTL = 60 * 60 * 1000; // 60분
 const bestState = {
   startDate: '', endDate: '',
-  tab: 'overall', store: BEST_STORES[0],
+  tab: 'overall', view: 'best', store: BEST_STORES[0],
   mode: 'best', sort: 'amount',
   cacheOverall: {}, cacheStores: {}
 };
@@ -3150,8 +3154,7 @@ function buildDistBar(st, total) {
 }
 
 function bestSwitchView(mode) {
-  document.getElementById('btn-view-best').classList.toggle('active', mode==='best');
-  document.getElementById('btn-view-table').classList.toggle('active', mode==='table');
+  bestState.view = mode;
   document.getElementById('best-view-best').style.display  = mode==='best'  ? '' : 'none';
   document.getElementById('best-view-table').style.display = mode==='table' ? '' : 'none';
   document.getElementById('store-picker').style.display    = bestState.tab==='store' ? 'flex' : 'none';
@@ -3160,6 +3163,11 @@ function bestSwitchView(mode) {
     else if (bestState.tab==='store') renderProdStoreView();
     else renderProdTable();
   }
+  const isBest = state.main === 'best';
+  document.getElementById('nav-best-overall-best').classList.toggle('active', isBest && bestState.tab==='overall' && mode==='best');
+  document.getElementById('nav-best-overall-table').classList.toggle('active', isBest && bestState.tab==='overall' && mode==='table');
+  document.getElementById('nav-best-store-best').classList.toggle('active', isBest && bestState.tab==='store' && mode==='best');
+  document.getElementById('nav-best-store-table').classList.toggle('active', isBest && bestState.tab==='store' && mode==='table');
 }
 
 function loadProdTable() {
