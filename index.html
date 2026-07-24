@@ -3313,7 +3313,12 @@ function loadInvProdTable(cid) {
       renderInvStoreStrategy();
       const sel = Array.from(invStoreSel);
       if (sel.length === 1) {
-        const catProds = buildCatProductsFromProdData(sel[0]);
+        const name = sel[0];
+        const topProds = buildTopProductsFromProdData(name);
+        if (topProds) {
+          tblInvTopProducts(document.getElementById('table-inv-top'), topProds, name);
+        }
+        const catProds = buildCatProductsFromProdData(name);
         if (catProds) { chartInvCategory('canvas-inv-cat', catProds); document.getElementById('wrap-inv-cat').style.display=''; }
       }
     }
@@ -5257,8 +5262,14 @@ function renderInvStoreContent() {
   const tbl = document.getElementById('table-inv-top');
   if (names.length === 1) {
     const name = names[0];
-    if (invTopCache[name]) tblInvTopProducts(tbl, invTopCache[name], name);
-    else invLoadTopProducts(name);
+    const topProds = buildTopProductsFromProdData(name);
+    if (topProds) {
+      tblInvTopProducts(tbl, topProds, name);
+    } else if (invTopCache[name]) {
+      tblInvTopProducts(tbl, invTopCache[name], name);
+    } else {
+      invLoadTopProducts(name);
+    }
     const catProds = buildCatProductsFromProdData(name);
     if (catProds) chartInvCategory('canvas-inv-cat', catProds);
     else if (invTopCache[name]) chartInvCategory('canvas-inv-cat', invTopCache[name]);
@@ -5361,6 +5372,19 @@ function buildCatProductsFromProdData(storeName) {
     const qty = storeName ? ((p.si||{})[storeName] || 0) : ((p.ib||0) + (p.is||0));
     return { name: p.n, qty, cost: (p.op||0) * qty };
   }).filter(p => p.qty > 0);
+}
+
+function buildTopProductsFromProdData(storeName) {
+  if (!_prodData) return null;
+  return _prodData
+    .map(p => {
+      const qty     = ((p.si||{})[storeName] || 0);
+      const cum_qty = (p.st||{})[storeName] ?? null;
+      return { name: p.n, qty, cost: (p.op||0) * qty, cum_qty, img: p.img };
+    })
+    .filter(p => p.qty > 0)
+    .sort((a, b) => b.cost - a.cost)
+    .slice(0, 20);
 }
 
 function chartInvCategory(cid, products) {
