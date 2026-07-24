@@ -53,6 +53,7 @@ body{font-family:'Malgun Gothic','Segoe UI',sans-serif;background:#f0f4f8;color:
 
 /* ── 요약 카드 ── */
 .summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px 28px}
+#cards-inv{grid-template-columns:repeat(3,1fr)}
 .card{background:#fff;border-radius:12px;padding:20px 22px;border:1.5px solid #e2e8f0;border-top-width:4px;box-shadow:0 1px 4px #0000000a}
 .card-c1{border-top-color:#0ea5e9}.card-c2{border-top-color:#22c55e}
 .card-c3{border-top-color:#8b5cf6}.card-c4{border-top-color:#f97316}
@@ -873,6 +874,7 @@ tr:hover td{background:#f8fafc}
       <div class="topbar-left">
         <span class="page-title">📦 재고현황 · 전체</span>
         <span id="inv-updated-at" class="updated"></span>
+        <span id="inv-days-badge" class="note-tag" style="margin-left:4px;font-size:12px"></span>
       </div>
       <div class="topbar-right">
         <button class="refresh-btn" onclick="invRefresh()" title="새로고침">🔄</button>
@@ -4482,27 +4484,38 @@ function renderInvTotal() {
       const col = diff > 0 ? '#16a34a' : '#dc2626';
       return `<span style="color:${col};font-size:13px;font-weight:600;margin-left:6px">${diff>0?'▲':'▼'}${fmt(Math.abs(diff))}</span>`;
     };
-    const dQty  = chg(lat.total_qty||0, prev.total_qty||0, v => v.toLocaleString()+'개');
-    const dCost = chg(
-      Math.floor((lat.total_cost||0)/10000),
-      Math.floor((prev.total_cost||0)/10000),
-      v => v.toLocaleString()+'만원'
-    );
+    const dQty       = chg(lat.total_qty||0,  prev?.total_qty||0,  v => v.toLocaleString()+'개');
+    const dBonsaQty  = chg(lat.bonsa_qty||0,  prev?.bonsa_qty||0,  v => v.toLocaleString()+'개');
+    const dStoreQty  = chg(lat.store_qty||0,  prev?.store_qty||0,  v => v.toLocaleString()+'개');
+    const dCost      = chg(Math.floor((lat.total_cost||0)/10000),  Math.floor((prev?.total_cost||0)/10000),  v => v.toLocaleString()+'만원');
+    const dBonsaCost = chg(Math.floor((lat.bonsa_cost||0)/10000),  Math.floor((prev?.bonsa_cost||0)/10000),  v => v.toLocaleString()+'만원');
+    const dStoreCost = chg(Math.floor((lat.store_cost||0)/10000),  Math.floor((prev?.store_cost||0)/10000),  v => v.toLocaleString()+'만원');
+    const daysBadge = document.getElementById('inv-days-badge');
+    if (daysBadge) daysBadge.textContent = `📋 ${hist.length}일 적재`;
     document.getElementById('cards-inv').innerHTML = `
       <div class="card card-c1">
         <div class="card-label">전체 재고 수량</div>
         <div class="card-value" style="font-size:26px">${(lat.total_qty||0).toLocaleString()}개${dQty}</div>
-        <div class="card-sub">본사: ${(lat.bonsa_qty||0).toLocaleString()}개 · 매장: ${(lat.store_qty||0).toLocaleString()}개</div>
+      </div>
+      <div class="card card-c3">
+        <div class="card-label">본사 재고 수량</div>
+        <div class="card-value" style="font-size:26px">${(lat.bonsa_qty||0).toLocaleString()}개${dBonsaQty}</div>
+      </div>
+      <div class="card card-c4">
+        <div class="card-label">매장 재고 수량</div>
+        <div class="card-value" style="font-size:26px">${(lat.store_qty||0).toLocaleString()}개${dStoreQty}</div>
       </div>
       <div class="card card-c2">
         <div class="card-label">전체 재고 원가</div>
         <div class="card-value" style="font-size:24px">${fmtW(lat.total_cost)}${dCost}</div>
-        <div class="card-sub">본사: ${fmtW(lat.bonsa_cost)} · 매장: ${fmtW(lat.store_cost)}</div>
       </div>
-      <div class="card card-c3">
-        <div class="card-label">데이터 적재 일수</div>
-        <div class="card-value" style="font-size:28px">${hist.length}일</div>
-        <div class="card-sub">매일 오전 6시 자동 저장</div>
+      <div class="card card-c5">
+        <div class="card-label">본사 재고 원가</div>
+        <div class="card-value" style="font-size:24px">${fmtW(lat.bonsa_cost)}${dBonsaCost}</div>
+      </div>
+      <div class="card card-c6">
+        <div class="card-label">매장 재고 원가</div>
+        <div class="card-value" style="font-size:24px">${fmtW(lat.store_cost)}${dStoreCost}</div>
       </div>`;
   } else {
     document.getElementById('cards-inv').innerHTML =
