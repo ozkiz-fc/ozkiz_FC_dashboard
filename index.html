@@ -947,7 +947,7 @@ tr:hover td{background:#f8fafc}
         <canvas id="canvas-inv-store"></canvas>
       </div>
       <div class="chart-wrap" id="wrap-inv-cat" style="display:none">
-        <div class="chart-title">카테고리별 원가 비중 (상위 제품 기준)</div>
+        <div class="chart-title">카테고리별 재고 현황 (전체 제품 기준)</div>
         <div style="height:260px;position:relative"><canvas id="canvas-inv-cat"></canvas></div>
       </div>
       <div id="table-inv-top" class="table-wrap"></div>
@@ -3309,7 +3309,14 @@ function loadInvProdTable(cid) {
     try { sessionStorage.setItem(ssKey, JSON.stringify(_prodData)); } catch(_) {}
     renderInvProdList(cid);
     if (state.main==='inv-total') renderInvStrategy();
-    if (state.main==='inv-store') renderInvStoreStrategy();
+    if (state.main==='inv-store') {
+      renderInvStoreStrategy();
+      const sel = Array.from(invStoreSel);
+      if (sel.length === 1) {
+        const catProds = buildCatProductsFromProdData(sel[0]);
+        if (catProds) { chartInvCategory('canvas-inv-cat', catProds); document.getElementById('wrap-inv-cat').style.display=''; }
+      }
+    }
   };
   document.head.appendChild(sc);
 }
@@ -5250,12 +5257,11 @@ function renderInvStoreContent() {
   const tbl = document.getElementById('table-inv-top');
   if (names.length === 1) {
     const name = names[0];
-    if (invTopCache[name]) {
-      tblInvTopProducts(tbl, invTopCache[name], name);
-      chartInvCategory('canvas-inv-cat', invTopCache[name]);
-    } else {
-      invLoadTopProducts(name);
-    }
+    if (invTopCache[name]) tblInvTopProducts(tbl, invTopCache[name], name);
+    else invLoadTopProducts(name);
+    const catProds = buildCatProductsFromProdData(name);
+    if (catProds) chartInvCategory('canvas-inv-cat', catProds);
+    else if (invTopCache[name]) chartInvCategory('canvas-inv-cat', invTopCache[name]);
   } else {
     tbl.innerHTML = '<div style="padding:32px;color:#94a3b8;text-align:center;font-size:14px">매장을 1개만 선택하면 제품별 재고를 볼 수 있습니다.</div>';
     killChart('canvas-inv-cat');
@@ -5341,11 +5347,20 @@ async function invLoadTopProducts(storeName) {
     const result = await callInvTopProducts(storeName);
     invTopCache[storeName] = result.products || [];
     tblInvTopProducts(tbl, invTopCache[storeName], storeName);
-    chartInvCategory('canvas-inv-cat', invTopCache[storeName]);
+    const catProds = buildCatProductsFromProdData(storeName) || invTopCache[storeName];
+    chartInvCategory('canvas-inv-cat', catProds);
   } catch(e) {
     tbl.innerHTML = `<div style="padding:20px;color:#dc2626">⚠️ 로드 실패: ${e.message}<br>
       <button onclick="invLoadTopProducts('${storeName.replace(/'/g,"\\'")}')" style="margin-top:12px;padding:6px 18px;background:#e2e8f0;border:none;border-radius:4px;cursor:pointer">재시도</button></div>`;
   }
+}
+
+function buildCatProductsFromProdData(storeName) {
+  if (!_prodData) return null;
+  return _prodData.map(p => {
+    const qty = storeName ? ((p.si||{})[storeName] || 0) : ((p.ib||0) + (p.is||0));
+    return { name: p.n, qty, cost: (p.op||0) * qty };
+  }).filter(p => p.qty > 0);
 }
 
 function chartInvCategory(cid, products) {
